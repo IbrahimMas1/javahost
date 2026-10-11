@@ -1,0 +1,78 @@
+# Builds the mod and the installers for every platform.
+# Download the results from the run's "Artifacts" section.
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  mod:
+    name: Mod + installer jar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - name: Build
+        run: ./gradlew build :installer:fatJar :installer:test --no-configuration-cache
+      - uses: actions/upload-artifact@v4
+        with:
+          name: javahost-mod
+          path: build/libs/javahost-*.jar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: javahost-installer-jar
+          path: installer/build/dist/*.jar
+
+  macos:
+    name: macOS installer (.dmg)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - name: Build .dmg
+        run: ./gradlew :installer:jpackageMac --no-configuration-cache
+      - uses: actions/upload-artifact@v4
+        with:
+          name: javahost-installer-macos
+          path: installer/build/jpackage/*.dmg
+
+  windows:
+    name: Windows installer (.exe)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - name: Install WiX (needed by jpackage for .exe)
+        run: choco install wixtoolset -y --no-progress
+      - name: Build .exe
+        id: exe
+        continue-on-error: true
+        shell: bash
+        run: |
+          export PATH="$PATH:/c/Program Files (x86)/WiX Toolset v3.14/bin"
+          ./gradlew :installer:jpackageWindows --no-configuration-cache
+      - name: Build portable folder (fallback)
+        if: steps.exe.outcome != 'success'
+        shell: bash
+        run: ./gradlew :installer:jpackageAppImage --no-configuration-cache
+      - name: Zip portable folder
+        if: steps.exe.outcome != 'success'
+        shell: pwsh
+        run: Compress-Archive -Path "installer/build/jpackage/JavaHost Installer" -DestinationPath "installer/build/jpackage/JavaHost-Installer-Windows-portable.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: javahost-installer-windows
+          path: |
+            installer/build/jpackage/*.exe
+            installer/build/jpackage/*.zip

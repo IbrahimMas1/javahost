@@ -1,0 +1,40 @@
+{
+	"schemaVersion": 1,
+	"id": "javahost",
+	"version": "${version}",
+	"name": "JavaHost",
+	"description": "Host your singleplayer world for friends without a server, talk with proximity voice chat, share your resource packs and shaders with everyone who joins, and boost your FPS.",
+	"authors": [
+		"JavaHost"
+	],
+	"license": "MIT",
+	"icon": "assets/javahost/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.javahost.JavaHost"
+		],
+		"client": [
+			"com.javahost.client.JavaHostClient"
+		]
+	},
+	"mixins": [
+		{
+			"config": "javahost.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"sodium": "*",
+		"lithium": "*",
+		"ferritecore": "*",
+		"iris": "*",
+		"e4mc": "*"
+	}
+}

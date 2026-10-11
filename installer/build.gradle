@@ -1,0 +1,142 @@
+// The JavaHost installer: a small desktop app that installs Fabric, Fabric API, JavaHost and optional
+// mods into a separate "JavaHost" launcher profile.
+//   ./gradlew :installer:fatJar        -> runnable jar (needs Java installed)
+//   ./gradlew :installer:jpackageMac   -> macOS .dmg with its own Java (no install needed)
+//   ./gradlew :installer:jpackageWindows (on Windows) -> .exe installer
+plugins {
+	id 'java'
+	id 'application'
+}
+
+repositories {
+	mavenCentral()
+}
+
+def modVersion = rootProject.version.toString()
+def minecraftVersion = rootProject.property("minecraft_version").toString()
+
+dependencies {
+	implementation "com.google.code.gson:gson:2.14.0"
+	implementation "com.formdev:flatlaf:3.7.2"
+
+	testImplementation "org.junit.jupiter:junit-jupiter:5.14.3"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+// The Modrinth downloader is shared with the mod (it is plain Java + Gson).
+def sharedSrc = layout.buildDirectory.dir("shared-src")
+def copyShared = tasks.register("copyShared", Copy) {
+	from(rootProject.file("src/main/java")) {
+		include "com/javahost/util/**"
+	}
+	into sharedSrc
+}
+sourceSets.main.java.srcDir(copyShared)
+
+tasks.withType(JavaCompile).configureEach {
+	options.release = 21
+}
+
+application {
+	mainClass = "com.javahost.installer.InstallerApp"
+}
+
+def generatedRes = layout.buildDirectory.dir("generated-res")
+def writeInstallerProperties = tasks.register("writeInstallerProperties") {
+	def out = generatedRes.map { it.file("com/javahost/installer/installer.properties") }
+	inputs.property("modVersion", modVersion)
+	inputs.property("minecraftVersion", minecraftVersion)
+	outputs.file(out)
+	doLast {
+		def file = out.get().asFile
+		file.parentFile.mkdirs()
+		file.text = "mod_version=${modVersion}\nminecraft_version=${minecraftVersion}\n"
+	}
+}
+
+processResources {
+	dependsOn writeInstallerProperties
+	from(generatedRes)
+	// The mod itself travels inside the installer.
+	from(rootProject.tasks.named("jar")) {
+		into "com/javahost/installer"
+		rename { "javahost.jar" }
+	}
+}
+
+def fatJar = tasks.register("fatJar", Jar) {
+	group = "build"
+	description = "Builds a single runnable installer jar."
+	archiveFileName = "JavaHost-Installer-${modVersion}.jar"
+	destinationDirectory = layout.buildDirectory.dir("dist")
+	manifest {
+		attributes "Main-Class": "com.javahost.installer.InstallerApp", "Implementation-Version": modVersion
+	}
+	from sourceSets.main.output
+	dependsOn configurations.runtimeClasspath
+	from {
+		configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+	} {
+		exclude "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "META-INF/versions/**/module-info.class", "module-info.class"
+	}
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+def jpackageCommon = { String type, String icon ->
+	[
+		"jpackage",
+		"--type", type,
+		"--name", "JavaHost Installer",
+		"--app-version", modVersion,
+		"--vendor", "JavaHost",
+		"--description", "Installs JavaHost for Minecraft ${minecraftVersion}",
+		"--input", layout.buildDirectory.dir("dist").get().asFile.absolutePath,
+		"--main-jar", "JavaHost-Installer-${modVersion}.jar",
+		"--main-class", "com.javahost.installer.InstallerApp",
+		"--icon", file(icon).absolutePath,
+		"--dest", layout.buildDirectory.dir("jpackage").get().asFile.absolutePath,
+		"--add-modules", "java.base,java.desktop,java.net.http,java.logging,java.xml,java.management,jdk.crypto.ec,jdk.charsets,jdk.management",
+		"--jlink-options", "--strip-debug --no-man-pages --no-header-files",
+	]
+}
+
+tasks.register("jpackageMac", Exec) {
+	group = "distribution"
+	description = "Builds the macOS .dmg (run on a Mac)."
+	dependsOn fatJar
+	doFirst {
+		delete layout.buildDirectory.dir("jpackage")
+	}
+	commandLine jpackageCommon("dmg", "packaging/JavaHost.icns")
+}
+
+tasks.register("jpackageWindows", Exec) {
+	group = "distribution"
+	description = "Builds the Windows .exe installer (run on Windows with WiX installed)."
+	dependsOn fatJar
+	commandLine jpackageCommon("exe", "packaging/JavaHost.ico") + [
+		"--win-dir-chooser", "--win-shortcut", "--win-menu", "--win-menu-group", "JavaHost",
+		"--win-upgrade-uuid", "6f2c1b3e-58b5-4c2a-9d0e-2f6a7d9c4b11",
+	]
+}
+
+tasks.register("jpackageAppImage", Exec) {
+	group = "distribution"
+	description = "Builds a portable app folder (any OS, no extra tools needed)."
+	dependsOn fatJar
+	doFirst {
+		delete layout.buildDirectory.dir("jpackage")
+	}
+	commandLine jpackageCommon("app-image", System.getProperty("os.name").startsWith("Windows") ? "packaging/JavaHost.ico" : "packaging/JavaHost.icns")
+}
+
+test {
+	useJUnitPlatform()
+	// The installer tests download real files from Fabric and Modrinth.
+	systemProperty "javahost.installer.embeddedMod", rootProject.tasks.named("jar").get().archiveFile.get().asFile.absolutePath
+	testLogging {
+		events "passed", "failed", "skipped"
+		showStandardStreams = true
+		exceptionFormat = "full"
+	}
+}

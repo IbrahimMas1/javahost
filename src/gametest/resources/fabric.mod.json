@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"id": "javahost-gametest",
+	"version": "1.0.0",
+	"name": "JavaHost Game Tests",
+	"environment": "*",
+	"entrypoints": {
+		"fabric-client-gametest": [
+			"com.javahost.test.JavaHostClientTest"
+		]
+	},
+	"depends": {
+		"javahost": "*"
+	}
+}
