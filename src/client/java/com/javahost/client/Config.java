@@ -29,6 +29,8 @@ public final class Config {
 	public boolean shareResourcePacks = true;
 	public boolean shareShaders = true;
 	public boolean voiceEnabledWhenHosting = true;
+	/** Only friends can join the hosted world (strangers with the address are turned away). */
+	public boolean friendsOnly = true;
 	public int voiceRange = 48;
 
 	// Joining

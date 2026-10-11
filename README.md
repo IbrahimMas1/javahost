@@ -2,6 +2,7 @@
 
 A Fabric mod for Minecraft **26.3** (Java Edition).
 
+- **Friends and one-click invites.** Add a friend by their Minecraft name. Click **Invite** and their game shows "Alex invited you to play" with a **Join** button. JavaHost opens your world, picks the best connection and falls back automatically. You don't share codes or links.
 - **Host your world from your own PC.** Open your singleplayer world and send friends an invite code. You don't need a rented server. JavaHost tries every way to reach you in turn:
   1. **Internet:** your router opens the port automatically (UPnP).
   2. **IPv6:** works even when your internet provider shares one public address between homes (CGNAT).
@@ -11,6 +12,7 @@ A Fabric mod for Minecraft **26.3** (Java Edition).
 - **Shared look.** Guests get the host's resource packs and **shader, including its settings** (with Iris). They're asked first, and everything goes back to normal when they leave.
 - **Performance.** One click installs Sodium, Lithium, FerriteCore, ImmediatelyFast and Entity Culling for your exact version, checked against Modrinth's hashes. **Quick Tune** gives FPS-friendly settings and can undo them.
 - **Modern menu.** Press `J` in game, or click **JavaHost** on the title or pause screen.
+- Friends need a Microsoft-account login, which every normal Minecraft purchase has.
 
 ## Install (recommended): the JavaHost Installer
 
@@ -29,6 +31,14 @@ The installer:
 Run it again to update or uninstall.
 
 Friends need JavaHost too to get voice and your packs. The easiest way is to send them the installer. Players without mods can still join through the relay address.
+
+## How friends work (no JavaHost server)
+
+- Friend requests and invites travel through **ntfy.sh**, a free public message relay. Each player has a mailbox named after their account ID.
+- **Requests are signed** with your Mojang-certified chat key (the same one Minecraft signs chat with), so nobody can pretend to be you.
+- **Invites are encrypted** with a key only you and that friend share. Nobody else can read your world's address.
+- **Friends-only worlds (default):** players who aren't your friends are turned away when they try to join. Minecraft itself verifies accounts. You can switch this off on the Host tab.
+- **Offline friends:** messages are kept for 12 hours, so a friend who's offline gets your request when they next play.
 
 ## Limits
 

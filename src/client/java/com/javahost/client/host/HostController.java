@@ -63,6 +63,7 @@ public final class HostController {
 			server.unpublishServer();
 		}
 		HostState.setVoice(config.voiceEnabledWhenHosting, config.voiceRange);
+		HostState.setFriendsOnly(config.friendsOnly);
 		boolean relayNow = Connectivity.RelayMode.valueOf(config.relayMode) == Connectivity.RelayMode.ALWAYS
 				&& E4mcCompat.isInstalled();
 		// e4mc would otherwise start its relay on every publish; we decide when it's needed.
@@ -108,6 +109,7 @@ public final class HostController {
 		}
 		hosting = false;
 		HostState.clear();
+		HostState.setFriendsOnly(false);
 		packStatus = "";
 	}
 

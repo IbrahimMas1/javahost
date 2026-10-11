@@ -3,25 +3,21 @@ package com.javahost.client.gui.ui;
 import java.util.function.Consumer;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.AbstractButton;
-import net.minecraft.client.gui.narration.NarrationElementOutput;
-import net.minecraft.client.input.InputWithModifiers;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 
-/** A flat rounded button with an optional icon and a smooth hover. */
-public class FlatButton extends AbstractButton {
+/** A flat rounded button with an optional icon and a smooth hover. A real {@link Button}, so tools and tests can press it. */
+public class FlatButton extends Button {
 	public enum Style { PRIMARY, SECONDARY, DANGER, GHOST }
 
-	private final Consumer<FlatButton> onPress;
 	private Style style;
 	private Icons icon;
 	private float hover;
 
 	public FlatButton(int x, int y, int width, int height, Component label, Style style, Icons icon, Consumer<FlatButton> onPress) {
-		super(x, y, width, height, label);
+		super(x, y, width, height, label, button -> onPress.accept((FlatButton) button), DEFAULT_NARRATION);
 		this.style = style;
 		this.icon = icon;
-		this.onPress = onPress;
 	}
 
 	public FlatButton(int width, int height, Component label, Style style, Icons icon, Consumer<FlatButton> onPress) {
@@ -36,11 +32,6 @@ public class FlatButton extends AbstractButton {
 	public FlatButton setIcon(Icons icon) {
 		this.icon = icon;
 		return this;
-	}
-
-	@Override
-	public void onPress(InputWithModifiers input) {
-		onPress.accept(this);
 	}
 
 	@Override
@@ -91,10 +82,5 @@ public class FlatButton extends AbstractButton {
 			icon.draw(g, cx, cy, text);
 		}
 		Draw.text(g, shown, cx + iconSpace, cy + 1, text);
-	}
-
-	@Override
-	protected void updateWidgetNarration(NarrationElementOutput output) {
-		defaultButtonNarrationText(output);
 	}
 }

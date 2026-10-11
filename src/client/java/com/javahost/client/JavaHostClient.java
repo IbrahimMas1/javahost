@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.javahost.JavaHost;
+import com.javahost.client.friends.InviteFlow;
 import com.javahost.client.gui.JavaHostScreen;
 import com.javahost.client.gui.ui.Draw;
 import com.javahost.client.gui.ui.Faces;
@@ -52,6 +53,8 @@ public class JavaHostClient implements ClientModInitializer {
 		ClientTickEvents.END_CLIENT_TICK.register(minecraft -> {
 			VoiceClient.setPushToTalkHeld(PUSH_TO_TALK.isDown());
 			HostController.tick();
+			InviteFlow.tick(minecraft);
+			Popups.tick(minecraft);
 			while (OPEN_MENU.consumeClick()) {
 				minecraft.gui.setScreen(new JavaHostScreen(null));
 			}
@@ -66,6 +69,7 @@ public class JavaHostClient implements ClientModInitializer {
 		// Leaving the world (or the integrated server stopping) ends hosting and closes the router port.
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> HostController.cleanup());
 		ClientLifecycleEvents.CLIENT_STOPPING.register(minecraft -> E4mcCompat.shutdownForExit());
+		ClientLifecycleEvents.CLIENT_STARTED.register(minecraft -> Popups.startFriends());
 
 		// Tell the host when a friend joins their world.
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
@@ -86,8 +90,8 @@ public class JavaHostClient implements ClientModInitializer {
 				Screens.getWidgets(screen).add(new FlatButton(4, 4, 82, 20, Component.literal("JavaHost"), FlatButton.Style.SECONDARY,
 						Icons.HOST, b -> minecraft.gui.setScreen(new JavaHostScreen(screen))));
 			} else if (screen instanceof JoinMultiplayerScreen) {
-				Screens.getWidgets(screen).add(new FlatButton(width - 108, 4, 104, 20, Component.literal("Join with code"),
-						FlatButton.Style.PRIMARY, Icons.JOIN, b -> minecraft.gui.setScreen(new JavaHostScreen(screen, JavaHostScreen.Tab.JOIN))));
+				Screens.getWidgets(screen).add(new FlatButton(width - 88, 4, 84, 20, Component.literal("Friends"),
+						FlatButton.Style.PRIMARY, Icons.USER, b -> minecraft.gui.setScreen(new JavaHostScreen(screen, JavaHostScreen.Tab.FRIENDS))));
 			}
 		});
 	}

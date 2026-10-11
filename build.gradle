@@ -62,6 +62,9 @@ dependencies {
 	implementation "io.github.jaredmdobson:concentus:${project.concentus_version}"
 	include "io.github.jaredmdobson:concentus:${project.concentus_version}"
 
+	testImplementation "org.junit.jupiter:junit-jupiter:5.14.3"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+
 	// Real mods loaded only in the in-game tests, to test the relay and shader sharing for real.
 	// e4mc 6.2.3 crashes 26.3 *dedicated* servers (it calls a removed permission method), and the single-client
 	// test uses one, so the relay mod is only added to the two multiplayer test games (see below).
@@ -87,6 +90,9 @@ def mpShared = file("build/run/mp-shared").absolutePath
 		vmArg "-Djavahost.testRole=${user.toLowerCase()}"
 		vmArg "-Djavahost.mpDir=${mpShared}"
 		vmArg "-Dfabric.addMods=${configurations.testRelay.singleFile.absolutePath}"
+		// Test accounts are offline, so friend requests can't carry Mojang signatures in this test.
+		vmArg "-Djavahost.insecureFriends=true"
+		vmArg "-Djavahost.friendsNamespace=${project.findProperty("mpns") ?: "local"}"
 		programArgs "--username", user
 	}
 }
@@ -138,4 +144,8 @@ publishing {
 		// The repositories here will be used for publishing your artifact, not for
 		// retrieving dependencies.
 	}
+}
+
+test {
+	useJUnitPlatform()
 }

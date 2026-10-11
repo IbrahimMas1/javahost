@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.javahost.client.gui.pages.FriendsPage;
 import com.javahost.client.gui.pages.HomePage;
 import com.javahost.client.gui.pages.HostPage;
 import com.javahost.client.gui.pages.JoinPage;
@@ -25,6 +26,7 @@ import net.minecraft.network.chat.Component;
 public class JavaHostScreen extends Screen {
 	public enum Tab {
 		HOME("Home", Icons.HOME, HomePage::new),
+		FRIENDS("Friends", Icons.USER, FriendsPage::new),
 		HOST("Host", Icons.HOST, HostPage::new),
 		JOIN("Join", Icons.JOIN, JoinPage::new),
 		VOICE("Voice", Icons.MIC, VoicePage::new),
@@ -111,6 +113,9 @@ public class JavaHostScreen extends Screen {
 
 		int tabY = winY + 38;
 		for (Tab t : Tab.values()) {
+			if (t == Tab.JOIN) {
+				continue; // reached from the Friends tab ("Join with a code"); invites make it rarely needed
+			}
 			SidebarTab button = new SidebarTab(winX + 6, tabY, sideW - 12, 20, t, compact);
 			sidebarWidgets.add(addWidget(button));
 			tabY += 22;
@@ -216,8 +221,13 @@ public class JavaHostScreen extends Screen {
 
 	@Override
 	public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
-		if (page instanceof JoinPage join && (event.key() == 257 || event.key() == 335)) { // Enter / keypad Enter
+		boolean enter = event.key() == 257 || event.key() == 335; // Enter / keypad Enter
+		if (enter && page instanceof JoinPage join) {
 			join.submit();
+			return true;
+		}
+		if (enter && page instanceof FriendsPage friends) {
+			friends.submitFromKeyboard();
 			return true;
 		}
 		return super.keyPressed(event);
@@ -256,7 +266,7 @@ public class JavaHostScreen extends Screen {
 
 		@Override
 		protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
-			boolean selected = tab == target;
+			boolean selected = tab == target || (tab == Tab.JOIN && target == Tab.FRIENDS);
 			hover = Draw.approach(hover, isHoveredOrFocused() ? 1 : 0, 0.35f);
 			int fill = selected ? Theme.CARD_HOVER : Theme.withAlpha(Theme.CARD, hover);
 			if (selected || hover > 0.01f) {

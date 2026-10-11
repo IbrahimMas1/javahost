@@ -51,7 +51,7 @@ public class HostPage extends Page {
 	@Override
 	public String subtitle() {
 		return HostController.isHosting()
-				? "Send friends the invite below."
+				? "Invite friends from the Friends tab, or share the code."
 				: "Your PC is the server. No rental needed.";
 	}
 
@@ -83,37 +83,39 @@ public class HostPage extends Page {
 				config.useUpnp, v -> config.useUpnp = v), 10, 46);
 		add(new ToggleSwitch(inner, Component.literal("Allow IPv6 connections"), "Direct, and works behind CGNAT",
 				config.useIpv6, v -> config.useIpv6 = v), 10, 74);
+		add(new ToggleSwitch(inner, Component.literal("Only friends can join"), "Strangers with the address are turned away",
+				config.friendsOnly, v -> config.friendsOnly = v), 10, 102);
 		if (E4mcCompat.isInstalled()) {
 			add(new Segmented<>(150, List.of("AUTO", "ALWAYS", "NEVER"), config.relayMode,
 					mode -> switch (mode) {
 						case "ALWAYS" -> "Always";
 						case "NEVER" -> "Never";
 						default -> "When needed";
-					}, mode -> config.relayMode = mode), width - 160, 104);
+					}, mode -> config.relayMode = mode), width - 160, 132);
 		} else {
 			add(new FlatButton(110, 18, Component.literal("Get relay"), FlatButton.Style.SECONDARY, Icons.SPARKLE,
-					b -> screen.switchTo(JavaHostScreen.Tab.PERFORMANCE)), width - 120, 104);
+					b -> screen.switchTo(JavaHostScreen.Tab.PERFORMANCE)), width - 120, 132);
 		}
 
 		// Sharing & voice card: y 162 .. 282
 		add(new ToggleSwitch(inner, Component.literal("Share my resource packs"), "Everyone who joins sees them too",
-				config.shareResourcePacks, v -> config.shareResourcePacks = v), 10, 170);
+				config.shareResourcePacks, v -> config.shareResourcePacks = v), 10, 198);
 		ToggleSwitch shader = add(new ToggleSwitch(inner, Component.literal("Share my shader"),
 				IrisCompat.isInstalled() ? "Including your shader settings" : "Install Iris on Performance first",
-				config.shareShaders && IrisCompat.isInstalled(), v -> config.shareShaders = v), 10, 198);
+				config.shareShaders && IrisCompat.isInstalled(), v -> config.shareShaders = v), 10, 226);
 		shader.active = IrisCompat.isInstalled();
 		add(new ToggleSwitch(inner, Component.literal("Proximity voice chat"), "Hear players who are close by",
-				config.voiceEnabledWhenHosting, v -> config.voiceEnabledWhenHosting = v), 10, 226);
+				config.voiceEnabledWhenHosting, v -> config.voiceEnabledWhenHosting = v), 10, 254);
 		add(new Segmented<>(inner - 70, List.of(16, 32, 48, 64, 96, 128), config.voiceRange, r -> String.valueOf(r),
-				r -> config.voiceRange = r), 80, 256);
+				r -> config.voiceRange = r), 80, 284);
 
 		FlatButton start = add(new FlatButton(width, 24, Component.literal("Start hosting"), FlatButton.Style.PRIMARY, Icons.PLAY,
-				b -> start()), 0, 294);
+				b -> start()), 0, 322);
 		start.active = canHost();
 		if (!canHost() && error == null) {
 			error = "Open one of your singleplayer worlds to host it.";
 		}
-		reserve(330);
+		reserve(358);
 	}
 
 	private void start() {
@@ -157,11 +159,13 @@ public class HostPage extends Page {
 		lastSignature = signature();
 
 		heroY = 0;
+		add(new FlatButton(104, 18, Component.literal("Invite friends"), FlatButton.Style.PRIMARY, Icons.USER,
+				b -> screen.switchTo(JavaHostScreen.Tab.FRIENDS)), width - 114, heroY + 6);
 		Route best = Connectivity.recommended();
 		if (best != null && best.invite() != null) {
 			add(new FlatButton(64, 18, Component.literal(isCopied(best.invite()) ? "Copied" : "Copy"),
-					FlatButton.Style.PRIMARY, isCopied(best.invite()) ? Icons.CHECK : Icons.COPY,
-					b -> copy(best.invite())), width - 74, heroY + 28);
+					FlatButton.Style.SECONDARY, isCopied(best.invite()) ? Icons.CHECK : Icons.COPY,
+					b -> copy(best.invite())), width - 74, heroY + 30);
 		}
 
 		routesY = heroY + 82;
@@ -243,19 +247,19 @@ public class HostPage extends Page {
 
 	private void drawSetup(GuiGraphicsExtractor g, int left, int top) {
 		sectionLabel(g, "Connection", left, top);
-		card(g, left, top + 12, width, 120);
+		card(g, left, top + 12, width, 148);
 		Draw.text(g, "Game port", left + 10, top + 26, Theme.TEXT);
-		Draw.text(g, "Relay fallback", left + 10, top + 106, Theme.TEXT);
+		Draw.text(g, "Relay fallback", left + 10, top + 134, Theme.TEXT);
 		Draw.text(g, E4mcCompat.isInstalled() ? "For friends who can't connect directly" : "Not installed",
-				left + 10, top + 117, Theme.MUTED);
+				left + 10, top + 145, Theme.MUTED);
 
-		sectionLabel(g, "Sharing & voice", left, top + 150);
-		card(g, left, top + 162, width, 120);
-		Draw.text(g, "Range", left + 10, top + 261, Theme.TEXT);
+		sectionLabel(g, "Sharing & voice", left, top + 178);
+		card(g, left, top + 190, width, 120);
+		Draw.text(g, "Range", left + 10, top + 289, Theme.TEXT);
 
 		if (error != null) {
-			Icons.WARNING.draw(g, left, top + 324, Theme.WARNING);
-			Draw.text(g, Draw.fit(error, width - 14), left + 13, top + 325, Theme.WARNING);
+			Icons.WARNING.draw(g, left, top + 352, Theme.WARNING);
+			Draw.text(g, Draw.fit(error, width - 14), left + 13, top + 353, Theme.WARNING);
 		}
 	}
 
@@ -276,7 +280,7 @@ public class HostPage extends Page {
 				case "Same Wi-Fi" -> "Only people on your Wi-Fi can join";
 				default -> "Ready";
 			};
-			status(g, left + 12, y + 10, stateColor(best.state()), headline, Theme.TEXT);
+			status(g, left + 12, y + 10, stateColor(best.state()), Draw.fit(headline, width - 140), Theme.TEXT);
 			Draw.text(g, "INVITE", left + 12, y + 26, Theme.FAINT);
 			String invite = best.invite();
 			float scale = Draw.font().width(invite) * 1.5f < width - 100 ? 1.5f : 1f;

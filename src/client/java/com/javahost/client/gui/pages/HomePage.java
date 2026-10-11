@@ -38,7 +38,7 @@ public class HomePage extends Page {
 	private String lastState = "";
 
 	private String state() {
-		return HostController.isHosting() + ":" + HostController.guests().size();
+		return HostController.isHosting() + ":" + HostController.guests().size() + ":" + com.javahost.client.friends.Friends.incoming().size();
 	}
 
 	@Override
@@ -58,8 +58,10 @@ public class HomePage extends Page {
 				hosting ? HostController.guests().size() + " friend(s) online" : canHost() ? "Let friends join you" : "Open a singleplayer world first",
 				b -> screen.switchTo(JavaHostScreen.Tab.HOST)), 0, CARDS_Y);
 		host.active = hosting || canHost();
-		add(new CardButton(half, 52, Icons.JOIN, Component.literal("Join a friend"), "Paste their invite code",
-				b -> screen.switchTo(JavaHostScreen.Tab.JOIN)), width - half, CARDS_Y);
+		int requests = com.javahost.client.friends.Friends.incoming().size();
+		add(new CardButton(half, 52, Icons.USER, Component.literal(requests > 0 ? "Friends (" + requests + " new)" : "Friends"),
+				hosting ? "Invite them in with one click" : "Add friends and play together",
+				b -> screen.switchTo(JavaHostScreen.Tab.FRIENDS)), width - half, CARDS_Y);
 		reserve(TILES_Y + 46);
 	}
 

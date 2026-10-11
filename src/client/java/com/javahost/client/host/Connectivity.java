@@ -188,6 +188,11 @@ public final class Connectivity {
 		return probing;
 	}
 
+	/** Our public IPv4 address (lets a friend in the same home use the faster Wi-Fi route). */
+	public static String publicIpv4() {
+		return publicIpv4;
+	}
+
 	public static String lanIp() {
 		return lanIp;
 	}

@@ -16,6 +16,11 @@ import java.util.zip.ZipOutputStream;
 
 import com.javahost.JavaHost;
 import com.javahost.client.Config;
+import com.javahost.client.friends.Friends;
+import com.javahost.client.friends.InviteFlow;
+import com.javahost.client.gui.FriendPopup;
+import com.javahost.client.gui.JavaHostScreen;
+import com.javahost.util.Mailbox;
 import com.javahost.client.host.Connectivity;
 import com.javahost.client.host.HostController;
 import com.javahost.client.pack.IrisCompat;
@@ -171,7 +176,28 @@ final class MultiplayerTest {
 			world.getConnection().waitForChunksRender();
 			// Test accounts are offline accounts; real players have Microsoft accounts and keep verification on.
 			context.runOnClient(mc -> mc.getSingleplayerServer().setUsesAuthentication(false));
-			context.runOnClient(mc -> check(HostController.start(mc.getSingleplayerServer()) == null, "host started hosting"));
+
+			// ---- Friends: add by name, the guest accepts, then one click to invite. No codes anywhere.
+			waitForShared(context, "guest-ready", 5 * ONE_MINUTE);
+			String added = join(context.computeOnClient(mc -> Friends.add("Guest")));
+			check(added.startsWith("Friend request sent"), "host sent a friend request to Guest (" + added + ")");
+			context.waitFor(mc -> Friends.friends().stream().anyMatch(f -> f.name().equals("Guest")), 3 * ONE_MINUTE);
+			check(true, "Guest accepted; they're on the host's friends list");
+			Friends.Friend guestFriend = context.computeOnClient(mc -> Friends.friends().stream().filter(f -> f.name().equals("Guest")).findFirst().orElseThrow());
+			context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.FRIENDS));
+			context.waitTicks(5);
+			context.takeScreenshot("mp-host-friends");
+			context.runOnClient(mc -> check(!HostController.isHosting(), "world not open yet before inviting"));
+			context.runOnClient(mc -> InviteFlow.invite(guestFriend));
+			context.waitFor(mc -> "Invited".equals(InviteFlow.status(guestFriend.id())), 2 * ONE_MINUTE);
+			context.runOnClient(mc -> check(HostController.isHosting(), "inviting opened the world automatically and sent the invite"));
+			context.waitTicks(5);
+			context.takeScreenshot("mp-host-friends-invited");
+			context.setScreen(() -> null);
+			context.waitFor(mc -> HostController.guests().stream().anyMatch(g -> g.name().equals("Guest")), 3 * ONE_MINUTE);
+			check(true, "Guest joined the world from the invite's Join button");
+			waitForShared(context, "guest-invite-done", 3 * ONE_MINUTE);
+
 			context.waitFor(mc -> !Connectivity.isProbing(), ONE_MINUTE);
 			context.waitFor(mc -> Connectivity.relayDomain() != null, 2 * ONE_MINUTE);
 			check(true, "relay is up at " + Connectivity.relayDomain());
@@ -193,7 +219,12 @@ final class MultiplayerTest {
 
 			int heardBefore = 0;
 			while (readShared("guest-done") == null) {
-				context.waitFor(mc -> readShared("guest-done") != null || pendingRoute() != null, 15 * ONE_MINUTE);
+				context.waitFor(mc -> readShared("guest-done") != null || pendingRoute() != null || unfriendedNotAcked(), 15 * ONE_MINUTE);
+				if (unfriendedNotAcked()) {
+					writeShared("host-saw-remove", "ok");
+					check(true, "host got the guest's unfriend message");
+					continue;
+				}
 				String route = pendingRoute();
 				if (route == null) {
 					continue;
@@ -222,6 +253,19 @@ final class MultiplayerTest {
 		check(readShared("guest-done").startsWith("PASS"), "guest reported success");
 	}
 
+	private static boolean unfriendedNotAcked() {
+		return readShared("guest-removed") != null && readShared("host-saw-remove") == null
+				&& Friends.friends().stream().noneMatch(f -> f.name().equals("Guest"));
+	}
+
+	private static <T> T join(java.util.concurrent.CompletableFuture<T> future) {
+		try {
+			return future.get(2, java.util.concurrent.TimeUnit.MINUTES);
+		} catch (Exception e) {
+			throw new AssertionError(e);
+		}
+	}
+
 	private static String pendingRoute() {
 		String route = readShared("guest-route");
 		if (route == null || readShared("host-ack-" + route.trim()) != null) {
@@ -238,6 +282,27 @@ final class MultiplayerTest {
 		config.outputVolume = 0;
 		config.autoAcceptHostPacks = true;
 		prepareShader(context, GUEST_SHADER, null);
+
+		// ---- Friends: accept the host's request from the popup, then join from the invite popup.
+		context.waitFor(mc -> Friends.status() == Mailbox.Status.ONLINE, 2 * ONE_MINUTE);
+		writeShared("guest-ready", "ok");
+		context.waitFor(mc -> mc.gui.screen() instanceof FriendPopup, 3 * ONE_MINUTE);
+		context.takeScreenshot("mp-guest-friend-request");
+		context.clickScreenButton("Accept");
+		context.waitFor(mc -> Friends.friends().stream().anyMatch(f -> f.name().equals("Host")), ONE_MINUTE);
+		check(true, "guest accepted the friend request from the popup");
+		context.waitFor(mc -> mc.gui.screen() instanceof FriendPopup, 3 * ONE_MINUTE);
+		context.takeScreenshot("mp-guest-invite");
+		context.clickScreenButton("Join");
+		context.waitFor(mc -> (mc.player != null && mc.level != null && mc.gui.screen() == null)
+				|| mc.gui.screen() instanceof DisconnectedScreen, 3 * ONE_MINUTE);
+		String refusedInvite = context.computeOnClient(mc -> mc.gui.screen() instanceof DisconnectedScreen d ? d.getNarrationMessage().getString() : null);
+		check(refusedInvite == null, "guest joined the host's world by clicking Join" + (refusedInvite == null ? "" : " (refused: " + refusedInvite + ")"));
+		context.waitTicks(60);
+		context.takeScreenshot("mp-guest-joined-from-invite");
+		context.runOnClient(mc -> mc.disconnect(new TitleScreen(), false));
+		context.waitFor(mc -> mc.level == null, ONE_MINUTE);
+		writeShared("guest-invite-done", "ok");
 
 		waitForShared(context, "host-addresses", 5 * ONE_MINUTE);
 		Properties addresses = new Properties();
@@ -259,6 +324,20 @@ final class MultiplayerTest {
 			for (Map.Entry<String, String> route : routes.entrySet()) {
 				joinThrough(context, route.getKey(), route.getValue());
 			}
+
+			// ---- Friends-only: after unfriending, the host's world turns us away.
+			Friends.Friend hostFriend = context.computeOnClient(mc -> Friends.friends().stream().filter(f -> f.name().equals("Host")).findFirst().orElseThrow());
+			context.runOnClient(mc -> Friends.remove(hostFriend));
+			writeShared("guest-removed", "ok");
+			waitForShared(context, "host-saw-remove", 2 * ONE_MINUTE);
+			String lan = routes.get("lan");
+			context.runOnClient(mc -> ConnectScreen.startConnecting(new TitleScreen(), mc, ServerAddress.parseString(lan),
+					new ServerData("JavaHost test host", lan, ServerData.Type.OTHER), false, null));
+			context.waitFor(mc -> mc.gui.screen() instanceof DisconnectedScreen || (mc.player != null && mc.gui.screen() == null), 2 * ONE_MINUTE);
+			String turnedAway = context.computeOnClient(mc -> mc.gui.screen() instanceof DisconnectedScreen d ? d.getNarrationMessage().getString() : "");
+			check(turnedAway.contains("just for the host's friends"), "a non-friend is turned away from a friends-only world");
+			context.takeScreenshot("mp-guest-turned-away");
+			context.runOnClient(mc -> mc.gui.setScreen(new TitleScreen()));
 			writeShared("guest-done", "PASS " + String.join(",", routes.keySet()));
 		} catch (Throwable t) {
 			writeShared("guest-done", "FAIL " + t.getMessage());

@@ -19,6 +19,8 @@ public final class HostState {
 	private static volatile String shaderSettings = "";
 	private static volatile int voiceRange = 48;
 	private static volatile boolean voiceEnabled = true;
+	private static volatile boolean friendsOnly = false;
+	private static volatile java.util.Set<java.util.UUID> allowedPlayers = java.util.Set.of();
 
 	private HostState() {
 	}
@@ -56,6 +58,23 @@ public final class HostState {
 	public static void setVoice(boolean enabled, int range) {
 		voiceEnabled = enabled;
 		voiceRange = Math.max(4, Math.min(range, 256));
+	}
+
+	/** When on, only the host's friends may join the hosted world (accounts are verified by Minecraft itself). */
+	public static boolean friendsOnly() {
+		return friendsOnly;
+	}
+
+	public static void setFriendsOnly(boolean value) {
+		friendsOnly = value;
+	}
+
+	public static boolean isAllowed(java.util.UUID player) {
+		return allowedPlayers.contains(player);
+	}
+
+	public static void setAllowedPlayers(java.util.Set<java.util.UUID> players) {
+		allowedPlayers = java.util.Set.copyOf(players);
 	}
 
 	public static void clear() {
