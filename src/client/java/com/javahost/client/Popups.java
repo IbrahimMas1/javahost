@@ -32,6 +32,7 @@ public final class Popups {
 			REQUESTS.add(request);
 			Toasts.player(request.id(), request.name() + " wants to be friends", "Answer in the JavaHost menu (J)");
 		});
+		Friends.selfCheck();
 	}
 
 	/** Screens a popup may cover. */

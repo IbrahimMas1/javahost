@@ -56,6 +56,7 @@ public class FriendsPage extends Page {
 		friends = Friends.friends();
 
 		int y = 12;
+		nameField = null;
 		if (Identity.canSign()) {
 			nameField = add(new TextField(width - 86, Component.literal("Friend's Minecraft name")), 0, y);
 			nameField.setMaxLength(16);
@@ -122,7 +123,9 @@ public class FriendsPage extends Page {
 		add(new FlatButton(130, 16, Component.literal("Join with a code"), FlatButton.Style.GHOST, Icons.JOIN,
 				b -> screen.switchTo(JavaHostScreen.Tab.JOIN)), width - 130, footerY);
 		reserve(footerY + 24);
-		screen.focusOn(nameField != null ? nameField : null);
+		if (nameField != null) {
+			screen.focusOn(nameField);
+		}
 	}
 
 	private void submit() {
@@ -197,7 +200,7 @@ public class FriendsPage extends Page {
 		card(g, left, y - 2, width, Math.max(1, friends.size()) * ROW + 4);
 		if (friends.isEmpty()) {
 			Icons.USER.draw(g, left + 9, y + 7, Theme.FAINT);
-			Draw.text(g, "No friends yet. Add someone by their Minecraft name.", left + 24, y + 8, Theme.MUTED);
+			Draw.text(g, Draw.fit("No friends yet. Add someone by name above.", width - 34), left + 24, y + 8, Theme.MUTED);
 		}
 		boolean canInvite = InviteFlow.canInvite();
 		for (Friend friend : friends) {

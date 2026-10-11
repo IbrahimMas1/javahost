@@ -94,11 +94,27 @@ public final class Identity {
 		});
 	}
 
+	/** Null until checked; then whether Mojang issued this login a chat certificate. */
+	private static volatile Boolean hasCertificate;
+
+	/** Asks Minecraft for this account's certificate once at startup (offline logins don't get one). */
+	public static CompletableFuture<Boolean> checkCertificate() {
+		if (INSECURE_TEST_MODE) {
+			hasCertificate = true;
+			return CompletableFuture.completedFuture(true);
+		}
+		return Minecraft.getInstance().getProfileKeyPairManager().prepareKeyPair()
+				.thenApply(Optional::isPresent)
+				.exceptionally(e -> false)
+				.thenApply(present -> {
+					hasCertificate = present;
+					return present;
+				});
+	}
+
 	/** Whether this player can send signed friend requests (needs a Microsoft-account login). */
 	public static boolean canSign() {
-		// Offline (non-Microsoft) logins get Minecraft's empty key manager, which never has a certificate.
-		return INSECURE_TEST_MODE
-				|| Minecraft.getInstance().getProfileKeyPairManager() != net.minecraft.client.multiplayer.ProfileKeyPairManager.EMPTY_KEY_MANAGER;
+		return INSECURE_TEST_MODE || !Boolean.FALSE.equals(hasCertificate);
 	}
 
 	/**

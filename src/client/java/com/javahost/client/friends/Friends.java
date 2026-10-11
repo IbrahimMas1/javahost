@@ -97,6 +97,38 @@ public final class Friends {
 		}), status -> Minecraft.getInstance().execute(Friends::changed));
 	}
 
+	/**
+	 * Signs a sample request with this account's Mojang-certified key and verifies it the way a friend's game would,
+	 * so a broken signing setup shows up in the log right away instead of as "my friend never got my request".
+	 */
+	public static void selfCheck() {
+		Identity.checkCertificate().thenAccept(present -> Minecraft.getInstance().execute(() -> {
+			changed();
+			if (Identity.INSECURE_TEST_MODE || !present) {
+				JavaHost.LOGGER.info("Friends self-check skipped: this login has no Microsoft-account certificate");
+				return;
+			}
+			runSelfCheck();
+		}));
+	}
+
+	private static void runSelfCheck() {
+		JsonObject sample = header("request", Identity.id());
+		sample.addProperty("box", Identity.boxPublicKey());
+		Identity.sign(sample, signedPayload(sample)).whenComplete((signed, error) -> Minecraft.getInstance().execute(() -> {
+			if (error != null || !signed) {
+				JavaHost.LOGGER.warn("Friends self-check FAILED: could not sign ({})", error == null ? "no key" : error.toString());
+				return;
+			}
+			boolean valid = Identity.verify(Identity.id(), sample, signedPayload(sample));
+			JsonObject tampered = sample.deepCopy();
+			tampered.addProperty("name", "Someone_Else");
+			boolean tamperRejected = !Identity.verify(Identity.id(), tampered, signedPayload(tampered));
+			JavaHost.LOGGER.info("Friends self-check {}: signature verified={}, tampered copy rejected={}, size={} bytes",
+					valid && tamperRejected ? "PASSED" : "FAILED", valid, tamperRejected, sample.toString().length());
+		}));
+	}
+
 	public static Mailbox.Status status() {
 		return mailbox == null ? Mailbox.Status.CONNECTING : mailbox.status();
 	}
@@ -167,7 +199,8 @@ public final class Friends {
 				}
 				return sendSigned("request", id, name).thenApply(ok -> {
 					if (!ok) {
-						return "Couldn't reach the friends service. Check your internet.";
+						return Identity.canSign() ? "Couldn't reach the friends service. Check your internet."
+								: "Friends need you to be signed in with a Microsoft account.";
 					}
 					Minecraft.getInstance().execute(() -> {
 						data.outgoing.removeIf(o -> o.id().equals(id));
@@ -271,9 +304,13 @@ public final class Friends {
 	private static CompletableFuture<Boolean> sendSigned(String type, UUID to, String toName) {
 		JsonObject message = header(type, to);
 		message.addProperty("box", Identity.boxPublicKey());
-		return Identity.sign(message, signedPayload(message)).thenCompose(signed -> signed
-				? Mailbox.post(FriendCrypto.mailboxFor(to, NAMESPACE), message.toString())
-				: CompletableFuture.completedFuture(false))
+		return Identity.sign(message, signedPayload(message)).thenCompose(signed -> {
+			if (!signed) {
+				Identity.checkCertificate();
+				return CompletableFuture.completedFuture(false);
+			}
+			return Mailbox.post(FriendCrypto.mailboxFor(to, NAMESPACE), message.toString());
+		})
 				.exceptionally(e -> false);
 	}
 
