@@ -66,10 +66,7 @@ public final class Config {
 	public String usageDay = "";
 	public int usageCount = 0;
 	/** Recent benchmark results, oldest first. */
-	public java.util.List<BenchmarkResult> benchmarks = new java.util.ArrayList<>();
 
-	public record BenchmarkResult(String label, double averageFps, double onePercentLowFps, long time) {
-	}
 
 	// Voice
 	public boolean voiceEnabled = true;
@@ -114,9 +111,6 @@ public final class Config {
 					}
 					if (config.mutedPlayers == null) {
 						config.mutedPlayers = new java.util.HashSet<>();
-					}
-					if (config.benchmarks == null) {
-						config.benchmarks = new java.util.ArrayList<>();
 					}
 					if (config.accent == null) {
 						config.accent = "Green";

@@ -1,5 +1,6 @@
 package com.javahost.client;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.javahost.client.gui.ui.Draw;
@@ -21,6 +22,13 @@ public final class Toasts {
 
 	public static void show(String title, String message) {
 		add(new JavaHostToast(title, message, null));
+	}
+
+	/** A toast that's also kept, in full, in the notification center (for things worth reading later). */
+	public static void notify(String title, String message) {
+		show(title, message);
+		Minecraft.getInstance().execute(() -> com.javahost.client.friends.Notifications.add(
+				com.javahost.client.friends.Notifications.Kind.INFO, null, title, message, null));
 	}
 
 	/** A toast with a player's face, e.g. "Alex joined your world". */
@@ -70,6 +78,26 @@ public final class Toasts {
 			this.face = face;
 		}
 
+		private List<net.minecraft.util.FormattedCharSequence> wrapped;
+
+		private List<net.minecraft.util.FormattedCharSequence> lines() {
+			if (wrapped == null) {
+				List<net.minecraft.util.FormattedCharSequence> all = Draw.font().split(net.minecraft.network.chat.Component.literal(message), width() - 40);
+				if (all.size() > 2) {
+					// Keep two lines; the second ends with an ellipsis.
+					all = List.of(all.get(0), net.minecraft.util.FormattedCharSequence.composite(all.get(1),
+							net.minecraft.network.chat.Component.literal("...").getVisualOrderText()));
+				}
+				wrapped = all;
+			}
+			return wrapped;
+		}
+
+		@Override
+		public int height() {
+			return lines().size() > 1 ? 42 : 32;
+		}
+
 		@Override
 		public Visibility getWantedVisibility() {
 			return visibility;
@@ -97,7 +125,11 @@ public final class Toasts {
 				Icons.logo(g, 9, 8, 16);
 			}
 			Draw.text(g, Draw.fit(title, width() - 40), 32, 7, Theme.TEXT);
-			Draw.text(g, Draw.fit(message, width() - 40), 32, 18, Theme.MUTED);
+			// Up to two lines of message (the full text is in the notification center when it matters).
+			List<net.minecraft.util.FormattedCharSequence> lines = lines();
+			for (int i = 0; i < lines.size(); i++) {
+				g.text(Draw.font(), lines.get(i), 32, 18 + i * 10, Theme.MUTED, false);
+			}
 		}
 	}
 }

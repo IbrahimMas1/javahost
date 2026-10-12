@@ -815,13 +815,13 @@ public enum Icons {
 	 */
 	public void drawCentred(GuiGraphicsExtractor g, float cx, float cy, int box, int color) {
 		float guiScale = (float) Minecraft.getInstance().getWindow().getGuiScale();
-		// Two crisp options: the full grid or the half grid, each pixel a whole number (k) of screen pixels.
-		// Use whichever lands closer to the box; on a tie keep the full grid's detail.
+		// The full 24px grid, each icon pixel a whole number (k) of screen pixels so it's crisp. The half grid
+		// loses detail (thin diagonals like Wi-Fi arcs blur together), so it's only used when even one screen
+		// pixel per icon pixel would make the icon far too big (GUI scale 1).
 		int kFull = Math.max(1, Math.round(box * guiScale / GRID));
 		int kHalf = Math.max(1, Math.round(box * guiScale / (GRID / 2f)));
 		float fullSize = GRID * kFull / guiScale;
-		float halfSize = GRID / 2 * kHalf / guiScale;
-		boolean useHalf = Math.abs(halfSize - box) < Math.abs(fullSize - box);
+		boolean useHalf = fullSize > box * 1.6f;
 		boolean[][] grid = useHalf ? small : pixels;
 		int n = useHalf ? GRID / 2 : GRID;
 		int k = useHalf ? kHalf : kFull;

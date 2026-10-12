@@ -11,7 +11,8 @@ import net.minecraft.sounds.SoundEvents;
 
 /** The notification center: recent invites, requests, messages and screenshots, so a missed popup is never lost. */
 public final class Notifications {
-	public enum Kind { INVITE, REQUEST, ACCEPTED, MESSAGE, SCREENSHOT, HOSTING }
+	/** INFO: JavaHost itself (backups, updates, installs); {@code name} is the title and {@code player} is null. */
+	public enum Kind { INVITE, REQUEST, ACCEPTED, MESSAGE, SCREENSHOT, HOSTING, INFO }
 
 	/** {@code payload} is the thing to act on: an Invite, a Request, a screenshot path, or null. */
 	public record Item(Kind kind, UUID player, String name, String text, long time, Object payload) {
@@ -26,7 +27,7 @@ public final class Notifications {
 
 	public static void add(Kind kind, UUID player, String name, String text, Object payload) {
 		// Keep only the newest invite per friend, and drop duplicates of the same message.
-		ITEMS.removeIf(item -> item.kind() == kind && item.player().equals(player) && (kind == Kind.INVITE || kind == Kind.HOSTING
+		ITEMS.removeIf(item -> item.kind() == kind && java.util.Objects.equals(item.player(), player) && (kind == Kind.INVITE || kind == Kind.HOSTING
 				|| kind == Kind.REQUEST || item.text().equals(text)));
 		ITEMS.addFirst(new Item(kind, player, name, text, System.currentTimeMillis(), payload));
 		while (ITEMS.size() > MAX) {
@@ -42,6 +43,11 @@ public final class Notifications {
 
 	public static void remove(Item item) {
 		ITEMS.remove(item);
+	}
+
+	public static void clear() {
+		ITEMS.clear();
+		unread = 0;
 	}
 
 	public static int unread() {

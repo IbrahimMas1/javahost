@@ -22,7 +22,6 @@ import net.minecraft.network.chat.Component;
 
 /** Everything that happened recently, each with its action, so a missed popup is never lost. */
 public class NotificationsPage extends Page {
-	private static final int ROW = 30;
 	private List<Item> items = List.of();
 	private int seen = -1;
 
@@ -33,7 +32,7 @@ public class NotificationsPage extends Page {
 
 	@Override
 	public String subtitle() {
-		return "What your friends sent you recently.";
+		return "Messages, invites and news, in full.";
 	}
 
 	@Override
@@ -44,25 +43,49 @@ public class NotificationsPage extends Page {
 				.toList().forEach(Notifications::remove);
 		items = Notifications.items();
 		seen = items.size();
+		hasAction.clear();
+		rowHeights.clear();
 		if (!items.isEmpty()) {
 			add(new FlatButton(80, 16, Component.literal("Clear all"), FlatButton.Style.GHOST, Icons.CROSS, b -> {
-				Notifications.items().forEach(Notifications::remove);
+				Notifications.clear();
 				screen.refresh();
 			}), width - 80, 0);
 		}
 		int y = 22;
 		for (Item item : items) {
 			FlatButton action = action(item);
+			int h = rowHeight(item, action != null);
+			rowHeights.add(h);
+			hasAction.add(action != null);
 			if (action != null) {
-				add(action, width - 96, y + 6);
+				add(action, width - 96, y + (h - 18) / 2);
 			}
-			add(new FlatButton(18, 16, Component.empty(), FlatButton.Style.GHOST, Icons.CROSS, b -> {
+			FlatButton dismiss = add(new FlatButton(18, 16, Component.literal("Dismiss"), FlatButton.Style.GHOST, Icons.CROSS, b -> {
 				Notifications.remove(item);
 				screen.refresh();
-			}), width - 24, y + 7);
-			y += ROW;
+			}).iconOnly(), width - 24, y + (h - 16) / 2);
+			dismiss.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Dismiss")));
+			y += h;
 		}
 		reserve(Math.max(y, 60) + 10);
+	}
+
+	private final java.util.List<Integer> rowHeights = new java.util.ArrayList<>();
+	private final java.util.List<Boolean> hasAction = new java.util.ArrayList<>();
+
+	private int textWidth(boolean action) {
+		return width - 45 - (action ? 104 : 30);
+	}
+
+	/** The full text, wrapped: friends' messages get the sender's name, JavaHost's own notices their title. */
+	private static String body(Item item) {
+		return item.kind() == Kind.MESSAGE ? item.name() + ": " + item.text() : item.text();
+	}
+
+	private int rowHeight(Item item, boolean action) {
+		int lines = wrappedHeight(body(item), textWidth(action));
+		int title = item.kind() == Kind.INFO ? 11 : 0;
+		return Math.max(30, 6 + title + lines + 12);
 	}
 
 	/** The one thing you'd want to do with this notification, or null if it's no longer actionable. */
@@ -94,6 +117,7 @@ public class NotificationsPage extends Page {
 					})
 					: null;
 			case ACCEPTED -> button("Profile", Icons.USER, FlatButton.Style.SECONDARY, () -> screen.openProfile(item.player()));
+			case INFO -> null;
 		};
 	}
 
@@ -129,20 +153,39 @@ public class NotificationsPage extends Page {
 			Draw.text(g, "You're all caught up.", left + 26, y + 13, Theme.MUTED);
 			return;
 		}
-		card(g, left, y - 2, width, items.size() * ROW + 4);
-		for (Item item : items) {
-			Faces.draw(g, item.player(), left + 8, y + 6, 18);
+		int total = rowHeights.stream().mapToInt(Integer::intValue).sum();
+		card(g, left, y - 2, width, total + 4);
+		for (int i = 0; i < items.size() && i < rowHeights.size(); i++) {
+			Item item = items.get(i);
+			int h = rowHeights.get(i);
+			if (i > 0) {
+				g.fill(left + 8, y - 1, left + width - 8, y, Theme.withAlpha(Theme.BORDER, 0.6f));
+			}
+			if (item.kind() == Kind.INFO) {
+				Icons.logo(g, left + 9, y + 6, 18);
+			} else {
+				Faces.draw(g, item.player(), left + 8, y + 6, 18);
+			}
 			Icons kindIcon = switch (item.kind()) {
 				case INVITE, HOSTING -> Icons.PLAY;
 				case REQUEST, ACCEPTED -> Icons.USER;
 				case MESSAGE -> Icons.CHAT;
 				case SCREENSHOT -> Icons.CAMERA;
+				case INFO -> null;
 			};
-			kindIcon.draw(g, left + 32, y + 6, item.kind() == Kind.INVITE || item.kind() == Kind.HOSTING ? Theme.ACCENT : Theme.MUTED);
-			String text = item.kind() == Kind.MESSAGE ? item.name() + ": " + item.text() : item.text();
-			Draw.text(g, Draw.fit(text, width - 150), left + 45, y + 7, Theme.TEXT);
-			Draw.text(g, ago(item.time()), left + 45, y + 18, Theme.FAINT);
-			y += ROW;
+			int textX = left + (kindIcon == null ? 34 : 45);
+			if (kindIcon != null) {
+				kindIcon.draw(g, left + 32, y + 6, item.kind() == Kind.INVITE || item.kind() == Kind.HOSTING ? Theme.ACCENT : Theme.MUTED);
+			}
+			int textY = y + 6;
+			if (item.kind() == Kind.INFO) {
+				Draw.text(g, Draw.fit(item.name(), textWidth(hasAction.get(i))), textX, textY, Theme.TEXT);
+				textY += 11;
+			}
+			int used = wrap(g, body(item), textX, textY, textWidth(hasAction.get(i)),
+					item.kind() == Kind.INFO ? Theme.MUTED : Theme.TEXT);
+			Draw.text(g, ago(item.time()), textX, textY + used + 2, Theme.FAINT);
+			y += h;
 		}
 	}
 }

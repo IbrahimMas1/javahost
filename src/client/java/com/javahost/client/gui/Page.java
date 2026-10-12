@@ -71,6 +71,7 @@ public abstract class Page {
 		this.width = width;
 		this.contentHeight = 0;
 		placed.clear();
+		hidden.clear();
 		build();
 	}
 
@@ -80,6 +81,19 @@ public abstract class Page {
 		contentHeight = Math.max(contentHeight, bottom);
 		screen.addPageWidget(widget);
 		return widget;
+	}
+
+	/** Widgets the page has hidden on purpose (layout keeps them hidden even when scrolled into view). */
+	private final java.util.Set<AbstractWidget> hidden = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
+	/** Shows or hides a widget; use this instead of setting {@code visible}, which scrolling overrides. */
+	protected void setShown(AbstractWidget widget, boolean shown) {
+		if (shown) {
+			hidden.remove(widget);
+		} else {
+			hidden.add(widget);
+			widget.visible = false;
+		}
 	}
 
 	/** Reserves vertical space for something drawn by hand. */
@@ -102,7 +116,7 @@ public abstract class Page {
 				p.widget().setPosition(x, y);
 			}
 			int height = p.widget() instanceof TextField ? TextField.HEIGHT : p.widget().getHeight();
-			p.widget().visible = y + height > viewTop && y < viewBottom;
+			p.widget().visible = y + height > viewTop && y < viewBottom && !hidden.contains(p.widget());
 		}
 	}
 

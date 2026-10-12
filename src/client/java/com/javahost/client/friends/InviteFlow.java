@@ -108,7 +108,7 @@ public final class InviteFlow {
 			String problem = HostController.start(server);
 			if (problem != null) {
 				setLocal(friend.id(), "Couldn't open the world");
-				Toasts.show("Couldn't open your world", problem);
+				Toasts.notify("Couldn't open your world", problem);
 				return;
 			}
 		}
@@ -215,7 +215,7 @@ public final class InviteFlow {
 		if (joinIndex >= joinQueue.size()) {
 			JavaHost.LOGGER.info("Couldn't reach {}'s world by any route", joiningHost);
 			joinQueue = List.of();
-			Toasts.show("Couldn't join " + joiningHost, "Their world may have closed. Ask them to invite you again.");
+			Toasts.notify("Couldn't join " + joiningHost, "Their world may have closed. Ask them to invite you again.");
 			return;
 		}
 		String address = joinQueue.get(joinIndex);

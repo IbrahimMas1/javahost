@@ -9,7 +9,6 @@ import com.javahost.client.gui.ui.FlatButton;
 import com.javahost.client.gui.ui.Icons;
 import com.javahost.client.gui.ui.Theme;
 import com.javahost.client.gui.ui.ToggleSwitch;
-import com.javahost.client.perf.Benchmark;
 import com.javahost.client.perf.BoostMods;
 import com.javahost.client.perf.BoostMods.BoostMod;
 import com.javahost.client.perf.QuickTune;
@@ -24,13 +23,6 @@ public class PerformancePage extends Page {
 
 	private int modsY;
 
-	/** The benchmark card fits its contents: taller only for a before/after pair (two bars and the gain). */
-	private static int benchCardH() {
-		java.util.List<com.javahost.client.Config.BenchmarkResult> results = com.javahost.client.Config.get().benchmarks;
-		int n = results.size();
-		boolean pair = !Benchmark.running() && n >= 2 && results.get(n - 2).label().equals("Before") && results.get(n - 1).label().equals("After");
-		return pair ? 84 : 58;
-	}
 	private int extrasY;
 	private String lastSignature = "";
 
@@ -72,27 +64,34 @@ public class PerformancePage extends Page {
 					}
 				}), 10, 20);
 
-		// Benchmark: measure, or measure before/after Quick Tune.
-		boolean running = Benchmark.running();
-		FlatButton run = add(new FlatButton(56, 18, Component.literal("Run"), FlatButton.Style.SECONDARY, null,
-				b -> {
-					Benchmark.start("Now");
-					minecraft.gui.setScreen(null); // measure the game, not this menu
-				}), width - 166, 63);
-		FlatButton compare = add(new FlatButton(96, 18, Component.literal("Before/after"), FlatButton.Style.PRIMARY, null,
-				b -> {
-					Benchmark.compare();
-					minecraft.gui.setScreen(null);
-				}), width - 106, 63);
-		compare.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Measure, turn on Quick Tune, measure again")));
-		run.active = !running && minecraft.level != null;
-		compare.active = !running && minecraft.level != null;
-		if (minecraft.level == null) {
-			run.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Open a world first")));
-			compare.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Open a world first")));
+		// Quick settings: the options that matter most for FPS, right here.
+		var options = minecraft.options;
+		int inner = width - 20;
+		add(new com.javahost.client.gui.ui.FlatSlider(inner, "Render distance", options.renderDistance().get(), 2, 32, v -> {
+			options.renderDistance().set((int) Math.round(v));
+			options.save();
+		}, v -> Math.round(v) + " chunks"), 10, 76);
+		add(new com.javahost.client.gui.ui.FlatSlider(inner, "Max frame rate", Math.min(260, options.framerateLimit().get()), 30, 260, v -> {
+			options.framerateLimit().set((int) (Math.round(v / 10) * 10));
+			options.save();
+		}, v -> v >= 255 ? "Unlimited" : (Math.round(v / 10) * 10) + " FPS"), 10, 104);
+		net.minecraft.client.GraphicsPreset preset = options.graphicsPreset().get();
+		List<net.minecraft.client.GraphicsPreset> presets = new java.util.ArrayList<>(List.of(
+				net.minecraft.client.GraphicsPreset.FAST, net.minecraft.client.GraphicsPreset.FANCY, net.minecraft.client.GraphicsPreset.FABULOUS));
+		if (!presets.contains(preset)) {
+			presets.add(preset); // e.g. Custom, from changing settings one by one
 		}
+		add(new com.javahost.client.gui.ui.Segmented<>(Math.min(inner - 80, 230), presets, preset, p -> switch (p) {
+			case FAST -> "Fast";
+			case FANCY -> "Fancy";
+			case FABULOUS -> "Fabulous";
+			default -> "Custom";
+		}, p -> {
+			options.applyGraphicsPreset(p);
+			options.save();
+		}), width - 10 - Math.min(inner - 80, 230), 134);
 
-		modsY = 56 + benchCardH() + 14;
+		modsY = 56 + 12 + 102 + 16;
 		boolean allInstalled = recommended().stream().allMatch(BoostMods::isInstalled);
 		FlatButton installAll = add(new FlatButton(104, 16, Component.literal(allInstalled ? "All installed" : "Install all"),
 				FlatButton.Style.PRIMARY, allInstalled ? Icons.CHECK : Icons.BOLT, b -> install(recommended())), width - 104, modsY - 4);
@@ -104,7 +103,7 @@ public class PerformancePage extends Page {
 			FlatButton button = add(new FlatButton(64, 16, Component.literal("Install"), FlatButton.Style.SECONDARY, null,
 					b -> install(List.of(mod))), width - 72, y + 4);
 			button.active = !installing && !BoostMods.isInstalled(mod);
-			button.visible = !BoostMods.isInstalled(mod);
+			setShown(button, !BoostMods.isInstalled(mod));
 			y += ROW;
 		}
 		reserve(y + 30);
@@ -122,6 +121,7 @@ public class PerformancePage extends Page {
 			if (count > 0) {
 				needsRestart = true;
 				installStatus = "Installed " + Draw.count(count, "mod") + ". Restart Minecraft to turn them on.";
+				com.javahost.client.Toasts.notify("Installed " + Draw.count(count, "mod"), "Restart Minecraft to turn them on.");
 			}
 			installing = false;
 		});
@@ -129,8 +129,7 @@ public class PerformancePage extends Page {
 	}
 
 	private String signature() {
-		StringBuilder s = new StringBuilder().append(installing).append(QuickTune.isApplied()).append(Benchmark.running())
-				.append(com.javahost.client.Config.get().benchmarks.size());
+		StringBuilder s = new StringBuilder().append(installing).append(QuickTune.isApplied());
 		BoostMods.MODS.forEach(m -> s.append(BoostMods.isInstalled(m)));
 		return s.toString();
 	}
@@ -147,38 +146,10 @@ public class PerformancePage extends Page {
 		sectionLabel(g, "Right now: " + minecraft.getFps() + " FPS", left, top);
 		card(g, left, top + 12, width, 36);
 
-		// Benchmark card.
-		card(g, left, top + 56, width, benchCardH());
-		Draw.text(g, "Benchmark", left + 10, top + 64, Theme.TEXT);
-		Draw.text(g, Draw.fit(Benchmark.SECONDS + " s, stand still", width - 186), left + 10, top + 74, Theme.FAINT);
-		java.util.List<com.javahost.client.Config.BenchmarkResult> results = com.javahost.client.Config.get().benchmarks;
-		int barsY = top + 92;
-		if (Benchmark.running()) {
-			Draw.text(g, Draw.fit(Benchmark.step(), width - 20), left + 10, barsY, Theme.INFO);
-			Draw.roundRect(g, left + 10, barsY + 14, width - 20, 4, 2, Theme.FIELD);
-			Draw.roundRect(g, left + 10, barsY + 14, Math.max(4, Math.round((width - 20) * Benchmark.progress())), 4, 2, Theme.INFO);
-		} else if (results.isEmpty()) {
-			Draw.text(g, "Run one to see your average FPS and 1% low.", left + 10, barsY + 6, Theme.MUTED);
-		} else {
-			int n = results.size();
-			boolean pair = n >= 2 && results.get(n - 2).label().equals("Before") && results.get(n - 1).label().equals("After");
-			java.util.List<com.javahost.client.Config.BenchmarkResult> shown = pair ? results.subList(n - 2, n) : results.subList(n - 1, n);
-			double max = shown.stream().mapToDouble(com.javahost.client.Config.BenchmarkResult::averageFps).max().orElse(1);
-			int barY = barsY;
-			for (com.javahost.client.Config.BenchmarkResult result : shown) {
-				int barW = (int) Math.max(4, (width - 150) * result.averageFps() / Math.max(1, max));
-				Draw.text(g, result.label(), left + 10, barY + 2, Theme.MUTED);
-				Draw.roundRect(g, left + 56, barY + 2, barW, 8, 3, result.label().equals("Before") ? Theme.FAINT : Theme.ACCENT);
-				Draw.text(g, Math.round(result.averageFps()) + " FPS · " + Math.round(result.onePercentLowFps()) + " low",
-						left + 60 + barW, barY + 2, Theme.TEXT);
-				barY += 14;
-			}
-			if (pair) {
-				double gain = (results.get(n - 1).averageFps() / Math.max(1, results.get(n - 2).averageFps()) - 1) * 100;
-				Draw.text(g, (gain >= 0 ? "+" : "") + Math.round(gain) + "% FPS with Quick Tune", left + 10, barY + 2,
-						gain >= 0 ? Theme.ACCENT : Theme.WARNING);
-			}
-		}
+		// Quick settings card.
+		sectionLabel(g, "Quick settings", left, top + 56);
+		card(g, left, top + 68, width, 102);
+		Draw.text(g, "Graphics", left + 10, top + 140, Theme.TEXT);
 
 		sectionLabel(g, "FPS mods", left, top + modsY);
 		int y = top + modsY + 14;

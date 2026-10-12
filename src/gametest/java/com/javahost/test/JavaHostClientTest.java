@@ -547,14 +547,8 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.getInput().setCursorPos(0, 0);
 		Config config = Config.get();
 		config.fpsOverlay = true;
-		long started = System.currentTimeMillis();
-		context.runOnClient(mc -> com.javahost.client.perf.Benchmark.start("Test run"));
-		context.waitTicks(60);
-		context.takeScreenshot("hud-fps-and-benchmark");
-		context.waitFor(mc -> !com.javahost.client.perf.Benchmark.running(), 40 * 20);
-		check(!config.benchmarks.isEmpty() && config.benchmarks.getLast().time() >= started && config.benchmarks.getLast().averageFps() > 0,
-				"benchmark recorded " + Math.round(config.benchmarks.getLast().averageFps()) + " FPS average, "
-						+ Math.round(config.benchmarks.getLast().onePercentLowFps()) + " FPS 1% low");
+		context.waitTicks(20);
+		context.takeScreenshot("hud-fps");
 		config.fpsOverlay = false;
 		context.setScreen(() -> new JavaHostScreen(null, Tab.PERFORMANCE));
 		context.waitTicks(6);
@@ -581,11 +575,51 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.takeScreenshot("ui-screenshots-preview");
 		navigation(context, file);
 		version14(context);
+		// Sample notifications: a long JavaHost notice (wraps in full) and a friend's message.
+		context.runOnClient(mc -> {
+			com.javahost.client.Toasts.notify("Installed 4 mods", "Restart Minecraft to turn them on. Sodium, Lithium, FerriteCore and ImmediatelyFast are ready and will load next time.");
+			com.javahost.client.friends.Notifications.add(com.javahost.client.friends.Notifications.Kind.MESSAGE,
+					java.util.UUID.nameUUIDFromBytes("Alex".getBytes()), "Alex", "Are you on tonight? I found a village with a blacksmith near spawn!", null);
+		});
+		context.waitTicks(4);
+		context.takeScreenshot("toast-two-lines");
 		reviewAtScale(context, 4);
 		reviewAtScale(context, 3);
 		// A laptop-sized window, where the menu switches to its compact icon sidebar.
 		reviewAtScale(context, 4, 1710, 1070);
 		reviewAtScale(context, 3, 1280, 800);
+		context.runOnClient(mc -> com.javahost.client.friends.Notifications.clear());
+		// The Host tab before hosting, at the laptop size: Start hosting must be on screen without scrolling.
+		context.runOnClient(mc -> HostController.stop());
+		context.getInput().resizeWindow(1710, 1070);
+		context.runOnClient(mc -> {
+			mc.options.guiScale().set(4);
+			mc.resizeGui();
+		});
+		context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
+		context.waitTicks(8);
+		check(context.computeOnClient(mc -> mc.gui.screen().children().stream().anyMatch(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w
+				&& w.visible && w.getMessage().getString().equals("Start hosting"))), "Start hosting is visible without scrolling");
+		context.takeScreenshot("review-1710-s4-host-setup");
+		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -10));
+		context.waitTicks(10);
+		context.takeScreenshot("review-1710-s4-host-setup-scrolled");
+		clickMenu(context, "Advanced settings");
+		context.waitTicks(6);
+		context.takeScreenshot("review-1710-s4-host-advanced");
+		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, 30));
+		context.waitTicks(10);
+		clickMenu(context, "Start hosting");
+		context.waitFor(mc -> HostController.isHosting(), 200);
+		check(true, "Start hosting from the top of the Host tab works");
+		context.waitTicks(20);
+		context.takeScreenshot("review-1710-s4-host-hosting");
+		context.setScreen(() -> null);
+		context.getInput().resizeWindow(854, 480);
+		context.runOnClient(mc -> {
+			mc.options.guiScale().set(0);
+			mc.resizeGui();
+		});
 
 		java.util.UUID alex = java.util.UUID.nameUUIDFromBytes("Alex".getBytes());
 		context.runOnClient(mc -> {

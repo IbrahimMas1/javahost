@@ -19,7 +19,6 @@ import com.javahost.client.gui.ui.Theme;
 import com.javahost.client.host.E4mcCompat;
 import com.javahost.client.host.HostController;
 import com.javahost.client.pack.PackReceiver;
-import com.javahost.client.perf.Benchmark;
 import com.javahost.client.voice.VoiceClient;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
@@ -70,7 +69,7 @@ public class JavaHostClient implements ClientModInitializer {
 					Minecraft minecraft = Minecraft.getInstance();
 					if (minecraft.getSingleplayerServer() == null && com.javahost.util.Versions.compare(hello.version(), JavaHost.VERSION) != 0) {
 						boolean hostOlder = com.javahost.util.Versions.compare(hello.version(), JavaHost.VERSION) < 0;
-						Toasts.show("Host runs JavaHost " + hello.version(), hostOlder
+						Toasts.notify("Host runs JavaHost " + hello.version(), hostOlder
 								? "You have " + JavaHost.VERSION + ". Some newer features won't work until they update."
 								: "You have " + JavaHost.VERSION + ". Run the latest installer to update.");
 					}
@@ -157,7 +156,7 @@ public class JavaHostClient implements ClientModInitializer {
 		if (!"PARTY".equals(config.voiceMode)) {
 			Toasts.show("Nearby voice", "Only players close to you hear you. " + key + " for party.");
 		} else if (VoiceClient.isAvailable() && !VoiceClient.partyAvailable()) {
-			Toasts.show("Party voice needs JavaHost 1.4", "The host needs to update. Nearby voice still works.");
+			Toasts.notify("Party voice needs JavaHost 1.4", "The host needs to update. Nearby voice still works.");
 		} else {
 			Toasts.show("Party voice", "Everyone in this world hears you, wherever they are. " + key + " to switch back.");
 		}
@@ -166,7 +165,6 @@ public class JavaHostClient implements ClientModInitializer {
 	// ---------------------------------------------------------------- HUD
 
 	private static void drawHud(GuiGraphicsExtractor g) {
-		Benchmark.frame();
 		Minecraft minecraft = Minecraft.getInstance();
 		if (minecraft.gui.hud.isHidden()) {
 			return;
@@ -197,9 +195,6 @@ public class JavaHostClient implements ClientModInitializer {
 		float progress = PackReceiver.progress();
 		if (progress >= 0) {
 			top = bar(g, top, Icons.PACKAGE, "Getting the host's packs", (int) (progress * 100) + "%", progress);
-		}
-		if (Benchmark.running()) {
-			bar(g, top, Icons.BOLT, Benchmark.step(), null, Benchmark.progress());
 		}
 	}
 

@@ -84,10 +84,10 @@ public final class WorldBackups {
 			running = false;
 			Minecraft.getInstance().execute(() -> {
 				if (error == null) {
-					Toasts.show("World backed up", "Restore it any time from the Host tab");
+					Toasts.notify("World backed up", "Restore it any time from the Host tab.");
 				} else {
 					JavaHost.LOGGER.warn("[Backups] could not back up {}", world, error);
-					Toasts.show("Couldn't back up your world", "JavaHost will try again later");
+					Toasts.notify("Couldn't back up your world", "JavaHost will try again later.");
 				}
 			});
 		});
