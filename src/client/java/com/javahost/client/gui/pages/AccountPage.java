@@ -51,9 +51,9 @@ public class AccountPage extends Page {
 		int right = 108;
 		int rightW = width - right;
 		int buttonW = (rightW - 6) / 2;
-		add(new FlatButton(buttonW, 20, Component.literal("Skin"), FlatButton.Style.SECONDARY, Icons.USER,
+		add(new FlatButton(buttonW, 20, Component.literal("Skin"), FlatButton.Style.SECONDARY, Icons.SHIRT,
 				b -> ConfirmLinkScreen.confirmLinkNow(screen, CHANGE_SKIN)), right, 52);
-		add(new FlatButton(buttonW, 20, Component.literal("Friends"), FlatButton.Style.SECONDARY, Icons.CHAT,
+		add(new FlatButton(buttonW, 20, Component.literal("Friends"), FlatButton.Style.SECONDARY, Icons.USERS,
 				b -> screen.switchTo(JavaHostScreen.Tab.FRIENDS)), right + buttonW + 6, 52);
 		add(new ToggleSwitch(rightW, Component.literal("Appear offline"), "Hidden from friends",
 				config.appearOffline, v -> {

@@ -242,25 +242,40 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.runOnClient(mc -> com.javahost.client.friends.Notifications.add(com.javahost.client.friends.Notifications.Kind.INVITE, alex, "Alex",
 				"Alex invited you to Survival Island", new com.javahost.client.friends.Friends.Invite(alex, "Alex", "Survival Island", List.of(), "",
 						System.currentTimeMillis() + 600_000)));
-		context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
-		context.waitTicks(10);
-		context.takeScreenshot("ui-title-dock");
-		hoverDock(context, "Friends");
-		context.waitTicks(8);
-		context.takeScreenshot("ui-title-dock-hover");
-		// GUI scale 1 makes the title screen wide enough for the full friends panel.
+		// The title screen on a big window (like a laptop's 2000x1250) at each common GUI scale.
 		int scale = context.computeOnClient(mc -> mc.options.guiScale().get());
+		context.getInput().resizeWindow(2000, 1250);
+		for (int guiScale : new int[] {4, 3, 2}) {
+			context.runOnClient(mc -> {
+				mc.options.guiScale().set(guiScale);
+				mc.resizeGui();
+			});
+			context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+			context.waitTicks(10);
+			context.takeScreenshot("ui-title-scale" + guiScale);
+			hoverDock(context, "Friends");
+			context.waitTicks(8);
+			context.takeScreenshot("ui-title-scale" + guiScale + "-hover");
+			context.getInput().setCursorPos(0, 0);
+		}
+		// Menu icons at GUI scale 3 (the in-between size).
 		context.runOnClient(mc -> {
-			mc.options.guiScale().set(1);
+			mc.options.guiScale().set(3);
 			mc.resizeGui();
 		});
-		context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
-		context.waitTicks(10);
-		context.takeScreenshot("ui-title-panel");
+		for (Tab tab : List.of(Tab.FRIENDS, Tab.SETTINGS, Tab.ACCOUNT)) {
+			context.setScreen(() -> new JavaHostScreen(null, tab));
+			context.waitTicks(6);
+			context.takeScreenshot("ui-scale3-" + tab.name().toLowerCase());
+		}
+		context.getInput().resizeWindow(854, 480);
 		context.runOnClient(mc -> {
 			mc.options.guiScale().set(scale);
 			mc.resizeGui();
 		});
+		context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+		context.waitTicks(10);
+		context.takeScreenshot("ui-title-small-window");
 		context.runOnClient(mc -> com.javahost.client.friends.Notifications.items().forEach(com.javahost.client.friends.Notifications::remove));
 	}
 

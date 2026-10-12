@@ -15,7 +15,7 @@ A Fabric mod for Minecraft **26.3** (Java Edition).
 - **Host controls.** Change a guest's game mode, kick or ban them, and set a player limit.
 - **Shared look.** Guests get the host's resource packs and **shader, including its settings** (with Iris). They're asked first, and everything goes back to normal when they leave.
 - **Performance.** One click installs Sodium, Lithium, FerriteCore, ImmediatelyFast and Entity Culling for your exact version, checked against Modrinth's hashes. **Quick Tune** gives FPS-friendly settings and can undo them. **Benchmark** measures your average FPS and 1% low, or compares before and after Quick Tune. There's an optional FPS / ping / memory overlay.
-- **Modern menu.** Press `J` in game, or use the **dock** down the right side of the title and pause screens: Notifications, Host, Friends, Voice, Screenshots, Performance, Settings and your Account. Badges show what's new, and Friends glows when a friend's world is ready to join. Pick an accent colour in Settings.
+- **Modern menu.** Press `J` in game, or use the **dock** down the right side of the title and pause screens: Host, Friends, Screenshots, Performance, Settings and your Account. Badges show what's new (including notifications, under Friends), and Friends glows when a friend's world is ready to join. The title screen also shows your 3D skin (drag to turn it) and the JavaHost version. Pick an accent colour in Settings.
 - **Account page.** Your 3D skin, how friends see you, an **Appear offline** switch, and how many friend messages you've sent today.
 - Friends need a Microsoft-account login, which every normal Minecraft purchase has.
 
@@ -68,3 +68,7 @@ scripts/multiplayer-test.sh          # two real clients: host + guest over LAN, 
 ```
 
 The GitHub workflow in `.github/workflows/build.yml` builds the Windows `.exe` and the macOS `.dmg`.
+
+## Credits
+
+Icons: [Pixelarticons](https://github.com/halfmage/pixelarticons) by Gerrit Halfmann (MIT). See `src/main/resources/assets/javahost/ICONS-LICENSE.txt`. To change them, edit the list in `scripts/gen-icons.py` and run it on Pixelarticons' `svg` folder.

@@ -59,7 +59,7 @@ public class HomePage extends Page {
 				b -> screen.switchTo(JavaHostScreen.Tab.HOST)), 0, CARDS_Y);
 		host.active = hosting || canHost();
 		int requests = com.javahost.client.friends.Friends.incoming().size();
-		add(new CardButton(half, 52, Icons.USER, Component.literal(requests > 0 ? "Friends (" + requests + " new)" : "Friends"),
+		add(new CardButton(half, 52, Icons.USERS, Component.literal(requests > 0 ? "Friends (" + requests + " new)" : "Friends"),
 				hosting ? "Invite them in with one click" : "Add friends and play together",
 				b -> screen.switchTo(JavaHostScreen.Tab.FRIENDS)), width - half, CARDS_Y);
 		reserve(TILES_Y + 46);

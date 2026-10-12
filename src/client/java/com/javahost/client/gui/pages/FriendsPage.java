@@ -261,7 +261,7 @@ public class FriendsPage extends Page {
 		int y = top + friendsY + 12;
 		card(g, left, y - 2, width, Math.max(1, friends.size()) * ROW + 4);
 		if (friends.isEmpty()) {
-			Icons.USER.draw(g, left + 9, y + 9, Theme.FAINT);
+			Icons.USERS.draw(g, left + 9, y + 9, Theme.FAINT);
 			Draw.text(g, Draw.fit("No friends yet. Add someone by name above.", width - 34), left + 24, y + 10, Theme.MUTED);
 		}
 		for (Friend friend : friends) {

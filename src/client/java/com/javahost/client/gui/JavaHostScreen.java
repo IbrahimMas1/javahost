@@ -42,7 +42,7 @@ import net.minecraft.network.chat.Component;
 public class JavaHostScreen extends Screen {
 	public enum Tab {
 		HOME("Home", Icons.HOME, HomePage::new, null),
-		FRIENDS("Friends", Icons.USER, FriendsPage::new, null),
+		FRIENDS("Friends", Icons.USERS, FriendsPage::new, null),
 		HOST("Host", Icons.HOST, HostPage::new, null),
 		VOICE("Voice", Icons.MIC, VoicePage::new, null),
 		SCREENSHOTS("Screenshots", Icons.CAMERA, ScreenshotsPage::new, null),

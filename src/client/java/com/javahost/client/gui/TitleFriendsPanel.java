@@ -132,7 +132,7 @@ public final class TitleFriendsPanel extends Button {
 		Draw.shadow(g, x, y, W, h, 8);
 		Draw.roundRect(g, x, y, W, h, 8, Theme.withAlpha(Theme.WINDOW, 0.9f * fade));
 
-		Icons.USER.draw(g, x + 8, y + 6, Theme.ACCENT);
+		Icons.USERS.draw(g, x + 8, y + 6, Theme.ACCENT);
 		Draw.text(g, "Friends", x + 22, y + 7, Theme.TEXT);
 		if (online > 0) {
 			String count = String.valueOf(online);

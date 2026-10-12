@@ -180,7 +180,7 @@ public class HostPage extends Page {
 		lastSignature = signature();
 
 		heroY = 0;
-		add(new FlatButton(104, 18, Component.literal("Invite friends"), FlatButton.Style.PRIMARY, Icons.USER,
+		add(new FlatButton(104, 18, Component.literal("Invite friends"), FlatButton.Style.PRIMARY, Icons.USERS,
 				b -> screen.switchTo(JavaHostScreen.Tab.FRIENDS)), width - 114, heroY + 6);
 		Route best = Connectivity.recommended();
 		if (best != null && best.invite() != null) {

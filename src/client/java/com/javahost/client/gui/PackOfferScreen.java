@@ -71,7 +71,7 @@ public class PackOfferScreen extends Screen {
 		Draw.roundRect(g, boxX, boxY, boxW, boxH, 10, Theme.BORDER);
 		Draw.roundRect(g, boxX + 1, boxY + 1, boxW - 2, boxH - 2, 9, Theme.WINDOW);
 
-		Icons.PACKAGE.draw(g, boxX + 16, boxY + 16, 2, Theme.ACCENT);
+		Icons.PACKAGE.draw(g, boxX + 16, boxY + 16, 18, Theme.ACCENT);
 		Draw.scaledText(g, "Use the host's packs?", boxX + 42, boxY + 16, 1.25f, Theme.TEXT);
 		Draw.text(g, Draw.fit("See the world exactly the way the host does.", boxW - 58), boxX + 42, boxY + 30, Theme.MUTED);
 

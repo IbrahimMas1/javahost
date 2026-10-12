@@ -120,7 +120,7 @@ public class JavaHostClient implements ClientModInitializer {
 				}
 			} else if (screen instanceof JoinMultiplayerScreen) {
 				Screens.getWidgets(screen).add(new FlatButton(width - 88, 4, 84, 20, Component.literal("Friends"),
-						FlatButton.Style.PRIMARY, Icons.USER, b -> minecraft.gui.setScreen(new JavaHostScreen(screen, JavaHostScreen.Tab.FRIENDS))));
+						FlatButton.Style.PRIMARY, Icons.USERS, b -> minecraft.gui.setScreen(new JavaHostScreen(screen, JavaHostScreen.Tab.FRIENDS))));
 			}
 		});
 	}
