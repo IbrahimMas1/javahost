@@ -302,6 +302,39 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		}
 	}
 
+	/** UI review at the player's real setup: a 2000x1250 window at GUI scale 4 (and 3), every screen captured. */
+	private static void reviewAtScale(ClientGameTestContext context, int guiScale) {
+		int previous = context.computeOnClient(mc -> mc.options.guiScale().get());
+		context.getInput().resizeWindow(2000, 1250);
+		context.runOnClient(mc -> {
+			mc.options.guiScale().set(guiScale);
+			mc.resizeGui();
+		});
+		Config.get().fpsOverlay = true;
+		context.setScreen(() -> null);
+		context.waitTicks(10);
+		context.takeScreenshot("review-s" + guiScale + "-hud");
+		Config.get().fpsOverlay = false;
+		for (Tab tab : Tab.values()) {
+			if (tab == Tab.PROFILE || tab == Tab.CHAT) {
+				continue; // need a friend; covered by the two-game test
+			}
+			context.setScreen(() -> new JavaHostScreen(null, tab));
+			context.waitTicks(8);
+			context.takeScreenshot("review-s" + guiScale + "-" + tab.name().toLowerCase());
+		}
+		context.setScreen(() -> new net.minecraft.client.gui.screens.PauseScreen(true));
+		context.waitTicks(8);
+		context.takeScreenshot("review-s" + guiScale + "-pause");
+		context.setScreen(() -> null);
+		context.getInput().resizeWindow(854, 480);
+		context.runOnClient(mc -> {
+			mc.options.guiScale().set(previous);
+			mc.resizeGui();
+		});
+		context.waitTicks(4);
+	}
+
 	/** 1.4: big screenshots fit the relay, the video settings switch, and world backups. */
 	private static void version14(ClientGameTestContext context) {
 		// Screenshot size: ntfy.sh takes at most 2 MB per file.
@@ -544,6 +577,8 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.takeScreenshot("ui-screenshots-preview");
 		navigation(context, file);
 		version14(context);
+		reviewAtScale(context, 4);
+		reviewAtScale(context, 3);
 
 		java.util.UUID alex = java.util.UUID.nameUUIDFromBytes("Alex".getBytes());
 		context.runOnClient(mc -> {

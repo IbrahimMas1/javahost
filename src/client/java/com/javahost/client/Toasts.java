@@ -28,9 +28,34 @@ public final class Toasts {
 		add(new JavaHostToast(title, message, player));
 	}
 
+	/** Toasts that arrived while the JavaHost menu was open (they'd cover its buttons); shown when it closes. */
+	private static final java.util.ArrayDeque<Toast> WAITING = new java.util.ArrayDeque<>();
+
 	private static void add(Toast toast) {
 		Minecraft minecraft = Minecraft.getInstance();
-		minecraft.execute(() -> minecraft.gui.toastManager().addToast(toast));
+		minecraft.execute(() -> {
+			if (menuOpen(minecraft)) {
+				WAITING.add(toast);
+				while (WAITING.size() > 3) {
+					WAITING.poll(); // keep the newest few
+				}
+			} else {
+				minecraft.gui.toastManager().addToast(toast);
+			}
+		});
+	}
+
+	private static boolean menuOpen(Minecraft minecraft) {
+		return minecraft.gui.screen() instanceof com.javahost.client.gui.JavaHostScreen;
+	}
+
+	/** Called every client tick: shows waiting toasts once the menu is closed. */
+	public static void tick(Minecraft minecraft) {
+		if (!WAITING.isEmpty() && !menuOpen(minecraft)) {
+			while (!WAITING.isEmpty()) {
+				minecraft.gui.toastManager().addToast(WAITING.poll());
+			}
+		}
 	}
 
 	private static final class JavaHostToast implements Toast {
@@ -57,6 +82,9 @@ public final class Toasts {
 
 		@Override
 		public void extractRenderState(GuiGraphicsExtractor g, Font font, long fullyVisibleForMs) {
+			if (menuOpen(Minecraft.getInstance())) {
+				return; // don't cover the menu's buttons; it finishes its time out of sight
+			}
 			Draw.roundRect(g, 0, 0, width(), height(), 6, Theme.GLASS_EDGE);
 			Draw.roundRect(g, 1, 1, width() - 2, height() - 2, 5, 0xEC161B22);
 			Draw.roundRect(g, 1, 6, 2, height() - 12, 1, Theme.ACCENT);

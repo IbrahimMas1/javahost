@@ -54,7 +54,7 @@ public class ChatPage extends Page {
 
 	@Override
 	public String subtitle() {
-		return "Private and encrypted. Only you two can read it.";
+		return "Encrypted: only you two can read it.";
 	}
 
 	@Override

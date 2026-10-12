@@ -254,7 +254,7 @@ public final class HostController {
 			return;
 		}
 
-		packStatus = "Preparing " + sources.size() + " pack(s) to share...";
+		packStatus = "Preparing " + com.javahost.client.gui.ui.Draw.count(sources.size(), "pack") + " to share...";
 		String settings = shaderSettings;
 		CompletableFuture.supplyAsync(() -> buildSharedPacks(sources)).whenComplete((packs, error) -> {
 			if (error != null || packs == null) {
@@ -267,7 +267,7 @@ public final class HostController {
 			}
 			HostState.setSharedPacks(packs, settings);
 			long totalMb = packs.stream().mapToLong(p -> p.info().size()).sum() / (1024 * 1024);
-			packStatus = "Sharing " + packs.size() + " pack(s) (" + totalMb + " MB) with everyone who joins.";
+			packStatus = "Sharing " + com.javahost.client.gui.ui.Draw.count(packs.size(), "pack") + " (" + totalMb + " MB) with everyone who joins.";
 			// Anyone who joined while we were zipping gets the offer now.
 			server.execute(() -> PackServer.offerToAll(server));
 		});

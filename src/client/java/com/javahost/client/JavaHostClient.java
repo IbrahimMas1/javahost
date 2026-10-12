@@ -83,6 +83,7 @@ public class JavaHostClient implements ClientModInitializer {
 			HostController.tick();
 			InviteFlow.tick(minecraft);
 			Popups.tick(minecraft);
+			Toasts.tick(minecraft);
 			Friends.tick();
 			Presence.tick(minecraft);
 			while (OPEN_MENU.consumeClick()) {
@@ -175,7 +176,7 @@ public class JavaHostClient implements ClientModInitializer {
 		int y = 4;
 
 		if (config.fpsOverlay) {
-			y = pill(g, right, y, Icons.BOLT, null, overlayText(minecraft), Theme.TEXT);
+			y = fpsCounter(g, right, y, minecraft);
 		}
 
 		if (VoiceClient.isAvailable() && config.voiceEnabled && config.showVoiceOverlay) {
@@ -218,23 +219,23 @@ public class JavaHostClient implements ClientModInitializer {
 		return top + 30;
 	}
 
-	/** "120 FPS · 35 ms · 1.4/4.0 GB" */
-	private static String overlayText(Minecraft minecraft) {
-		StringBuilder text = new StringBuilder().append(minecraft.getFps()).append(" FPS");
-		if (minecraft.getConnection() != null && minecraft.player != null && !minecraft.isLocalServer()) {
-			var info = minecraft.getConnection().getPlayerInfo(minecraft.player.getUUID());
-			if (info != null && info.getLatency() > 0) {
-				text.append(" \u00B7 ").append(info.getLatency()).append(" ms");
-			}
-		}
-		Runtime runtime = Runtime.getRuntime();
-		double used = (runtime.totalMemory() - runtime.freeMemory()) / 1073741824.0;
-		double max = runtime.maxMemory() / 1073741824.0;
-		text.append(String.format(" \u00B7 %.1f/%.1f GB", used, max));
-		return text.toString();
+	/**
+	 * A small, clean FPS counter: the number coloured by smoothness (green 60+, amber 30+, red below) and a muted
+	 * "FPS" label, on a subtle dark chip. Returns the y for the next HUD item.
+	 */
+	private static int fpsCounter(GuiGraphicsExtractor g, boolean right, int y, Minecraft minecraft) {
+		int fps = minecraft.getFps();
+		String number = String.valueOf(fps);
+		String label = "FPS";
+		int color = fps >= 60 ? 0xFF7CE0A3 : fps >= 30 ? 0xFFF2C14E : 0xFFF07070;
+		int w = Draw.font().width(number) + 3 + Draw.font().width(label) + 10;
+		int x = right ? g.guiWidth() - w - 4 : 4;
+		Draw.roundRect(g, x, y, w, 13, 4, 0x8C000000);
+		Draw.text(g, number, x + 5, y + 3, color);
+		Draw.text(g, label, x + 5 + Draw.font().width(number) + 3, y + 3, 0xFFB7BEC7);
+		return y + 16;
 	}
 
-	/** A rounded label with an icon or a player's face; returns the y for the next one. */
 	private static int pill(GuiGraphicsExtractor g, boolean right, int y, Icons icon, UUID face, String text, int accent) {
 		int w = 26 + Draw.font().width(text);
 		int x = right ? g.guiWidth() - w - 4 : 4;

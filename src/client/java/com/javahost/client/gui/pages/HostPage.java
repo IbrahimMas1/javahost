@@ -56,7 +56,7 @@ public class HostPage extends Page {
 	@Override
 	public String subtitle() {
 		return HostController.isHosting()
-				? "Invite friends from the Friends tab, or share the code."
+				? "Invite friends, or share the code."
 				: "Your PC is the server. No rental needed.";
 	}
 
@@ -423,7 +423,7 @@ public class HostPage extends Page {
 			status(g, left + 12, y + 10, Theme.INFO, "Checking how friends can reach you...", Theme.TEXT);
 			Draw.text(g, "This takes a few seconds.", left + 12, y + 30, Theme.MUTED);
 		} else {
-			String headline = best.state() != State.WORKING ? "Friends might be able to join (see below)" : switch (best.name()) {
+			String headline = best.state() != State.WORKING ? "Friends might be able to join" : switch (best.name()) {
 				case "Internet" -> "Friends anywhere can join";
 				case "Relay" -> "Friends anywhere can join (via relay)";
 				case "IPv6" -> "Friends with IPv6 can join";
@@ -435,7 +435,8 @@ public class HostPage extends Page {
 			String invite = best.invite();
 			float scale = Draw.font().width(invite) * 1.5f < width - 100 ? 1.5f : 1f;
 			Draw.scaledText(g, Draw.fit(invite, (int) ((width - 100) / scale)), left + 12, y + 37, scale, Theme.ACCENT);
-			Draw.text(g, Draw.fit(best.detail(), width - 24), left + 12, y + 56, Theme.MUTED);
+			String hint = best.state() == State.WORKING ? "Share this code, or just invite friends." : "May not work for everyone. Invites try every way.";
+			Draw.text(g, Draw.fit(hint, width - 24), left + 12, y + 56, Theme.MUTED);
 		}
 
 		// All ways of connecting.

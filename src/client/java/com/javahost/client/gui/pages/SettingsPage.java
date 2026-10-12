@@ -52,7 +52,7 @@ public class SettingsPage extends Page {
 					config.hudCorner = corner;
 					config.save();
 				}), width - 150, 46);
-		add(new ToggleSwitch(inner, Component.literal("FPS overlay"), "FPS, ping and memory on screen",
+		add(new ToggleSwitch(inner, Component.literal("FPS overlay"), "A small frame-rate counter in a corner",
 				config.fpsOverlay, v -> {
 					config.fpsOverlay = v;
 					config.save();

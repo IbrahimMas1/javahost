@@ -42,6 +42,11 @@ public final class Draw {
 		}
 	}
 
+	/** "1 friend", "3 friends". */
+	public static String count(int n, String thing) {
+		return n + " " + thing + (n == 1 ? "" : "s");
+	}
+
 	/** A frosted-glass panel: soft shadow, translucent fill, a faint light edge and a highlight along the top. */
 	public static void glass(GuiGraphicsExtractor g, int x, int y, int w, int h, int r) {
 		shadow(g, x, y, w, h, r);

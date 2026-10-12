@@ -194,8 +194,9 @@ public class JavaHostScreen extends Screen {
 		sidebarWidgets.clear();
 		pageWidgets.clear();
 
-		winW = Math.min(width - 16, 480);
-		winH = Math.min(height - 16, 310);
+		// At most 480x310, and never more than ~88% of the screen, so big GUI scales keep a margin all round.
+		winW = Math.min(480, Math.min(width - 16, Math.round(width * 0.88f)));
+		winH = Math.min(310, Math.min(height - 16, Math.round(height * 0.86f)));
 		winX = (width - winW) / 2;
 		winY = (height - winH) / 2;
 		boolean compact = winW < 380;

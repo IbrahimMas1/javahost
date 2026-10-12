@@ -28,7 +28,7 @@ public class JoinPage extends Page {
 
 	@Override
 	public String subtitle() {
-		return "Paste the invite your friend copied from their Host tab.";
+		return "Paste a code or address from a friend.";
 	}
 
 	@Override
@@ -74,7 +74,7 @@ public class JoinPage extends Page {
 			Icons.WARNING.draw(g, left, top + 38, Theme.WARNING);
 			Draw.text(g, Draw.fit(error, width - 14), left + 13, top + 39, Theme.WARNING);
 		} else {
-			Draw.text(g, "Codes, relay addresses (…e4mc.link) and normal server addresses all work.", left, top + 39, Theme.FAINT);
+			Draw.text(g, Draw.fit("Invite codes, relay and server addresses all work.", width), left, top + 39, Theme.FAINT);
 		}
 
 		sectionLabel(g, "Recent", left, top + 62);

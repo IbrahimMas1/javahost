@@ -55,7 +55,7 @@ public class HomePage extends Page {
 		boolean hosting = HostController.isHosting();
 		CardButton host = add(new CardButton(half, 52, Icons.HOST,
 				Component.literal(hosting ? "You're hosting" : "Host this world"),
-				hosting ? HostController.guests().size() + " friend(s) online" : canHost() ? "Let friends join you" : "Open a singleplayer world first",
+				hosting ? (HostController.guests().isEmpty() ? "Waiting for friends to join" : Draw.count(HostController.guests().size(), "friend") + " in your world") : canHost() ? "Let friends join you" : "Open a singleplayer world first",
 				b -> screen.switchTo(JavaHostScreen.Tab.HOST)), 0, CARDS_Y);
 		host.active = hosting || canHost();
 		int requests = com.javahost.client.friends.Friends.incoming().size();
@@ -73,7 +73,7 @@ public class HomePage extends Page {
 		Draw.scaledText(g, "Hi, " + name, left + 34, top + 2, 1.25f, Theme.TEXT);
 		boolean hosting = HostController.isHosting();
 		status(g, left + 34, top + 16, hosting ? Theme.ACCENT : Theme.FAINT,
-				hosting ? "Hosting · " + HostController.guests().size() + " friend(s) playing" : "Not hosting right now", Theme.MUTED);
+				hosting ? (HostController.guests().isEmpty() ? "Hosting · waiting for friends" : "Hosting · " + Draw.count(HostController.guests().size(), "friend") + " playing") : "Not hosting right now", Theme.MUTED);
 
 		// Three status tiles.
 		int tileW = (width - 16) / 3;
@@ -91,7 +91,7 @@ public class HomePage extends Page {
 		tile(g, left + (tileW + 8) * 2, y, width - (tileW + 8) * 2, Icons.SPARKLE, "Frame rate", minecraft.getFps() + " FPS", Theme.INFO);
 
 		Draw.text(g, "Tip: press " + JavaHostClient.OPEN_MENU.getTranslatedKeyMessage().getString() + " in game to open this menu.",
-				left, y + 54, Theme.FAINT);
+				left, Math.max(y + 54, top + screen.contentHeight() - 12), Theme.FAINT); // pinned to the bottom
 	}
 
 	private static void tile(GuiGraphicsExtractor g, int x, int y, int w, Icons icon, String label, String value, int accent) {

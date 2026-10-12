@@ -23,6 +23,14 @@ public class PerformancePage extends Page {
 	private static volatile boolean needsRestart;
 
 	private int modsY;
+
+	/** The benchmark card fits its contents: taller only for a before/after pair (two bars and the gain). */
+	private static int benchCardH() {
+		java.util.List<com.javahost.client.Config.BenchmarkResult> results = com.javahost.client.Config.get().benchmarks;
+		int n = results.size();
+		boolean pair = !Benchmark.running() && n >= 2 && results.get(n - 2).label().equals("Before") && results.get(n - 1).label().equals("After");
+		return pair ? 84 : 58;
+	}
 	private int extrasY;
 	private String lastSignature = "";
 
@@ -33,7 +41,7 @@ public class PerformancePage extends Page {
 
 	@Override
 	public String subtitle() {
-		return "The mods most players use for more FPS.";
+		return "More FPS with mods and smart settings.";
 	}
 
 	private static List<BoostMod> recommended() {
@@ -84,7 +92,7 @@ public class PerformancePage extends Page {
 			compare.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Open a world first")));
 		}
 
-		modsY = 150;
+		modsY = 56 + benchCardH() + 14;
 		boolean allInstalled = recommended().stream().allMatch(BoostMods::isInstalled);
 		FlatButton installAll = add(new FlatButton(104, 16, Component.literal(allInstalled ? "All installed" : "Install all"),
 				FlatButton.Style.PRIMARY, allInstalled ? Icons.CHECK : Icons.BOLT, b -> install(recommended())), width - 104, modsY - 4);
@@ -113,7 +121,7 @@ public class PerformancePage extends Page {
 			int count = BoostMods.install(missing, line -> installStatus = line);
 			if (count > 0) {
 				needsRestart = true;
-				installStatus = "Installed " + count + " mod(s). Restart Minecraft to turn them on.";
+				installStatus = "Installed " + Draw.count(count, "mod") + ". Restart Minecraft to turn them on.";
 			}
 			installing = false;
 		});
@@ -140,7 +148,7 @@ public class PerformancePage extends Page {
 		card(g, left, top + 12, width, 36);
 
 		// Benchmark card.
-		card(g, left, top + 56, width, 80);
+		card(g, left, top + 56, width, benchCardH());
 		Draw.text(g, "Benchmark", left + 10, top + 64, Theme.TEXT);
 		Draw.text(g, Draw.fit(Benchmark.SECONDS + " s, stand still", width - 186), left + 10, top + 74, Theme.FAINT);
 		java.util.List<com.javahost.client.Config.BenchmarkResult> results = com.javahost.client.Config.get().benchmarks;

@@ -51,7 +51,7 @@ public class FriendsPage extends Page {
 	@Override
 	public String subtitle() {
 		long online = Presence.onlineFriends().size();
-		return online > 0 ? online + " online. Join them, or invite them into your world." : "Add friends, then play together with one click.";
+		return online > 0 ? online + " online. Join them or invite them." : "Add friends, then play together.";
 	}
 
 	/** Hosting friends first, then online, then offline; alphabetical within each. */
