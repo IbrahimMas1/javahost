@@ -2,5 +2,7 @@
 	"key.category.javahost.javahost": "JavaHost",
 	"key.javahost.push_to_talk": "Push to Talk",
 	"key.javahost.menu": "Open JavaHost Menu",
-	"key.javahost.mute": "Mute Microphone"
+	"key.javahost.mute": "Mute Microphone",
+	"key.javahost.screenshot": "Screenshot to Friends",
+	"key.javahost.overlay": "Toggle FPS Overlay"
 }

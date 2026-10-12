@@ -16,8 +16,12 @@ import java.util.zip.ZipOutputStream;
 
 import com.javahost.JavaHost;
 import com.javahost.client.Config;
+import com.javahost.HostState;
+import com.javahost.client.friends.Chats;
 import com.javahost.client.friends.Friends;
 import com.javahost.client.friends.InviteFlow;
+import com.javahost.client.friends.Presence;
+import com.javahost.client.friends.Screenshots;
 import com.javahost.client.gui.FriendPopup;
 import com.javahost.client.gui.JavaHostScreen;
 import com.javahost.util.Mailbox;
@@ -33,6 +37,7 @@ import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.world.level.GameType;
 
 /**
  * Real multiplayer through the host's PC, with two separate game processes:
@@ -187,15 +192,75 @@ final class MultiplayerTest {
 			context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.FRIENDS));
 			context.waitTicks(5);
 			context.takeScreenshot("mp-host-friends");
+
+			// ---- Chat both ways.
+			Mailbox.Sent hello = await(context, context.computeOnClient(mc -> Friends.sendChat(guestFriend, "hello from host")));
+			check(hello.ok(), "host sent a chat message (HTTP " + hello.status() + ")");
+			context.waitFor(mc -> Chats.with(guestFriend.id()).stream().anyMatch(l -> !l.mine() && l.text().equals("hi host")), 2 * ONE_MINUTE);
+			check(true, "host got the guest's chat reply");
+			context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).openChat(guestFriend.id()));
+			context.waitTicks(10);
+			context.takeScreenshot("mp-host-chat");
+			context.setScreen(() -> null);
+
+			// ---- A screenshot, end-to-end encrypted, sent as an attachment.
+			java.util.concurrent.CompletableFuture<Path> shot = new java.util.concurrent.CompletableFuture<>();
+			context.runOnClient(mc -> Screenshots.take(shot::complete));
+			Path shotFile = await(context, shot);
+			byte[] png;
+			try {
+				png = Screenshots.prepareForSending(shotFile);
+			} catch (IOException e) {
+				throw new AssertionError(e);
+			}
+			writeShared("host-shot-sha", sha256(png));
+			Mailbox.Sent sentShot = await(context, context.computeOnClient(mc -> Friends.sendScreenshot(guestFriend, png, shotFile.getFileName().toString())));
+			check(sentShot.ok(), "host sent a " + png.length / 1024 + " KB screenshot to Guest (HTTP " + sentShot.status() + ")");
+			waitForShared(context, "guest-social-done", 3 * ONE_MINUTE);
+
+			// ---- One click invite; the guest's game confirms delivery.
+			context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.FRIENDS));
 			context.runOnClient(mc -> check(!HostController.isHosting(), "world not open yet before inviting"));
 			context.runOnClient(mc -> InviteFlow.invite(guestFriend));
-			context.waitFor(mc -> "Invited".equals(InviteFlow.status(guestFriend.id())), 2 * ONE_MINUTE);
+			context.waitFor(mc -> Friends.inviteStatus(guestFriend.id()).map(st -> st.state() == Friends.InviteState.DELIVERED).orElse(false), 2 * ONE_MINUTE);
 			context.runOnClient(mc -> check(HostController.isHosting(), "inviting opened the world automatically and sent the invite"));
+			check(true, "the invite shows Delivered (the guest's game confirmed it)");
 			context.waitTicks(5);
 			context.takeScreenshot("mp-host-friends-invited");
 			context.setScreen(() -> null);
 			context.waitFor(mc -> HostController.guests().stream().anyMatch(g -> g.name().equals("Guest")), 3 * ONE_MINUTE);
 			check(true, "Guest joined the world from the invite's Join button");
+			context.waitFor(mc -> "In your world".equals(InviteFlow.status(guestFriend.id())), ONE_MINUTE);
+			check(true, "the friends list shows Guest as \"In your world\"");
+			UUID guestPlayer = HostController.guests().stream().filter(g -> g.name().equals("Guest")).findFirst().orElseThrow().id();
+
+			// ---- Host controls: game mode, and muting one player's voice.
+			context.runOnClient(mc -> HostController.setGameMode(guestPlayer, GameType.CREATIVE));
+			writeShared("host-set-creative", "ok");
+			waitForShared(context, "guest-saw-creative", ONE_MINUTE);
+			check(true, "host switched Guest to Creative and the guest's game shows it");
+			context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.HOST));
+			context.waitTicks(10);
+			context.takeScreenshot("mp-host-controls");
+			context.setScreen(() -> null);
+
+			context.waitFor(mc -> VoiceClient.audibleFramesFrom(guestPlayer) > 25, ONE_MINUTE);
+			context.runOnClient(mc -> Config.get().mutedPlayers.add(guestPlayer.toString()));
+			context.waitTicks(20);
+			int mutedAt = VoiceClient.audibleFramesFrom(guestPlayer);
+			context.waitTicks(60);
+			int afterMute = VoiceClient.audibleFramesFrom(guestPlayer);
+			check(afterMute - mutedAt <= 2, "muting Guest silences them (" + (afterMute - mutedAt) + " frames in 3 s)");
+			context.runOnClient(mc -> Config.get().mutedPlayers.remove(guestPlayer.toString()));
+			context.waitFor(mc -> VoiceClient.audibleFramesFrom(guestPlayer) > afterMute + 25, ONE_MINUTE);
+			check(true, "unmuting brings Guest's voice back");
+			context.runOnClient(mc -> HostController.setGameMode(guestPlayer, GameType.SURVIVAL));
+			writeShared("host-controls-done", "ok");
+
+			// ---- The guest leaves, sees us hosting in their friends list and joins with no invite.
+			context.waitFor(mc -> HostController.guests().isEmpty(), ONE_MINUTE);
+			context.waitFor(mc -> HostController.guests().stream().anyMatch(g -> g.name().equals("Guest")), 5 * ONE_MINUTE);
+			check(true, "Guest joined again from Join on their friends list (online status, no invite)");
 			waitForShared(context, "guest-invite-done", 3 * ONE_MINUTE);
 
 			context.waitFor(mc -> !Connectivity.isProbing(), ONE_MINUTE);
@@ -219,7 +284,28 @@ final class MultiplayerTest {
 
 			int heardBefore = 0;
 			while (readShared("guest-done") == null) {
-				context.waitFor(mc -> readShared("guest-done") != null || pendingRoute() != null || unfriendedNotAcked(), 15 * ONE_MINUTE);
+				context.waitFor(mc -> readShared("guest-done") != null || pendingRoute() != null || unfriendedNotAcked()
+						|| waiting("guest-wants-ban", "host-banned") || waiting("guest-saw-ban", "host-full") || waiting("guest-saw-full", "host-open"), 15 * ONE_MINUTE);
+				if (waiting("guest-wants-ban", "host-banned")) {
+					context.runOnClient(mc -> HostController.ban(guestPlayer, "Guest"));
+					writeShared("host-banned", "ok");
+					continue;
+				}
+				if (waiting("guest-saw-ban", "host-full")) {
+					check(true, "a banned player is turned away");
+					context.runOnClient(mc -> {
+						HostController.unban(guestPlayer);
+						HostState.setMaxPlayers(1);
+					});
+					writeShared("host-full", "ok");
+					continue;
+				}
+				if (waiting("guest-saw-full", "host-open")) {
+					check(true, "the player limit turns people away when the world is full");
+					context.runOnClient(mc -> HostController.applyHostRules(Config.get()));
+					writeShared("host-open", "ok");
+					continue;
+				}
 				if (unfriendedNotAcked()) {
 					writeShared("host-saw-remove", "ok");
 					check(true, "host got the guest's unfriend message");
@@ -251,6 +337,55 @@ final class MultiplayerTest {
 		}
 		JavaHost.LOGGER.info("[JavaHost MP] HOST DONE: {}", readShared("guest-done"));
 		check(readShared("guest-done").startsWith("PASS"), "guest reported success");
+	}
+
+	/** Presses a button inside the JavaHost menu (it draws its own widgets, so the stock helper can't see them). */
+	private static void clickMenuButton(ClientGameTestContext context, String label) {
+		boolean pressed = context.computeOnClient(mc -> {
+			for (var child : mc.gui.screen().children()) {
+				if (child instanceof net.minecraft.client.gui.components.AbstractButton button && button.visible && button.active
+						&& button.getMessage().getString().equals(label)) {
+					button.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
+					return true;
+				}
+			}
+			return false;
+		});
+		check(pressed, "pressed \"" + label + "\" in the JavaHost menu");
+	}
+
+	/** The other game wrote {@code asked} and we haven't answered with {@code answer} yet. */
+	private static boolean waiting(String asked, String answer) {
+		return readShared(asked) != null && readShared(answer) == null;
+	}
+
+	private static String sha256(byte[] data) {
+		try {
+			return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(data));
+		} catch (java.security.NoSuchAlgorithmException e) {
+			throw new AssertionError(e);
+		}
+	}
+
+	/** Waits for a future while letting the game keep ticking (callbacks often hop to the client thread). */
+	private static <T> T await(ClientGameTestContext context, java.util.concurrent.CompletableFuture<T> future) {
+		context.waitFor(mc -> future.isDone(), 3 * ONE_MINUTE);
+		return future.join();
+	}
+
+	/** Tries to join; returns why we were turned away, or null if we got in (then leaves again). */
+	private static String tryJoin(ClientGameTestContext context, String address) {
+		context.runOnClient(mc -> ConnectScreen.startConnecting(new TitleScreen(), mc, ServerAddress.parseString(address),
+				new ServerData("JavaHost test host", address, ServerData.Type.OTHER), false, null));
+		context.waitFor(mc -> mc.gui.screen() instanceof DisconnectedScreen || (mc.player != null && mc.gui.screen() == null), 2 * ONE_MINUTE);
+		String refused = context.computeOnClient(mc -> mc.gui.screen() instanceof DisconnectedScreen d ? d.getNarrationMessage().getString() : null);
+		if (refused == null) {
+			context.runOnClient(mc -> mc.disconnect(new TitleScreen(), false));
+			context.waitFor(mc -> mc.level == null, ONE_MINUTE);
+		} else {
+			context.runOnClient(mc -> mc.gui.setScreen(new TitleScreen()));
+		}
+		return refused;
 	}
 
 	private static boolean unfriendedNotAcked() {
@@ -291,6 +426,33 @@ final class MultiplayerTest {
 		context.clickScreenButton("Accept");
 		context.waitFor(mc -> Friends.friends().stream().anyMatch(f -> f.name().equals("Host")), ONE_MINUTE);
 		check(true, "guest accepted the friend request from the popup");
+		Friends.Friend host = context.computeOnClient(mc -> Friends.friends().stream().filter(f -> f.name().equals("Host")).findFirst().orElseThrow());
+
+		// ---- Chat and a screenshot from the host.
+		context.waitFor(mc -> Chats.with(host.id()).stream().anyMatch(l -> !l.mine() && l.text().equals("hello from host")), 2 * ONE_MINUTE);
+		check(true, "guest got the host's chat message");
+		Mailbox.Sent reply = await(context, context.computeOnClient(mc -> Friends.sendChat(host, "hi host")));
+		check(reply.ok(), "guest replied in chat");
+		waitForShared(context, "host-shot-sha", 3 * ONE_MINUTE);
+		context.waitFor(mc -> !Screenshots.list(true).isEmpty(), 3 * ONE_MINUTE);
+		String receivedSha;
+		try {
+			receivedSha = sha256(Files.readAllBytes(context.computeOnClient(mc -> Screenshots.list(true).getFirst())));
+		} catch (IOException e) {
+			throw new AssertionError(e);
+		}
+		check(receivedSha.equals(readShared("host-shot-sha")), "guest received the host's screenshot, decrypted and byte-for-byte identical");
+		context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.NOTIFICATIONS));
+		context.waitTicks(10);
+		context.takeScreenshot("mp-guest-notifications");
+		context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.SCREENSHOTS));
+		context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).openScreenshot(Screenshots.list(true).getFirst()));
+		context.waitTicks(10);
+		context.takeScreenshot("mp-guest-screenshot-received");
+		context.setScreen(TitleScreen::new);
+		writeShared("guest-social-done", "ok");
+
+		// ---- The invite popup's Join button.
 		context.waitFor(mc -> mc.gui.screen() instanceof FriendPopup, 3 * ONE_MINUTE);
 		context.takeScreenshot("mp-guest-invite");
 		context.clickScreenButton("Join");
@@ -298,8 +460,32 @@ final class MultiplayerTest {
 				|| mc.gui.screen() instanceof DisconnectedScreen, 3 * ONE_MINUTE);
 		String refusedInvite = context.computeOnClient(mc -> mc.gui.screen() instanceof DisconnectedScreen d ? d.getNarrationMessage().getString() : null);
 		check(refusedInvite == null, "guest joined the host's world by clicking Join" + (refusedInvite == null ? "" : " (refused: " + refusedInvite + ")"));
-		context.waitTicks(60);
+		VoiceClient.setTestTone(true);
+		waitForShared(context, "host-set-creative", 2 * ONE_MINUTE);
+		context.waitFor(mc -> mc.gameMode != null && mc.gameMode.getPlayerMode() == GameType.CREATIVE, ONE_MINUTE);
+		writeShared("guest-saw-creative", "ok");
+		check(true, "guest's game mode changed to Creative by the host");
 		context.takeScreenshot("mp-guest-joined-from-invite");
+		waitForShared(context, "host-controls-done", 3 * ONE_MINUTE);
+		VoiceClient.setTestTone(false);
+		context.runOnClient(mc -> mc.disconnect(new TitleScreen(), false));
+		context.waitFor(mc -> mc.level == null, ONE_MINUTE);
+
+		// ---- Online status: the host shows as Hosting; Join straight from the list, no invite needed.
+		context.waitFor(mc -> Presence.of(host.id()).map(Presence.Status::hosting).orElse(false), 3 * ONE_MINUTE);
+		check(true, "guest sees the host as Hosting (online status)");
+		context.setScreen(TitleScreen::new);
+		context.waitTicks(10);
+		context.takeScreenshot("mp-guest-title-friends");
+		context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.FRIENDS));
+		context.waitTicks(10);
+		context.takeScreenshot("mp-guest-friends-hosting");
+		clickMenuButton(context, "Join");
+		context.waitFor(mc -> (mc.player != null && mc.level != null && mc.gui.screen() == null)
+				|| mc.gui.screen() instanceof DisconnectedScreen, 3 * ONE_MINUTE);
+		String refusedPresence = context.computeOnClient(mc -> mc.gui.screen() instanceof DisconnectedScreen d ? d.getNarrationMessage().getString() : null);
+		check(refusedPresence == null, "guest joined from Join on the friends list" + (refusedPresence == null ? "" : " (refused: " + refusedPresence + ")"));
+		context.waitTicks(40);
 		context.runOnClient(mc -> mc.disconnect(new TitleScreen(), false));
 		context.waitFor(mc -> mc.level == null, ONE_MINUTE);
 		writeShared("guest-invite-done", "ok");
@@ -324,6 +510,19 @@ final class MultiplayerTest {
 			for (Map.Entry<String, String> route : routes.entrySet()) {
 				joinThrough(context, route.getKey(), route.getValue());
 			}
+
+			// ---- Ban and player limit.
+			String lanAddress = routes.get("lan");
+			writeShared("guest-wants-ban", "ok");
+			waitForShared(context, "host-banned", ONE_MINUTE);
+			String banned = tryJoin(context, lanAddress);
+			check(banned != null && banned.contains("banned"), "guest is turned away after being banned (" + banned + ")");
+			writeShared("guest-saw-ban", "ok");
+			waitForShared(context, "host-full", ONE_MINUTE);
+			String full = tryJoin(context, lanAddress);
+			check(full != null && full.contains("full"), "guest is turned away from a full world (" + full + ")");
+			writeShared("guest-saw-full", "ok");
+			waitForShared(context, "host-open", ONE_MINUTE);
 
 			// ---- Friends-only: after unfriending, the host's world turns us away.
 			Friends.Friend hostFriend = context.computeOnClient(mc -> Friends.friends().stream().filter(f -> f.name().equals("Host")).findFirst().orElseThrow());

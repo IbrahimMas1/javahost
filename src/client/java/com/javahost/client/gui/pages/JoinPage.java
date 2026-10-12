@@ -51,8 +51,13 @@ public class JoinPage extends Page {
 		reserve(y + 10);
 	}
 
-	public void submit() {
-		join(codeField.getValue());
+	@Override
+	protected boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+		if (isEnter(event) && codeField.isFocused()) {
+			join(codeField.getValue());
+			return true;
+		}
+		return false;
 	}
 
 	private void join(String input) {

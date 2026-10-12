@@ -42,6 +42,10 @@ public class HostPage extends Page {
 	private int footerY;
 	private List<Route> routes = List.of();
 	private List<Guest> guests = List.of();
+	private List<java.util.Map.Entry<String, String>> banned = List.of();
+	private int playersCardH;
+	private int startY;
+	private static final int PLAYER_ROW = 28;
 
 	@Override
 	public String title() {
@@ -109,13 +113,30 @@ public class HostPage extends Page {
 		add(new Segmented<>(inner - 70, List.of(16, 32, 48, 64, 96, 128), config.voiceRange, r -> String.valueOf(r),
 				r -> config.voiceRange = r), 80, 284);
 
+		// Players card: limit and banned players.
+		add(new Segmented<>(150, List.of(2, 4, 8, 16), config.maxPlayers, n -> String.valueOf(n), n -> {
+			config.maxPlayers = n;
+			HostController.applyHostRules(config);
+		}), width - 160, 348);
+		banned = new java.util.ArrayList<>(config.bannedPlayers.entrySet());
+		int y = 374;
+		for (var entry : banned) {
+			add(new FlatButton(56, 16, Component.literal("Unban"), FlatButton.Style.SECONDARY, null, b -> {
+				HostController.unban(java.util.UUID.fromString(entry.getKey()));
+				screen.refresh();
+			}), width - 66, y + 2);
+			y += 22;
+		}
+		playersCardH = y - 338 + 6;
+
+		startY = 338 + playersCardH + 14;
 		FlatButton start = add(new FlatButton(width, 24, Component.literal("Start hosting"), FlatButton.Style.PRIMARY, Icons.PLAY,
-				b -> start()), 0, 322);
+				b -> start()), 0, startY);
 		start.active = canHost();
 		if (!canHost() && error == null) {
 			error = "Open one of your singleplayer worlds to host it.";
 		}
-		reserve(358);
+		reserve(startY + 40);
 	}
 
 	private void start() {
@@ -184,9 +205,21 @@ public class HostPage extends Page {
 			y += ROW;
 		}
 		for (Guest guest : guests) {
-			add(new FlatButton(44, 16, Component.literal("Kick"), FlatButton.Style.DANGER, null,
-					b -> HostController.kick(guest.id())), width - 52, y + 3);
-			y += ROW;
+			net.minecraft.world.level.GameType mode = HostController.gameModeOf(guest.id());
+			add(new Segmented<>(112, List.of(net.minecraft.world.level.GameType.SURVIVAL, net.minecraft.world.level.GameType.CREATIVE,
+					net.minecraft.world.level.GameType.ADVENTURE, net.minecraft.world.level.GameType.SPECTATOR),
+					mode == null ? net.minecraft.world.level.GameType.SURVIVAL : mode,
+					m -> switch (m) {
+						case CREATIVE -> "C";
+						case ADVENTURE -> "A";
+						case SPECTATOR -> "Sp";
+						default -> "S";
+					}, m -> HostController.setGameMode(guest.id(), m)), width - 200, y + 5);
+			add(new FlatButton(40, 18, Component.literal("Kick"), FlatButton.Style.SECONDARY, null,
+					b -> HostController.kick(guest.id())), width - 84, y + 5);
+			add(new FlatButton(36, 18, Component.literal("Ban"), FlatButton.Style.DANGER, null,
+					b -> HostController.ban(guest.id(), guest.name())), width - 40, y + 5);
+			y += PLAYER_ROW;
 		}
 
 		footerY = y + 10;
@@ -257,9 +290,20 @@ public class HostPage extends Page {
 		card(g, left, top + 190, width, 120);
 		Draw.text(g, "Range", left + 10, top + 289, Theme.TEXT);
 
+		sectionLabel(g, "Players", left, top + 326);
+		card(g, left, top + 338, width, playersCardH);
+		Draw.text(g, "Player limit", left + 10, top + 352, Theme.TEXT);
+		Draw.text(g, "Including you", left + 10, top + 362, Theme.FAINT);
+		int y = top + 374;
+		for (var entry : banned) {
+			Faces.draw(g, java.util.UUID.fromString(entry.getKey()), left + 10, y + 3, 14);
+			Draw.text(g, entry.getValue() + " (banned)", left + 30, y + 6, Theme.MUTED);
+			y += 22;
+		}
+
 		if (error != null) {
-			Icons.WARNING.draw(g, left, top + 352, Theme.WARNING);
-			Draw.text(g, Draw.fit(error, width - 14), left + 13, top + 353, Theme.WARNING);
+			Icons.WARNING.draw(g, left, top + startY + 30, Theme.WARNING);
+			Draw.text(g, Draw.fit(error, width - 14), left + 13, top + startY + 31, Theme.WARNING);
 		}
 	}
 
@@ -317,17 +361,18 @@ public class HostPage extends Page {
 		// Players.
 		sectionLabel(g, "Players (" + guests.size() + ")", left, top + playersY);
 		rowY = top + playersY + 12;
-		card(g, left, rowY - 2, width, Math.max(1, guests.size()) * ROW + 4);
+		card(g, left, rowY - 2, width, guests.isEmpty() ? ROW + 4 : guests.size() * PLAYER_ROW + 4);
 		if (guests.isEmpty()) {
 			Icons.USER.draw(g, left + 9, rowY + 6, Theme.FAINT);
-			Draw.text(g, "No one has joined yet. Send them the invite above.", left + 24, rowY + 7, Theme.MUTED);
+			Draw.text(g, Draw.fit("No one has joined yet. Invite friends from the Friends tab.", width - 34), left + 24, rowY + 7, Theme.MUTED);
 		}
 		for (Guest guest : guests) {
-			Faces.draw(g, guest.id(), left + 8, rowY + 3, 16);
-			Draw.text(g, guest.name(), left + 30, rowY + 7, Theme.TEXT);
+			Faces.draw(g, guest.id(), left + 8, rowY + 5, 18);
+			Draw.text(g, Draw.fit(guest.name(), width - 240), left + 32, rowY + 5, Theme.TEXT);
 			int ping = guest.pingMs();
-			Draw.text(g, ping + " ms", left + width - 100, rowY + 7, ping < 80 ? Theme.ACCENT : ping < 200 ? Theme.WARNING : Theme.DANGER);
-			rowY += ROW;
+			Draw.text(g, ping <= 0 ? "ping —" : ping + " ms", left + 32, rowY + 15,
+					ping <= 0 ? Theme.FAINT : ping < 80 ? Theme.ACCENT : ping < 200 ? Theme.WARNING : Theme.DANGER);
+			rowY += PLAYER_ROW;
 		}
 
 		String packs = HostController.packStatus();

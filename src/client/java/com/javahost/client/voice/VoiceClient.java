@@ -162,6 +162,32 @@ public final class VoiceClient {
 		}
 	}
 
+	/** Players we can currently hear or who are near enough to (for the volume list): id -> name. */
+	public static Map<UUID, String> nearbyPlayers() {
+		Listener current = listener;
+		Map<UUID, String> nearby = new java.util.LinkedHashMap<>();
+		if (current == null) {
+			return nearby;
+		}
+		current.players().forEach((id, position) -> {
+			double dx = position.x() - current.x();
+			double dy = position.y() - current.y();
+			double dz = position.z() - current.z();
+			if (dx * dx + dy * dy + dz * dz <= (double) range * range && current.names().containsKey(id)
+					&& !id.equals(net.minecraft.client.Minecraft.getInstance().player.getUUID())) {
+				nearby.put(id, current.names().get(id));
+			}
+		});
+		return nearby;
+	}
+
+	/** Whether this player was heard in the last quarter second (for the nametag speaker icon). */
+	public static boolean isTalking(UUID player) {
+		Speaker speaker = SPEAKERS.get(player);
+		return speaker != null && System.currentTimeMillis() - speaker.lastHeard < 250
+				&& !Config.get().mutedPlayers.contains(player.toString());
+	}
+
 	/** Number of audible voice frames decoded from this player since joining. */
 	public static int audibleFramesFrom(UUID speaker) {
 		java.util.concurrent.atomic.AtomicInteger count = AUDIBLE_FRAMES.get(speaker);
@@ -423,6 +449,10 @@ public final class VoiceClient {
 					if (!nextFrame(speaker, decoded)) {
 						continue;
 					}
+					// Muted players are dropped here (still decoded above, so their stream stays in sync).
+					if (Config.get().mutedPlayers.contains(entry.getKey().toString())) {
+						continue;
+					}
 					double energy = 0;
 					for (short sample : decoded) {
 						energy += sample * (double) sample;
@@ -434,7 +464,8 @@ public final class VoiceClient {
 					if (from == null) {
 						continue; // Not loaded on our side (other dimension or just left).
 					}
-					float[] gains = spatialGains(here, from, volume);
+					double playerVolume = Config.get().playerVolumes.getOrDefault(entry.getKey().toString(), 1.0);
+					float[] gains = spatialGains(here, from, volume * playerVolume);
 					for (int i = 0; i < FRAME_SAMPLES; i++) {
 						mixL[i] += decoded[i] * gains[0];
 						mixR[i] += decoded[i] * gains[1];

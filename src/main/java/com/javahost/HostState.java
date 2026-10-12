@@ -21,6 +21,8 @@ public final class HostState {
 	private static volatile boolean voiceEnabled = true;
 	private static volatile boolean friendsOnly = false;
 	private static volatile java.util.Set<java.util.UUID> allowedPlayers = java.util.Set.of();
+	private static volatile java.util.Set<java.util.UUID> bannedPlayers = java.util.Set.of();
+	private static volatile int maxPlayers = Integer.MAX_VALUE;
 
 	private HostState() {
 	}
@@ -75,6 +77,23 @@ public final class HostState {
 
 	public static void setAllowedPlayers(java.util.Set<java.util.UUID> players) {
 		allowedPlayers = java.util.Set.copyOf(players);
+	}
+
+	public static boolean isBanned(java.util.UUID player) {
+		return bannedPlayers.contains(player);
+	}
+
+	public static void setBannedPlayers(java.util.Set<java.util.UUID> players) {
+		bannedPlayers = java.util.Set.copyOf(players);
+	}
+
+	/** Most players allowed in the hosted world, counting the host. */
+	public static int maxPlayers() {
+		return maxPlayers;
+	}
+
+	public static void setMaxPlayers(int value) {
+		maxPlayers = value;
 	}
 
 	public static void clear() {

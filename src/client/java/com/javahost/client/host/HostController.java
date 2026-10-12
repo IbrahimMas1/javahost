@@ -64,6 +64,7 @@ public final class HostController {
 		}
 		HostState.setVoice(config.voiceEnabledWhenHosting, config.voiceRange);
 		HostState.setFriendsOnly(config.friendsOnly);
+		applyHostRules(config);
 		boolean relayNow = Connectivity.RelayMode.valueOf(config.relayMode) == Connectivity.RelayMode.ALWAYS
 				&& E4mcCompat.isInstalled();
 		// e4mc would otherwise start its relay on every publish; we decide when it's needed.
@@ -110,6 +111,8 @@ public final class HostController {
 		hosting = false;
 		HostState.clear();
 		HostState.setFriendsOnly(false);
+		HostState.setMaxPlayers(Integer.MAX_VALUE);
+		HostState.setBannedPlayers(java.util.Set.of());
 		packStatus = "";
 	}
 
@@ -135,6 +138,59 @@ public final class HostController {
 	/** Everyone connected except the host (refreshed every tick). */
 	public static List<Guest> guests() {
 		return guests;
+	}
+
+	/** Pushes the ban list and player limit to the server checks. */
+	public static void applyHostRules(Config config) {
+		java.util.Set<UUID> banned = new java.util.HashSet<>();
+		config.bannedPlayers.keySet().forEach(id -> banned.add(UUID.fromString(id)));
+		HostState.setBannedPlayers(banned);
+		HostState.setMaxPlayers(config.maxPlayers);
+	}
+
+	/** Changes a guest's game mode (survival, creative, adventure, spectator). */
+	public static void setGameMode(UUID id, net.minecraft.world.level.GameType mode) {
+		IntegratedServer server = Minecraft.getInstance().getSingleplayerServer();
+		if (server != null) {
+			server.execute(() -> {
+				ServerPlayer player = server.getPlayerList().getPlayer(id);
+				if (player != null) {
+					player.setGameMode(mode);
+					JavaHost.LOGGER.info("Set {}'s game mode to {}", player.getPlainTextName(), mode);
+				}
+			});
+		}
+	}
+
+	/** Bans a guest from the host's worlds and removes them now. */
+	public static void ban(UUID id, String name) {
+		Config config = Config.get();
+		config.bannedPlayers.put(id.toString(), name);
+		config.save();
+		applyHostRules(config);
+		IntegratedServer server = Minecraft.getInstance().getSingleplayerServer();
+		if (server != null) {
+			server.execute(() -> {
+				ServerPlayer player = server.getPlayerList().getPlayer(id);
+				if (player != null) {
+					player.connection.disconnect(Component.literal("The host has banned you from this world."));
+				}
+			});
+		}
+	}
+
+	public static void unban(UUID id) {
+		Config config = Config.get();
+		config.bannedPlayers.remove(id.toString());
+		config.save();
+		applyHostRules(config);
+	}
+
+	/** A guest's current game mode, from the server (null if not found). */
+	public static net.minecraft.world.level.GameType gameModeOf(UUID id) {
+		IntegratedServer server = Minecraft.getInstance().getSingleplayerServer();
+		ServerPlayer player = server == null ? null : server.getPlayerList().getPlayer(id);
+		return player == null ? null : player.gameMode();
 	}
 
 	public static void kick(UUID id) {

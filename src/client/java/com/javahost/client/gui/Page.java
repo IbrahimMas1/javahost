@@ -40,6 +40,19 @@ public abstract class Page {
 	public void tick() {
 	}
 
+	/** Drawn above the page's widgets (e.g. a large preview). Same coordinates as {@link #draw}. */
+	protected void drawOverlay(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY) {
+	}
+
+	/** Lets a page handle keys first (e.g. Enter to send). */
+	protected boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+		return false;
+	}
+
+	protected static boolean isEnter(net.minecraft.client.input.KeyEvent event) {
+		return event.key() == 257 || event.key() == 335;
+	}
+
 	final void init(JavaHostScreen screen, int width) {
 		this.screen = screen;
 		this.width = width;

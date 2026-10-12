@@ -108,6 +108,34 @@ public final class FriendCrypto {
 		return new String(cipher.doFinal(all, NONCE_BYTES, all.length - NONCE_BYTES), StandardCharsets.UTF_8);
 	}
 
+	/** Encrypts a file (e.g. a screenshot): nonce + ciphertext, authenticated together with {@code context}. */
+	public static byte[] sealBytes(byte[] key, byte[] plaintext, String context) throws GeneralSecurityException {
+		byte[] nonce = new byte[NONCE_BYTES];
+		RANDOM.nextBytes(nonce);
+		Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"), new GCMParameterSpec(128, nonce));
+		cipher.updateAAD(context.getBytes(StandardCharsets.UTF_8));
+		byte[] sealed = cipher.doFinal(plaintext);
+		return ByteBuffer.allocate(nonce.length + sealed.length).put(nonce).put(sealed).array();
+	}
+
+	public static byte[] openBytes(byte[] key, byte[] sealed, String context) throws GeneralSecurityException {
+		if (sealed.length < NONCE_BYTES + 16) {
+			throw new GeneralSecurityException("Data too short");
+		}
+		Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+		cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key, "AES"), new GCMParameterSpec(128, sealed, 0, NONCE_BYTES));
+		cipher.updateAAD(context.getBytes(StandardCharsets.UTF_8));
+		return cipher.doFinal(sealed, NONCE_BYTES, sealed.length - NONCE_BYTES);
+	}
+
+	/** A fresh random 256-bit key (used for each player's status key). */
+	public static byte[] randomKey() {
+		byte[] key = new byte[32];
+		RANDOM.nextBytes(key);
+		return key;
+	}
+
 	/** The mailbox name for a player: derived from their account id, so friends can find it without a directory. */
 	public static String mailboxFor(UUID player, String namespace) {
 		try {

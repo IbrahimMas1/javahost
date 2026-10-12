@@ -4,7 +4,11 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.javahost.JavaHost;
+import com.javahost.client.friends.Friends;
 import com.javahost.client.friends.InviteFlow;
+import com.javahost.client.friends.Presence;
+import com.javahost.client.friends.Screenshots;
+import com.javahost.client.gui.TitleFriendsPanel;
 import com.javahost.client.gui.JavaHostScreen;
 import com.javahost.client.gui.ui.Draw;
 import com.javahost.client.gui.ui.Faces;
@@ -14,6 +18,7 @@ import com.javahost.client.gui.ui.Theme;
 import com.javahost.client.host.E4mcCompat;
 import com.javahost.client.host.HostController;
 import com.javahost.client.pack.PackReceiver;
+import com.javahost.client.perf.Benchmark;
 import com.javahost.client.voice.VoiceClient;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
@@ -39,13 +44,17 @@ public class JavaHostClient implements ClientModInitializer {
 	public static final KeyMapping PUSH_TO_TALK = new KeyMapping("key.javahost.push_to_talk", InputConstants.KEY_V, CATEGORY);
 	public static final KeyMapping OPEN_MENU = new KeyMapping("key.javahost.menu", InputConstants.KEY_J, CATEGORY);
 	public static final KeyMapping TOGGLE_MUTE = new KeyMapping("key.javahost.mute", InputConstants.KEY_M, CATEGORY);
+	public static final KeyMapping SCREENSHOT_SHARE = new KeyMapping("key.javahost.screenshot", InputConstants.KEY_F6, CATEGORY);
+	public static final KeyMapping TOGGLE_OVERLAY = new KeyMapping("key.javahost.overlay", InputConstants.UNKNOWN.getValue(), CATEGORY);
 
 	@Override
 	public void onInitializeClient() {
-		Config.get();
+		Theme.apply(Config.get().accent);
 		KeyMappingHelper.registerKeyMapping(PUSH_TO_TALK);
 		KeyMappingHelper.registerKeyMapping(OPEN_MENU);
 		KeyMappingHelper.registerKeyMapping(TOGGLE_MUTE);
+		KeyMappingHelper.registerKeyMapping(SCREENSHOT_SHARE);
+		KeyMappingHelper.registerKeyMapping(TOGGLE_OVERLAY);
 
 		VoiceClient.register();
 		PackReceiver.register();
@@ -55,6 +64,8 @@ public class JavaHostClient implements ClientModInitializer {
 			HostController.tick();
 			InviteFlow.tick(minecraft);
 			Popups.tick(minecraft);
+			Friends.tick();
+			Presence.tick(minecraft);
 			while (OPEN_MENU.consumeClick()) {
 				minecraft.gui.setScreen(new JavaHostScreen(null));
 			}
@@ -64,11 +75,26 @@ public class JavaHostClient implements ClientModInitializer {
 				config.save();
 				Toasts.show(config.muted ? "Microphone muted" : "Microphone on", "Press " + TOGGLE_MUTE.getTranslatedKeyMessage().getString() + " to toggle");
 			}
+			while (TOGGLE_OVERLAY.consumeClick()) {
+				Config config = Config.get();
+				config.fpsOverlay = !config.fpsOverlay;
+				config.save();
+			}
+			while (SCREENSHOT_SHARE.consumeClick()) {
+				Screenshots.take(file -> {
+					JavaHostScreen menu = new JavaHostScreen(null, JavaHostScreen.Tab.SCREENSHOTS);
+					menu.selectScreenshot(file);
+					minecraft.gui.setScreen(menu);
+				});
+			}
 		});
 
 		// Leaving the world (or the integrated server stopping) ends hosting and closes the router port.
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> HostController.cleanup());
-		ClientLifecycleEvents.CLIENT_STOPPING.register(minecraft -> E4mcCompat.shutdownForExit());
+		ClientLifecycleEvents.CLIENT_STOPPING.register(minecraft -> {
+			Presence.goOffline();
+			E4mcCompat.shutdownForExit();
+		});
 		ClientLifecycleEvents.CLIENT_STARTED.register(minecraft -> Popups.startFriends());
 
 		// Tell the host when a friend joins their world.
@@ -89,6 +115,9 @@ public class JavaHostClient implements ClientModInitializer {
 			if (screen instanceof TitleScreen || (screen instanceof PauseScreen pause && pause.showsPauseMenu())) {
 				Screens.getWidgets(screen).add(new FlatButton(4, 4, 82, 20, Component.literal("JavaHost"), FlatButton.Style.SECONDARY,
 						Icons.HOST, b -> minecraft.gui.setScreen(new JavaHostScreen(screen))));
+				if (screen instanceof TitleScreen) {
+					TitleFriendsPanel.attach(minecraft, screen, width, height);
+				}
 			} else if (screen instanceof JoinMultiplayerScreen) {
 				Screens.getWidgets(screen).add(new FlatButton(width - 88, 4, 84, 20, Component.literal("Friends"),
 						FlatButton.Style.PRIMARY, Icons.USER, b -> minecraft.gui.setScreen(new JavaHostScreen(screen, JavaHostScreen.Tab.FRIENDS))));
@@ -99,6 +128,7 @@ public class JavaHostClient implements ClientModInitializer {
 	// ---------------------------------------------------------------- HUD
 
 	private static void drawHud(GuiGraphicsExtractor g) {
+		Benchmark.frame();
 		Minecraft minecraft = Minecraft.getInstance();
 		if (minecraft.gui.hud.isHidden()) {
 			return;
@@ -106,6 +136,10 @@ public class JavaHostClient implements ClientModInitializer {
 		Config config = Config.get();
 		boolean right = "TOP_RIGHT".equals(config.hudCorner);
 		int y = 4;
+
+		if (config.fpsOverlay) {
+			y = pill(g, right, y, Icons.BOLT, null, overlayText(minecraft), Theme.TEXT);
+		}
 
 		if (VoiceClient.isAvailable() && config.voiceEnabled && config.showVoiceOverlay) {
 			if (config.muted) {
@@ -118,18 +152,47 @@ public class JavaHostClient implements ClientModInitializer {
 			}
 		}
 
+		// Centre bars sit below the corner pills when the screen is too narrow for both side by side.
+		int top = y > 4 && g.guiWidth() < 600 ? y + 2 : 4;
 		float progress = PackReceiver.progress();
 		if (progress >= 0) {
-			int w = 170;
-			int x = (g.guiWidth() - w) / 2;
-			Draw.roundRect(g, x, 4, w, 26, 6, Theme.withAlpha(Theme.WINDOW, 0.92f));
-			Icons.PACKAGE.draw(g, x + 8, 9, Theme.ACCENT);
-			Draw.text(g, "Getting the host's packs", x + 22, 9, Theme.TEXT);
-			String pct = (int) (progress * 100) + "%";
-			Draw.text(g, pct, x + w - 8 - Draw.font().width(pct), 9, Theme.MUTED);
-			Draw.roundRect(g, x + 8, 21, w - 16, 3, 1, Theme.FIELD);
-			Draw.roundRect(g, x + 8, 21, Math.max(3, Math.round((w - 16) * progress)), 3, 1, Theme.ACCENT);
+			top = bar(g, top, Icons.PACKAGE, "Getting the host's packs", (int) (progress * 100) + "%", progress);
 		}
+		if (Benchmark.running()) {
+			bar(g, top, Icons.BOLT, Benchmark.step(), null, Benchmark.progress());
+		}
+	}
+
+	/** A centred card with a label and progress bar; returns the y for the next one. */
+	private static int bar(GuiGraphicsExtractor g, int top, Icons icon, String label, String right, float progress) {
+		int w = 190;
+		int x = (g.guiWidth() - w) / 2;
+		Draw.roundRect(g, x, top, w, 26, 6, Theme.withAlpha(Theme.WINDOW, 0.92f));
+		icon.draw(g, x + 8, top + 5, Theme.ACCENT);
+		int rightW = right == null ? 0 : Draw.font().width(right) + 6;
+		Draw.text(g, Draw.fit(label, w - 30 - rightW), x + 22, top + 5, Theme.TEXT);
+		if (right != null) {
+			Draw.text(g, right, x + w - 8 - Draw.font().width(right), top + 5, Theme.MUTED);
+		}
+		Draw.roundRect(g, x + 8, top + 17, w - 16, 3, 1, Theme.FIELD);
+		Draw.roundRect(g, x + 8, top + 17, Math.max(3, Math.round((w - 16) * progress)), 3, 1, Theme.ACCENT);
+		return top + 30;
+	}
+
+	/** "120 FPS · 35 ms · 1.4/4.0 GB" */
+	private static String overlayText(Minecraft minecraft) {
+		StringBuilder text = new StringBuilder().append(minecraft.getFps()).append(" FPS");
+		if (minecraft.getConnection() != null && minecraft.player != null && !minecraft.isLocalServer()) {
+			var info = minecraft.getConnection().getPlayerInfo(minecraft.player.getUUID());
+			if (info != null && info.getLatency() > 0) {
+				text.append(" \u00B7 ").append(info.getLatency()).append(" ms");
+			}
+		}
+		Runtime runtime = Runtime.getRuntime();
+		double used = (runtime.totalMemory() - runtime.freeMemory()) / 1073741824.0;
+		double max = runtime.maxMemory() / 1073741824.0;
+		text.append(String.format(" \u00B7 %.1f/%.1f GB", used, max));
+		return text.toString();
 	}
 
 	/** A rounded label with an icon or a player's face; returns the y for the next one. */

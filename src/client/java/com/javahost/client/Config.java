@@ -31,6 +31,10 @@ public final class Config {
 	public boolean voiceEnabledWhenHosting = true;
 	/** Only friends can join the hosted world (strangers with the address are turned away). */
 	public boolean friendsOnly = true;
+	/** Most players (including the host) allowed in the hosted world. */
+	public int maxPlayers = 8;
+	/** Players the host has banned from their worlds: id -> name. */
+	public Map<String, String> bannedPlayers = new HashMap<>();
 	public int voiceRange = 48;
 
 	// Joining
@@ -46,6 +50,15 @@ public final class Config {
 	/** "TOP_LEFT" or "TOP_RIGHT". */
 	public String hudCorner = "TOP_LEFT";
 	public boolean muted = false;
+	public boolean notificationSounds = true;
+	/** Accent colour name, see Theme.ACCENTS. */
+	public String accent = "Green";
+	public boolean fpsOverlay = false;
+	/** Recent benchmark results, oldest first. */
+	public java.util.List<BenchmarkResult> benchmarks = new java.util.ArrayList<>();
+
+	public record BenchmarkResult(String label, double averageFps, double onePercentLowFps, long time) {
+	}
 
 	// Voice
 	public boolean voiceEnabled = true;
@@ -56,6 +69,10 @@ public final class Config {
 	public double outputVolume = 1.0;
 	/** Name of the Java Sound mixer to record from; empty means the system default. */
 	public String microphone = "";
+	/** Voice volume per player (id -> 0.0..2.0); missing means 100%. */
+	public Map<String, Double> playerVolumes = new HashMap<>();
+	/** Players whose voice is muted, by id. */
+	public java.util.Set<String> mutedPlayers = new java.util.HashSet<>();
 
 	// Performance: the user's video settings from before "Quick Tune", so it can be undone.
 	public Map<String, String> settingsBackup = new HashMap<>();
@@ -77,6 +94,24 @@ public final class Config {
 					}
 					if (config.recentJoins == null) {
 						config.recentJoins = new java.util.ArrayList<>();
+					}
+					if (config.bannedPlayers == null) {
+						config.bannedPlayers = new HashMap<>();
+					}
+					if (config.playerVolumes == null) {
+						config.playerVolumes = new HashMap<>();
+					}
+					if (config.mutedPlayers == null) {
+						config.mutedPlayers = new java.util.HashSet<>();
+					}
+					if (config.benchmarks == null) {
+						config.benchmarks = new java.util.ArrayList<>();
+					}
+					if (config.accent == null) {
+						config.accent = "Green";
+					}
+					if (config.maxPlayers < 2) {
+						config.maxPlayers = 8;
 					}
 					try {
 						Connectivity.RelayMode.valueOf(config.relayMode);

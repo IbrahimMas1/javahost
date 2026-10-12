@@ -2,16 +2,20 @@
 
 A Fabric mod for Minecraft **26.3** (Java Edition).
 
-- **Friends and one-click invites.** Add a friend by their Minecraft name. Click **Invite** and their game shows "Alex invited you to play" with a **Join** button. JavaHost opens your world, picks the best connection and falls back automatically. You don't share codes or links.
+- **Friends and one-click invites.** Add a friend by their Minecraft name. Click **Invite** and their game shows "Alex invited you to play" with a **Join** button. JavaHost opens your world, picks the best connection and falls back automatically. You don't share codes or links. Your Friends tab shows *Sent → Delivered → In your world*.
+- **See who's online.** Friends show as *Online*, *Playing* or *Hosting "World" 2/8*. Click **Join** on anyone hosting; no invite needed. The title screen has a small friends panel too.
+- **Chat, screenshots and notifications.** Message friends from the menu. Press `F6` in game to take a screenshot and send it to a friend. Everything is end-to-end encrypted. The bell keeps invites, requests, messages and screenshots you missed.
+- **Friend profiles.** A 3D skin preview, their status, and buttons to invite, message, send a screenshot, set their voice volume, mute them or remove them.
 - **Host your world from your own PC.** Open your singleplayer world and send friends an invite code. You don't need a rented server. JavaHost tries every way to reach you in turn:
   1. **Internet:** your router opens the port automatically (UPnP).
   2. **IPv6:** works even when your internet provider shares one public address between homes (CGNAT).
   3. **Relay:** a free relay (e4mc) for when nothing direct works. Anyone can join this way, even without mods.
   4. **Same Wi-Fi:** for people at home.
-- **Proximity voice chat.** Push-to-talk (`V`) or voice activation, mute (`M`). Voices fade with distance and come from the speaker's direction.
+- **Proximity voice chat.** Push-to-talk (`V`) or voice activation, mute (`M`). Voices fade with distance and come from the speaker's direction. Set each player's volume or mute them. A ♪ appears on the nametag of whoever is talking.
+- **Host controls.** Change a guest's game mode, kick or ban them, and set a player limit.
 - **Shared look.** Guests get the host's resource packs and **shader, including its settings** (with Iris). They're asked first, and everything goes back to normal when they leave.
-- **Performance.** One click installs Sodium, Lithium, FerriteCore, ImmediatelyFast and Entity Culling for your exact version, checked against Modrinth's hashes. **Quick Tune** gives FPS-friendly settings and can undo them.
-- **Modern menu.** Press `J` in game, or click **JavaHost** on the title or pause screen.
+- **Performance.** One click installs Sodium, Lithium, FerriteCore, ImmediatelyFast and Entity Culling for your exact version, checked against Modrinth's hashes. **Quick Tune** gives FPS-friendly settings and can undo them. **Benchmark** measures your average FPS and 1% low, or compares before and after Quick Tune. There's an optional FPS / ping / memory overlay.
+- **Modern menu.** Press `J` in game, or click **JavaHost** on the title or pause screen. Pick an accent colour in Settings.
 - Friends need a Microsoft-account login, which every normal Minecraft purchase has.
 
 ## Install (recommended): the JavaHost Installer
@@ -36,9 +40,12 @@ Friends need JavaHost too to get voice and your packs. The easiest way is to sen
 
 - Friend requests and invites travel through **ntfy.sh**, a free public message relay. Each player has a mailbox named after their account ID.
 - **Requests are signed** with your Mojang-certified chat key (the same one Minecraft signs chat with), so nobody can pretend to be you.
-- **Invites are encrypted** with a key only you and that friend share. Nobody else can read your world's address.
+- **Invites, chat and screenshots are encrypted** with a key only you and that friend share. Nobody else can read your world's address or your messages.
+- **Online status** is encrypted with a separate key that you give each friend. It changes when you remove someone, so they stop seeing you.
+- Your game checks the connection to the relay and reconnects by itself if it goes quiet, so invites don't get lost.
 - **Friends-only worlds (default):** players who aren't your friends are turned away when they try to join. Minecraft itself verifies accounts. You can switch this off on the Host tab.
-- **Offline friends:** messages are kept for 12 hours, so a friend who's offline gets your request when they next play.
+- **Offline friends:** messages are kept for 12 hours, so a friend who's offline gets your request when they next play. Screenshots are kept for 3 hours.
+- ntfy.sh allows about 250 messages a day from one internet connection. Normal play uses far fewer. If you hit the limit, JavaHost tells you.
 
 ## Limits
 

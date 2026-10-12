@@ -73,11 +73,50 @@ public class VoicePage extends Page {
 		FlatSlider threshold = add(new FlatSlider(inner, "Voice activation level", config.activationThresholdDb, -80, 0,
 				v -> config.activationThresholdDb = v, v -> Math.round(v) + " dB"), 10, 186);
 		threshold.active = !config.pushToTalk;
-		reserve(250);
+
+		// People nearby: a volume and mute for each.
+		nearby = new java.util.ArrayList<>(VoiceClient.nearbyPlayers().entrySet());
+		nearbyKey = nearby.toString();
+		int y = 270;
+		for (var entry : nearby) {
+			String id = entry.getKey().toString();
+			add(new FlatSlider(width - 150, "Volume", config.playerVolumes.getOrDefault(id, 1.0), 0, 2,
+					v -> config.playerVolumes.put(id, v), v -> Math.round(v * 100) + "%"), 104, y + 3);
+			boolean muted = config.mutedPlayers.contains(id);
+			add(new com.javahost.client.gui.ui.FlatButton(24, 20, Component.empty(), muted
+					? com.javahost.client.gui.ui.FlatButton.Style.DANGER : com.javahost.client.gui.ui.FlatButton.Style.GHOST,
+					muted ? Icons.MIC_OFF : Icons.MIC, b -> {
+						if (!config.mutedPlayers.remove(id)) {
+							config.mutedPlayers.add(id);
+						}
+						config.save();
+						screen.refresh();
+					}), width - 34, y + 4);
+			y += 30;
+		}
+		problemY = Math.max(y, 300) + 10;
+		reserve(problemY + 40);
 	}
+
+	private java.util.List<java.util.Map.Entry<java.util.UUID, String>> nearby = java.util.List.of();
+	private String nearbyKey = "";
+	private int problemY = 300;
 
 	@Override
 	protected void draw(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY) {
+		sectionLabel(g, "People nearby", left, top + 258);
+		int rowY = top + 270;
+		card(g, left, rowY - 2, width, Math.max(1, nearby.size()) * 30 + 4);
+		if (nearby.isEmpty()) {
+			Draw.text(g, Draw.fit(VoiceClient.isAvailable() ? "Nobody in voice range right now." : "Join a world with voice chat to see people here.",
+					width - 20), left + 10, rowY + 10, Theme.MUTED);
+		}
+		for (var entry : nearby) {
+			com.javahost.client.gui.ui.Faces.draw(g, entry.getKey(), left + 8, rowY + 6, 18);
+			Draw.text(g, Draw.fit(entry.getValue(), 66), left + 32, rowY + 11,
+					VoiceClient.isTalking(entry.getKey()) ? Theme.ACCENT : Theme.TEXT);
+			rowY += 30;
+		}
 		Config config = Config.get();
 		sectionLabel(g, "Talking", left, top);
 		card(g, left, top + 12, width, 92);
@@ -102,14 +141,17 @@ public class VoicePage extends Page {
 		String problem = VoiceClient.micProblem();
 		if (problem != null) {
 			int h = wrappedHeight(problem, width - 30) + 12;
-			Draw.panel(g, left, top + 250, width, h, 6, Theme.withAlpha(Theme.WARNING, 0.12f));
-			Icons.WARNING.draw(g, left + 8, top + 256, Theme.WARNING);
-			wrap(g, problem, left + 22, top + 257, width - 30, Theme.WARNING);
+			Draw.panel(g, left, top + problemY, width, h, 6, Theme.withAlpha(Theme.WARNING, 0.12f));
+			Icons.WARNING.draw(g, left + 8, top + problemY + 6, Theme.WARNING);
+			wrap(g, problem, left + 22, top + problemY + 7, width - 30, Theme.WARNING);
 		}
 	}
 
 	@Override
 	public void tick() {
+		if (!new java.util.ArrayList<>(VoiceClient.nearbyPlayers().entrySet()).toString().equals(nearbyKey)) {
+			screen.refresh();
+		}
 		// Keep the mic open while this tab is visible so the level meter works, even outside a world.
 		VoiceClient.setTestingMic(Config.get().voiceEnabled);
 	}

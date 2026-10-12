@@ -67,4 +67,27 @@ class FriendCryptoTest {
 		assertTrue(box.matches("jh1-[0-9a-f]{32}"));
 		assertFalse(box.contains(alice.toString()));
 	}
+
+	@Test
+	void screenshotsRoundTripAndAreBoundToTheirContext() throws Exception {
+		byte[] key = FriendCrypto.randomKey();
+		byte[] png = new byte[300_000];
+		new java.util.Random(7).nextBytes(png);
+		byte[] sealed = FriendCrypto.sealBytes(key, png, "shot|a|b|1");
+		assertArrayEquals(png, FriendCrypto.openBytes(key, sealed, "shot|a|b|1"));
+		// Wrong context (e.g. replayed to someone else), wrong key, or a flipped bit all fail.
+		assertThrows(GeneralSecurityException.class, () -> FriendCrypto.openBytes(key, sealed, "shot|a|c|1"));
+		assertThrows(GeneralSecurityException.class, () -> FriendCrypto.openBytes(FriendCrypto.randomKey(), sealed, "shot|a|b|1"));
+		sealed[sealed.length / 2] ^= 1;
+		assertThrows(GeneralSecurityException.class, () -> FriendCrypto.openBytes(key, sealed, "shot|a|b|1"));
+	}
+
+	@Test
+	void statusKeysAreRandomAndWorkForStatuses() throws Exception {
+		byte[] one = FriendCrypto.randomKey();
+		assertEquals(32, one.length);
+		assertFalse(java.util.Arrays.equals(one, FriendCrypto.randomKey()));
+		String sealed = FriendCrypto.seal(one, "{\"state\":\"HOSTING\"}", "status|me|1");
+		assertEquals("{\"state\":\"HOSTING\"}", FriendCrypto.open(one, sealed, "status|me|1"));
+	}
 }

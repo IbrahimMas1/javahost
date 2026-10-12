@@ -15,10 +15,30 @@ public final class Theme {
 	public static final int MUTED = 0xFF8B96A3;
 	public static final int FAINT = 0xFF5A6572;
 
-	public static final int ACCENT = 0xFF3DDC84;
-	public static final int ACCENT_HOVER = 0xFF5AE89A;
-	public static final int ACCENT_DARK = 0xFF1F6B44;
-	public static final int ON_ACCENT = 0xFF0B1F14;
+	/** Accent colours; not final, so the player's chosen theme applies everywhere at runtime. */
+	public static int ACCENT = 0xFF3DDC84;
+	public static int ACCENT_HOVER = 0xFF5AE89A;
+	public static int ACCENT_DARK = 0xFF1F6B44;
+	public static int ON_ACCENT = 0xFF0B1F14;
+
+	/** The accent themes: name -> base colour. Hover, dark and text-on-accent shades are derived. */
+	public static final java.util.Map<String, Integer> ACCENTS = new java.util.LinkedHashMap<>();
+
+	static {
+		ACCENTS.put("Green", 0xFF3DDC84);
+		ACCENTS.put("Blue", 0xFF4F9DF7);
+		ACCENTS.put("Purple", 0xFFA77BF3);
+		ACCENTS.put("Orange", 0xFFF59E3B);
+		ACCENTS.put("Pink", 0xFFF06BAA);
+	}
+
+	public static void apply(String name) {
+		int base = ACCENTS.getOrDefault(name, ACCENTS.get("Green"));
+		ACCENT = base;
+		ACCENT_HOVER = mix(base, 0xFFFFFFFF, 0.18f);
+		ACCENT_DARK = mix(base, 0xFF0B0F14, 0.62f);
+		ON_ACCENT = mix(base, 0xFF000000, 0.85f);
+	}
 	public static final int WARNING = 0xFFF2B33D;
 	public static final int DANGER = 0xFFEF5350;
 	public static final int DANGER_HOVER = 0xFFF26D6A;

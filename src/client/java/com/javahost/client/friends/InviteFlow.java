@@ -48,9 +48,34 @@ public final class InviteFlow {
 	private InviteFlow() {
 	}
 
-	/** What to show next to a friend on the Friends tab ("Inviting...", "Invited"). */
+	/**
+	 * What to show next to a friend on the Friends tab: "Opening your world...", "Sending...",
+	 * "Sent, waiting for them", "Delivered", "In your world", or why it failed. Null when nothing is going on.
+	 */
 	public static String status(UUID friend) {
-		return STATUS.get(friend);
+		if (HostController.guests().stream().anyMatch(g -> g.id().equals(friend))) {
+			return "In your world";
+		}
+		String local = STATUS.get(friend);
+		java.util.Optional<Friends.InviteStatus> sent = Friends.inviteStatus(friend);
+		if (local != null && (sent.isEmpty() || sent.get().time() < localSince.getOrDefault(friend, 0L))) {
+			return local;
+		}
+		return sent.map(Friends.InviteStatus::detail).orElse(null);
+	}
+
+	/** True while an invite is on its way (to disable the button). */
+	public static boolean busy(UUID friend) {
+		String status = status(friend);
+		return status != null && (status.endsWith("...") || status.startsWith("Opening"));
+	}
+
+	private static final Map<UUID, Long> localSince = new HashMap<>();
+
+	private static void setLocal(UUID friend, String text) {
+		STATUS.put(friend, text);
+		localSince.put(friend, System.currentTimeMillis());
+		Friends.changed();
 	}
 
 	public static boolean canInvite() {
@@ -65,18 +90,19 @@ public final class InviteFlow {
 		Minecraft minecraft = Minecraft.getInstance();
 		IntegratedServer server = minecraft.getSingleplayerServer();
 		if (!canInvite() || server == null) {
-			STATUS.put(friend.id(), "Open a world first");
+			setLocal(friend.id(), "Open one of your worlds first");
 			return;
 		}
 		if (!HostController.isHosting()) {
 			String problem = HostController.start(server);
 			if (problem != null) {
-				STATUS.put(friend.id(), "Couldn't open the world");
+				setLocal(friend.id(), "Couldn't open the world");
 				Toasts.show("Couldn't open your world", problem);
 				return;
 			}
 		}
-		STATUS.put(friend.id(), "Inviting...");
+		JavaHost.LOGGER.info("[Friends] inviting {}", friend.name());
+		setLocal(friend.id(), "Opening your world...");
 		String world = server.getWorldData().getLevelName();
 		CompletableFuture.runAsync(() -> {
 			// Give the connection checks (and the relay, if needed) up to ~25 s to settle.
@@ -87,11 +113,12 @@ public final class InviteFlow {
 		}).thenRun(() -> minecraft.execute(() -> {
 			List<RouteInfo> routes = shareableRoutes();
 			if (routes.isEmpty()) {
-				STATUS.put(friend.id(), "No way in yet");
+				setLocal(friend.id(), "No way in yet. Check the Host tab");
+				JavaHost.LOGGER.warn("[Friends] no routes to share with {}", friend.name());
 				return;
 			}
+			STATUS.remove(friend.id());
 			Friends.sendInvite(friend, world, routes, Connectivity.publicIpv4()).thenAccept(ok -> minecraft.execute(() -> {
-				STATUS.put(friend.id(), ok ? "Invited" : "Couldn't send");
 				if (ok) {
 					Toasts.player(friend.id(), "Invited " + friend.name(), "They'll get a Join button");
 				}
@@ -112,7 +139,7 @@ public final class InviteFlow {
 	}
 
 	/** Every route that might work, best first, as plain addresses. */
-	private static List<RouteInfo> shareableRoutes() {
+	public static List<RouteInfo> shareableRoutes() {
 		List<RouteInfo> routes = new ArrayList<>();
 		for (Route route : Connectivity.routes()) {
 			if (route.invite() == null || route.state() == State.UNAVAILABLE || route.state() == State.OFF) {
@@ -132,10 +159,11 @@ public final class InviteFlow {
 	public static void join(Invite invite) {
 		CompletableFuture.supplyAsync(InviteFlow::myPublicIpv4).thenAccept(myIp -> Minecraft.getInstance().execute(() -> {
 			List<String> order = joinOrder(invite, myIp);
-			JavaHost.LOGGER.info("Joining {}'s world via {}", invite.name(), order);
+			JavaHost.LOGGER.info("[Friends] joining {}'s world via {}", invite.name(), order);
 			joinQueue = order;
 			joinIndex = -1;
 			joiningHost = invite.name();
+			Toasts.player(invite.from(), "Joining " + invite.name() + "'s world...", invite.world());
 			next();
 		}));
 	}

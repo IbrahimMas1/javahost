@@ -233,8 +233,93 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.takeScreenshot("ui-home-hosting");
 
 			context.setScreen(() -> null);
+			newFeatures(context);
 			context.runOnClient(mc -> HostController.stop());
 			context.runOnClient(mc -> check(!mc.getSingleplayerServer().isPublished(), "stop hosting closes the world again"));
 		}
+		// The title screen with the friends panel, with an invite waiting.
+		java.util.UUID alex = java.util.UUID.nameUUIDFromBytes("Alex".getBytes());
+		context.runOnClient(mc -> com.javahost.client.friends.Notifications.add(com.javahost.client.friends.Notifications.Kind.INVITE, alex, "Alex",
+				"Alex invited you to Survival Island", new com.javahost.client.friends.Friends.Invite(alex, "Alex", "Survival Island", List.of(), "",
+						System.currentTimeMillis() + 600_000)));
+		context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+		context.waitTicks(10);
+		context.takeScreenshot("ui-title-compact");
+		// GUI scale 1 makes the title screen wide enough for the full friends panel.
+		int scale = context.computeOnClient(mc -> mc.options.guiScale().get());
+		context.runOnClient(mc -> {
+			mc.options.guiScale().set(1);
+			mc.resizeGui();
+		});
+		context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+		context.waitTicks(10);
+		context.takeScreenshot("ui-title-panel");
+		context.runOnClient(mc -> {
+			mc.options.guiScale().set(scale);
+			mc.resizeGui();
+		});
+		context.runOnClient(mc -> com.javahost.client.friends.Notifications.items().forEach(com.javahost.client.friends.Notifications::remove));
+	}
+
+	/** 1.1: FPS overlay, benchmark, screenshots page, notification center and accent themes. */
+	private static void newFeatures(ClientGameTestContext context) {
+		Config config = Config.get();
+		config.fpsOverlay = true;
+		long started = System.currentTimeMillis();
+		context.runOnClient(mc -> com.javahost.client.perf.Benchmark.start("Test run"));
+		context.waitTicks(60);
+		context.takeScreenshot("hud-fps-and-benchmark");
+		context.waitFor(mc -> !com.javahost.client.perf.Benchmark.running(), 40 * 20);
+		check(!config.benchmarks.isEmpty() && config.benchmarks.getLast().time() >= started && config.benchmarks.getLast().averageFps() > 0,
+				"benchmark recorded " + Math.round(config.benchmarks.getLast().averageFps()) + " FPS average, "
+						+ Math.round(config.benchmarks.getLast().onePercentLowFps()) + " FPS 1% low");
+		config.fpsOverlay = false;
+		context.setScreen(() -> new JavaHostScreen(null, Tab.PERFORMANCE));
+		context.waitTicks(6);
+		context.takeScreenshot("ui-performance-benchmark");
+
+		context.setScreen(() -> null);
+		context.waitTicks(3);
+		java.util.concurrent.CompletableFuture<Path> shot = new java.util.concurrent.CompletableFuture<>();
+		context.runOnClient(mc -> com.javahost.client.friends.Screenshots.take(shot::complete));
+		context.waitFor(mc -> shot.isDone(), 200);
+		Path file = shot.join();
+		try {
+			check(com.javahost.client.friends.Screenshots.isPng(java.nio.file.Files.readAllBytes(file)), "screenshot key saves a PNG: " + file.getFileName());
+			byte[] scaled = com.javahost.client.friends.Screenshots.prepareForSending(file);
+			check(com.javahost.client.friends.Screenshots.isPng(scaled) && scaled.length < 14_000_000, "screenshot prepared for sending (" + scaled.length / 1024 + " KB)");
+		} catch (IOException e) {
+			throw new AssertionError(e);
+		}
+		context.setScreen(() -> new JavaHostScreen(null, Tab.SCREENSHOTS));
+		context.waitTicks(10);
+		context.takeScreenshot("ui-screenshots-grid");
+		context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).openScreenshot(file));
+		context.waitTicks(10);
+		context.takeScreenshot("ui-screenshots-preview");
+
+		java.util.UUID alex = java.util.UUID.nameUUIDFromBytes("Alex".getBytes());
+		context.runOnClient(mc -> {
+			com.javahost.client.friends.Notifications.add(com.javahost.client.friends.Notifications.Kind.ACCEPTED, alex, "Alex", "Alex accepted your request", null);
+			com.javahost.client.friends.Notifications.add(com.javahost.client.friends.Notifications.Kind.MESSAGE, alex, "Alex", "want to play later?", null);
+		});
+		context.setScreen(() -> new JavaHostScreen(null, Tab.HOME));
+		context.waitTicks(6);
+		context.takeScreenshot("ui-home-unread-bell");
+		context.setScreen(() -> new JavaHostScreen(null, Tab.NOTIFICATIONS));
+		context.waitTicks(6);
+		context.takeScreenshot("ui-notifications");
+		context.runOnClient(mc -> com.javahost.client.friends.Notifications.items().forEach(com.javahost.client.friends.Notifications::remove));
+
+		for (String accent : List.of("Blue", "Purple", "Orange", "Pink", "Green")) {
+			config.accent = accent;
+			context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
+			context.waitTicks(6);
+			if (!accent.equals("Green")) {
+				context.takeScreenshot("ui-settings-" + accent.toLowerCase());
+			}
+		}
+		check(com.javahost.client.gui.ui.Theme.ACCENT == com.javahost.client.gui.ui.Theme.ACCENTS.get("Green"), "accent colours switch and switch back");
+		context.setScreen(() -> null);
 	}
 }
