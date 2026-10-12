@@ -44,6 +44,19 @@ public abstract class Page {
 	protected void drawOverlay(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY) {
 	}
 
+	/**
+	 * Back (the ← button or Esc) inside the page, e.g. a screenshot preview back to the grid. Returns false to let
+	 * the menu go to the parent tab instead.
+	 */
+	protected boolean back() {
+		return false;
+	}
+
+	/** Whether {@link #back()} has somewhere to go right now (shows the ← button on top-level tabs). */
+	protected boolean canGoBack() {
+		return false;
+	}
+
 	/** Lets a page handle keys first (e.g. Enter to send). */
 	protected boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
 		return false;

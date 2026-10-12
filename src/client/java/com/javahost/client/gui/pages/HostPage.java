@@ -339,7 +339,7 @@ public class HostPage extends Page {
 		for (Route route : routes) {
 			Icons icon = switch (route.name()) {
 				case "Relay" -> Icons.SPARKLE;
-				case "Same Wi-Fi" -> Icons.WIFI;
+				case "Same Wi-Fi" -> Icons.HOME;
 				default -> Icons.GLOBE;
 			};
 			icon.draw(g, left + 9, rowY + 6, stateColor(route.state()));

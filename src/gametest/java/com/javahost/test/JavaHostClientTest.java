@@ -257,6 +257,11 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.waitTicks(8);
 			context.takeScreenshot("ui-title-scale" + guiScale + "-hover");
 			context.getInput().setCursorPos(0, 0);
+			// The screenshot preview keeps its buttons on screen at every scale.
+			context.setScreen(() -> new JavaHostScreen(null, Tab.SCREENSHOTS));
+			context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).openScreenshot(com.javahost.client.friends.Screenshots.list(false).getFirst()));
+			context.waitTicks(8);
+			context.takeScreenshot("ui-preview-scale" + guiScale);
 		}
 		// Menu icons at GUI scale 3 (the in-between size).
 		context.runOnClient(mc -> {
@@ -277,6 +282,74 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.waitTicks(10);
 		context.takeScreenshot("ui-title-small-window");
 		context.runOnClient(mc -> com.javahost.client.friends.Notifications.items().forEach(com.javahost.client.friends.Notifications::remove));
+	}
+
+	/** Everything in the menu can be reached and left with the mouse: ← goes back, ✕ closes. */
+	private static void navigation(ClientGameTestContext context, Path file) {
+		context.setScreen(() -> new JavaHostScreen(null, Tab.FRIENDS));
+		context.waitTicks(4);
+		clickMenu(context, "Join with a code");
+		check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == Tab.JOIN, "clicking opens the Join page");
+		context.takeScreenshot("ui-join-with-back");
+		clickMenu(context, "Back");
+		check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == Tab.FRIENDS, "← on Join goes back to Friends");
+
+		context.setScreen(() -> new JavaHostScreen(null, Tab.HOME));
+		context.waitTicks(4);
+		clickMenu(context, "Notifications");
+		check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == Tab.NOTIFICATIONS, "the bell opens notifications");
+		clickMenu(context, "Back");
+		check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == Tab.HOME, "← on notifications goes back to Home");
+
+		context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).openScreenshot(file));
+		context.waitTicks(6);
+		clickMenu(context, "Send to a friend");
+		context.waitTicks(4);
+		context.takeScreenshot("ui-screenshot-send-picker");
+		clickMenu(context, "Back");
+		check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).selectedScreenshot()) == null, "← on a screenshot goes back to the grid");
+		context.waitTicks(4);
+		context.takeScreenshot("ui-screenshots-grid-back");
+		// Hovering a thumbnail shows its send shortcut; clicking it opens the preview with the friend list open.
+		double[] corner = context.computeOnClient(mc -> {
+			for (var child : mc.gui.screen().children()) {
+				if (child instanceof com.javahost.client.gui.ui.ImageButton w) {
+					double scale = mc.getWindow().getGuiScale();
+					return new double[] {(w.getRight() - 10) * scale, (w.getY() + 9) * scale};
+				}
+			}
+			throw new AssertionError("no thumbnails");
+		});
+		context.getInput().setCursorPos(corner[0], corner[1]);
+		context.waitTicks(3);
+		context.takeScreenshot("ui-screenshots-hover-send");
+		context.getInput().pressMouse(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);
+		context.waitTicks(4);
+		check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).selectedScreenshot()) != null,
+				"a thumbnail's send shortcut opens that screenshot");
+		context.takeScreenshot("ui-screenshots-shortcut-picker");
+		clickMenu(context, "Back");
+
+		clickMenu(context, "Close");
+		check(context.computeOnClient(mc -> mc.gui.screen() == null), "✕ closes the menu");
+	}
+
+	/** Clicks a visible button in the current screen with the real mouse. */
+	private static void clickMenu(ClientGameTestContext context, String label) {
+		double[] at = context.computeOnClient(mc -> {
+			for (var child : mc.gui.screen().children()) {
+				if (child instanceof net.minecraft.client.gui.components.AbstractWidget w && w.visible && w.active
+						&& w.getMessage().getString().equals(label)) {
+					double scale = mc.getWindow().getGuiScale();
+					return new double[] {(w.getX() + w.getWidth() / 2.0) * scale, (w.getY() + w.getHeight() / 2.0) * scale};
+				}
+			}
+			throw new AssertionError("no button \"" + label + "\" on " + mc.gui.screen());
+		});
+		context.getInput().setCursorPos(at[0], at[1]);
+		context.waitTicks(2);
+		context.getInput().pressMouse(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);
+		context.waitTicks(4);
 	}
 
 	/** Moves the mouse over a dock button so its label slides out. */
@@ -368,6 +441,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).openScreenshot(file));
 		context.waitTicks(10);
 		context.takeScreenshot("ui-screenshots-preview");
+		navigation(context, file);
 
 		java.util.UUID alex = java.util.UUID.nameUUIDFromBytes("Alex".getBytes());
 		context.runOnClient(mc -> {

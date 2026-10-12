@@ -129,7 +129,7 @@ public final class InstallerWindow extends JPanel {
 		page.add(gap(4));
 		perf = option(page, "Performance mods", "Sodium, Lithium and friends for much higher FPS", true);
 		relay = option(page, "Play with anyone", "A free relay for when friends can't connect to you directly", true);
-		shaders = option(page, "Shaders", "Iris, so you can see the host's shader", false);
+		shaders = option(page, "Shaders", "Iris, so you can see the host's shader", true);
 		page.add(gap(10));
 
 		page.add(section("BRING OVER FROM NORMAL MINECRAFT"));

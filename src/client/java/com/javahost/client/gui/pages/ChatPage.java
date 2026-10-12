@@ -10,7 +10,6 @@ import com.javahost.client.friends.Chats;
 import com.javahost.client.friends.Chats.Line;
 import com.javahost.client.friends.Friends;
 import com.javahost.client.friends.Friends.Friend;
-import com.javahost.client.gui.JavaHostScreen;
 import com.javahost.client.gui.Page;
 import com.javahost.client.gui.ui.Draw;
 import com.javahost.client.gui.ui.FlatButton;
@@ -43,6 +42,16 @@ public class ChatPage extends Page {
 		return friend == null ? "Chat" : friend.name();
 	}
 
+	/** Back from a chat goes to that friend's profile. */
+	@Override
+	protected boolean back() {
+		if (friend == null) {
+			return false;
+		}
+		screen.openProfile(friend.id());
+		return true;
+	}
+
 	@Override
 	public String subtitle() {
 		return "Private and encrypted. Only you two can read it.";
@@ -51,16 +60,8 @@ public class ChatPage extends Page {
 	@Override
 	protected void build() {
 		friend = Friends.friend(screen.subject()).orElse(null);
-		add(new FlatButton(80, 16, Component.literal("Profile"), FlatButton.Style.GHOST, Icons.BACK,
-				b -> {
-					if (friend != null) {
-						screen.openProfile(friend.id());
-					} else {
-						screen.switchTo(JavaHostScreen.Tab.FRIENDS);
-					}
-				}), 0, 0);
 		if (friend == null) {
-			reserve(40);
+			reserve(20);
 			return;
 		}
 		Chats.markRead(friend.id());
@@ -68,7 +69,7 @@ public class ChatPage extends Page {
 		seen = lines.size();
 
 		bubbles.clear();
-		int y = 26;
+		int y = 2;
 		int maxW = (int) (width * 0.72);
 		long previous = 0;
 		if (lines.isEmpty()) {
@@ -157,11 +158,11 @@ public class ChatPage extends Page {
 	@Override
 	protected void draw(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY) {
 		if (friend == null) {
-			Draw.text(g, "This friend is no longer on your list.", left, top + 26, Theme.MUTED);
+			Draw.text(g, "This friend is no longer on your list.", left, top + 2, Theme.MUTED);
 			return;
 		}
 		if (bubbles.isEmpty()) {
-			Draw.centered(g, "Say hi to " + friend.name() + "!", left + width / 2, top + 36, Theme.FAINT);
+			Draw.centered(g, "Say hi to " + friend.name() + "!", left + width / 2, top + 12, Theme.FAINT);
 		}
 		for (Bubble bubble : bubbles) {
 			int y = top + bubble.y();

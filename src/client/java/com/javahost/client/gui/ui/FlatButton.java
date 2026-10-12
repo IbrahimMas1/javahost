@@ -13,6 +13,7 @@ public class FlatButton extends Button {
 	private Style style;
 	private Icons icon;
 	private float hover;
+	private boolean iconOnly;
 
 	public FlatButton(int x, int y, int width, int height, Component label, Style style, Icons icon, Consumer<FlatButton> onPress) {
 		super(x, y, width, height, label, button -> onPress.accept((FlatButton) button), DEFAULT_NARRATION);
@@ -26,6 +27,12 @@ public class FlatButton extends Button {
 
 	public FlatButton setStyle(Style style) {
 		this.style = style;
+		return this;
+	}
+
+	/** Shows just the icon; the label is still the button's name for narration (and tests). */
+	public FlatButton iconOnly() {
+		iconOnly = true;
 		return this;
 	}
 
@@ -72,7 +79,7 @@ public class FlatButton extends Button {
 			Draw.roundRect(g, x, y, w, h, 4, fill);
 		}
 
-		String label = getMessage().getString();
+		String label = iconOnly ? "" : getMessage().getString();
 		int iconSpace = icon == null ? 0 : (label.isEmpty() ? Icons.SIZE : Icons.SIZE + 5);
 		String shown = label.isEmpty() ? "" : Draw.fit(label, w - 10 - iconSpace);
 		int contentWidth = iconSpace + Draw.font().width(shown);

@@ -58,6 +58,20 @@ public final class Screenshots {
 				}));
 	}
 
+	/** Opens Finder/Explorer with this file selected (or just its folder where that isn't possible). */
+	public static void reveal(Path file) {
+		java.util.List<String> command = com.javahost.util.Reveal.command(System.getProperty("os.name", ""), file);
+		if (command != null) {
+			try {
+				new ProcessBuilder(command).start();
+				return;
+			} catch (IOException e) {
+				JavaHost.LOGGER.warn("Couldn't show {} in the file browser", file, e);
+			}
+		}
+		com.mojang.blaze3d.Blaze3D.openPath(file.getParent());
+	}
+
 	/** Newest first. {@code fromFriends} picks the received folder instead of the player's own screenshots. */
 	public static List<Path> list(boolean fromFriends) {
 		Path folder = fromFriends ? fromFriendsDir() : dir();

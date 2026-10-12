@@ -14,7 +14,7 @@ from pathlib import Path
 GRID = 24
 # Icons enum constant -> Pixelarticons name.
 ICONS = {
-    "HOME": "home", "HOST": "server", "JOIN": "login", "MIC": "mic", "MIC_OFF": "mic-off",
+    "HOME": "home", "HOST": "wifi", "JOIN": "login", "MIC": "mic", "MIC_OFF": "mic-off",
     "SPEAKER": "volume-2", "BOLT": "zap", "GEAR": "sliders", "COPY": "copy", "CHECK": "check",
     "CROSS": "close", "WARNING": "warning-diamond", "USER": "user", "USERS": "users", "GLOBE": "globe",
     "WIFI": "wifi", "PLAY": "play", "STOP": "stop", "PACKAGE": "package", "BELL": "bell", "CHAT": "message",

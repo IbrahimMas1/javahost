@@ -138,16 +138,6 @@ public final class MenuDock {
 		PlayerSkinWidget skin = new PlayerSkinWidget(skinW, skinH, minecraft.getEntityModels(), () -> Faces.skinOf(Identity.id()));
 		skin.setPosition(x, y);
 		widgets.add(skin);
-		// A nametag above the head, like in game.
-		int centreX = x + skinW / 2;
-		ScreenEvents.afterExtract(screen).register((s, g, mouseX, mouseY, delta) -> {
-			String name = Identity.name();
-			int w = Draw.font().width(name) + 8;
-			int tagX = centreX - w / 2;
-			int tagY = y - 4;
-			Draw.roundRect(g, tagX, tagY, w, 12, 3, 0x66000000);
-			Draw.text(g, name, tagX + 4, tagY + 2, 0xFFFFFFFF);
-		});
 	}
 
 	private static final class DockButton extends Button {

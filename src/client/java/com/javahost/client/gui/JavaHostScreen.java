@@ -113,6 +113,11 @@ public class JavaHostScreen extends Screen {
 		Theme.apply(Config.get().accent);
 	}
 
+	/** Height of the visible page area (pages use it to keep key buttons on screen). */
+	public int contentHeight() {
+		return contentH;
+	}
+
 	public Tab tab() {
 		return tab;
 	}
@@ -209,16 +214,26 @@ public class JavaHostScreen extends Screen {
 		// You, pinned to the bottom of the sidebar.
 		sidebarWidgets.add(addWidget(new SidebarTab(winX + 6, Math.max(tabY + 6, winY + winH - 30), sideW - 12, 22, Tab.ACCOUNT, compact)));
 
-		// The notification bell, top right of the window.
-		FlatButton bell = new FlatButton(winX + winW - 34, winY + 8, 22, 18, Component.empty(),
-				tab == Tab.NOTIFICATIONS ? FlatButton.Style.SECONDARY : FlatButton.Style.GHOST, Icons.BELL,
-				b -> switchTo(tab == Tab.NOTIFICATIONS ? beforeNotifications : Tab.NOTIFICATIONS));
-		sidebarWidgets.add(addWidget(bell));
-
 		if (page == null) {
 			page = tab.factory.get();
 		}
 		page.init(this, contentW);
+
+		// Top right of the window: notifications, then close. Top left of the page: back, when there's a way back.
+		FlatButton bell = new FlatButton(winX + winW - 58, winY + 8, 22, 18, Component.literal("Notifications"),
+				tab == Tab.NOTIFICATIONS ? FlatButton.Style.SECONDARY : FlatButton.Style.GHOST, Icons.BELL,
+				b -> switchTo(tab == Tab.NOTIFICATIONS ? beforeNotifications : Tab.NOTIFICATIONS)).iconOnly();
+		sidebarWidgets.add(addWidget(bell));
+		FlatButton close = new FlatButton(winX + winW - 32, winY + 8, 22, 18, Component.literal("Close"),
+				FlatButton.Style.GHOST, Icons.CROSS, b -> close()).iconOnly();
+		close.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Close")));
+		sidebarWidgets.add(addWidget(close));
+		if (canGoBack()) {
+			FlatButton back = new FlatButton(contentX - 4, winY + 9, 18, 18, Component.literal("Back"),
+					FlatButton.Style.GHOST, Icons.BACK, b -> goBack()).iconOnly();
+			back.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Back")));
+			sidebarWidgets.add(addWidget(back));
+		}
 		if (scrollToBottom) {
 			scrollToBottom = false;
 			scrollTarget = scroll = maxScroll();
@@ -291,9 +306,11 @@ public class JavaHostScreen extends Screen {
 			Draw.text(g, "JavaHost", winX + 31, winY + 13, Theme.TEXT);
 		}
 
-		// Page header.
-		Draw.scaledText(g, Draw.fit(page.title(), (int) ((contentW - 40) / 1.25f)), contentX, winY + 10, 1.25f, Theme.TEXT);
-		Draw.text(g, Draw.fit(page.subtitle(), contentW - 40), contentX, winY + 24, Theme.MUTED);
+		// Page header (shifted right when there's a back button).
+		int titleX = canGoBack() ? contentX + 18 : contentX;
+		int titleW = contentX + contentW - 62 - titleX;
+		Draw.scaledText(g, Draw.fit(page.title(), (int) (titleW / 1.25f)), titleX, winY + 10, 1.25f, Theme.TEXT);
+		Draw.text(g, Draw.fit(page.subtitle(), titleW), titleX, winY + 24, Theme.MUTED);
 		g.fill(contentX, winY + HEADER + 2, contentX + contentW, winY + HEADER + 3, Theme.withAlpha(Theme.BORDER, 0.7f));
 
 		g.nextStratum();
@@ -302,7 +319,7 @@ public class JavaHostScreen extends Screen {
 		}
 		int unread = Notifications.unread();
 		if (unread > 0 && tab != Tab.NOTIFICATIONS) {
-			badge(g, winX + winW - 16, winY + 6, unread);
+			badge(g, winX + winW - 40, winY + 6, unread);
 		}
 
 		// Page contents, clipped to the content area so they can scroll; they slide in when the tab changes.
@@ -366,6 +383,19 @@ public class JavaHostScreen extends Screen {
 
 	@Override
 	public void onClose() {
+		goBack(); // Esc does the same as the back button, and closes when there's nowhere to go back to
+	}
+
+	/** Whether ← has somewhere to go: inside the page, to a parent tab, or back from notifications. */
+	public boolean canGoBack() {
+		return (page != null && page.canGoBack()) || tab.parent != null
+				|| (tab == Tab.NOTIFICATIONS && openedOn != Tab.NOTIFICATIONS);
+	}
+
+	public void goBack() {
+		if (page != null && page.back()) {
+			return;
+		}
 		if (tab.parent != null) {
 			switchTo(tab.parent);
 			return;
@@ -373,6 +403,14 @@ public class JavaHostScreen extends Screen {
 		if (tab == Tab.NOTIFICATIONS && openedOn != Tab.NOTIFICATIONS) {
 			switchTo(beforeNotifications);
 			return;
+		}
+		close();
+	}
+
+	/** Leaves the menu, back to the screen it was opened from. */
+	public void close() {
+		if (tab == Tab.VOICE) {
+			com.javahost.client.voice.VoiceClient.setTestingMic(false);
 		}
 		minecraft.gui.setScreen(parent);
 	}
