@@ -76,7 +76,7 @@ public class NotificationsPage extends Page {
 					: null;
 			case HOSTING -> {
 				Optional<Presence.Status> status = Presence.of(item.player());
-				yield status.isPresent() && status.get().hosting()
+				yield status.isPresent() && InviteFlow.joinable(item.player())
 						? button("Join", Icons.JOIN, FlatButton.Style.PRIMARY, () -> InviteFlow.join(status.get().asInvite(item.name())))
 						: null;
 			}

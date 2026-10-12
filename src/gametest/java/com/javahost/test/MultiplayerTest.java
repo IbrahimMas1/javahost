@@ -465,6 +465,12 @@ final class MultiplayerTest {
 		context.waitFor(mc -> mc.gameMode != null && mc.gameMode.getPlayerMode() == GameType.CREATIVE, ONE_MINUTE);
 		writeShared("guest-saw-creative", "ok");
 		check(true, "guest's game mode changed to Creative by the host");
+		context.waitFor(mc -> InviteFlow.playingTogether(host.id()), ONE_MINUTE);
+		check(!context.computeOnClient(mc -> InviteFlow.joinable(host.id())), "the host shows as \"Playing with you\", not Join, while we're in their world");
+		context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.FRIENDS));
+		context.waitTicks(10);
+		context.takeScreenshot("mp-guest-friends-together");
+		context.setScreen(() -> null);
 		context.takeScreenshot("mp-guest-joined-from-invite");
 		waitForShared(context, "host-controls-done", 3 * ONE_MINUTE);
 		VoiceClient.setTestTone(false);

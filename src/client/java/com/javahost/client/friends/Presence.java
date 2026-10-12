@@ -46,8 +46,9 @@ public final class Presence {
 		}
 	}
 
-	private static final long HEARTBEAT_MS = 15 * 60 * 1000L;
-	private static final long STALE_MS = 20 * 60 * 1000L;
+	// A heartbeat every 30 min keeps status messages to a handful a day (the free relay allows ~250 per connection).
+	private static final long HEARTBEAT_MS = 30 * 60 * 1000L;
+	private static final long STALE_MS = 40 * 60 * 1000L;
 	private static final long MIN_GAP_MS = 20_000L;
 
 	private static final Map<UUID, Status> LATEST = new HashMap<>();
@@ -131,7 +132,9 @@ public final class Presence {
 	private static JsonObject currentState(Minecraft minecraft) {
 		JsonObject state = new JsonObject();
 		IntegratedServer server = minecraft.getSingleplayerServer();
-		if (HostController.isHosting() && server != null && !Connectivity.isProbing()) {
+		if (Config.get().appearOffline) {
+			state.addProperty("state", State.OFFLINE.name());
+		} else if (HostController.isHosting() && server != null && !Connectivity.isProbing()) {
 			List<RouteInfo> routes = InviteFlow.shareableRoutes();
 			state.addProperty("state", State.HOSTING.name());
 			state.addProperty("world", server.getWorldData().getLevelName());

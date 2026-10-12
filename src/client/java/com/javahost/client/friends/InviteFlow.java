@@ -64,6 +64,17 @@ public final class InviteFlow {
 		return sent.map(Friends.InviteStatus::detail).orElse(null);
 	}
 
+	/** True when this friend is in the same world as us right now (our guest, our host, or both guests somewhere). */
+	public static boolean playingTogether(UUID friend) {
+		Minecraft minecraft = Minecraft.getInstance();
+		return minecraft.level != null && minecraft.getConnection() != null && minecraft.getConnection().getPlayerInfo(friend) != null;
+	}
+
+	/** A Join button makes sense: they're hosting and we aren't already in their world. */
+	public static boolean joinable(UUID friend) {
+		return Presence.of(friend).map(Presence.Status::hosting).orElse(false) && !playingTogether(friend);
+	}
+
 	/** True while an invite is on its way (to disable the button). */
 	public static boolean busy(UUID friend) {
 		String status = status(friend);

@@ -31,6 +31,7 @@ public final class Popups {
 	}
 
 	public static void startFriends() {
+		com.javahost.client.friends.MessageUsage.install();
 		Friends.start(Popups::onEvent);
 		Presence.start();
 		Friends.selfCheck();

@@ -244,7 +244,10 @@ public class JavaHostClientTest implements FabricClientGameTest {
 						System.currentTimeMillis() + 600_000)));
 		context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
 		context.waitTicks(10);
-		context.takeScreenshot("ui-title-compact");
+		context.takeScreenshot("ui-title-dock");
+		hoverDock(context, "Friends");
+		context.waitTicks(8);
+		context.takeScreenshot("ui-title-dock-hover");
 		// GUI scale 1 makes the title screen wide enough for the full friends panel.
 		int scale = context.computeOnClient(mc -> mc.options.guiScale().get());
 		context.runOnClient(mc -> {
@@ -261,8 +264,61 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.runOnClient(mc -> com.javahost.client.friends.Notifications.items().forEach(com.javahost.client.friends.Notifications::remove));
 	}
 
+	/** Moves the mouse over a dock button so its label slides out. */
+	private static void hoverDock(ClientGameTestContext context, String label) {
+		double[] at = context.computeOnClient(mc -> {
+			for (var child : mc.gui.screen().children()) {
+				if (child instanceof net.minecraft.client.gui.components.AbstractWidget w && w.getClass().getName().contains("MenuDock")
+						&& w.getMessage().getString().equals(label)) {
+					double scale = mc.getWindow().getGuiScale();
+					return new double[] {(w.getX() + w.getWidth() / 2.0) * scale, (w.getY() + w.getHeight() / 2.0) * scale};
+				}
+			}
+			throw new AssertionError("no dock button " + label);
+		});
+		context.getInput().setCursorPos(at[0], at[1]);
+	}
+
+	/** Typing in a menu text box and pressing Enter submits it (like clicking the button next to it). */
+	private static void enterSubmits(ClientGameTestContext context) {
+		context.setScreen(() -> new JavaHostScreen(null, Tab.JOIN));
+		context.waitTicks(4);
+		context.getInput().typeChars(" "); // blank: submitting shows a message without connecting anywhere
+		context.getInput().pressKey(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN);
+		context.waitTicks(4);
+		String message = context.computeOnClient(mc -> {
+			try {
+				Object page = field(mc.gui.screen(), "page");
+				return (String) field(page, "error");
+			} catch (ReflectiveOperationException e) {
+				throw new AssertionError(e);
+			}
+		});
+		context.takeScreenshot("ui-join-enter");
+		check(message != null, "Enter in a menu text box submits it (" + message + ")");
+		context.setScreen(() -> null);
+	}
+
+	private static Object field(Object owner, String name) throws ReflectiveOperationException {
+		java.lang.reflect.Field f = owner.getClass().getDeclaredField(name);
+		f.setAccessible(true);
+		return f.get(owner);
+	}
+
 	/** 1.1: FPS overlay, benchmark, screenshots page, notification center and accent themes. */
 	private static void newFeatures(ClientGameTestContext context) {
+		enterSubmits(context);
+		context.setScreen(() -> new JavaHostScreen(null, Tab.ACCOUNT));
+		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40,
+				mc.getWindow().getGuiScaledHeight() / 2.0, 0, -10));
+		context.waitTicks(10);
+		context.takeScreenshot("ui-account-scrolled");
+		context.setScreen(() -> new net.minecraft.client.gui.screens.PauseScreen(true));
+		context.waitTicks(6);
+		hoverDock(context, "Host");
+		context.waitTicks(8);
+		context.takeScreenshot("ui-pause-dock");
+		context.getInput().setCursorPos(0, 0);
 		Config config = Config.get();
 		config.fpsOverlay = true;
 		long started = System.currentTimeMillis();

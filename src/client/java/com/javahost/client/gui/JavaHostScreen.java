@@ -13,7 +13,10 @@ import com.javahost.client.friends.Notifications;
 import com.javahost.client.friends.Screenshots;
 import com.javahost.client.gui.pages.ChatPage;
 import com.javahost.client.gui.pages.FriendsPage;
+import com.javahost.client.gui.pages.AccountPage;
 import com.javahost.client.gui.pages.HomePage;
+import com.javahost.client.friends.Identity;
+import com.javahost.client.gui.ui.Faces;
 import com.javahost.client.gui.pages.HostPage;
 import com.javahost.client.gui.pages.JoinPage;
 import com.javahost.client.gui.pages.NotificationsPage;
@@ -45,6 +48,7 @@ public class JavaHostScreen extends Screen {
 		SCREENSHOTS("Screenshots", Icons.CAMERA, ScreenshotsPage::new, null),
 		PERFORMANCE("Performance", Icons.BOLT, PerformancePage::new, null),
 		SETTINGS("Settings", Icons.GEAR, SettingsPage::new, null),
+		ACCOUNT("Account", Icons.USER, AccountPage::new, null),
 		// Sub-pages, reached from other pages (they highlight their parent in the sidebar).
 		JOIN("Join", Icons.JOIN, JoinPage::new, FRIENDS),
 		PROFILE("Profile", Icons.USER, ProfilePage::new, FRIENDS),
@@ -74,6 +78,8 @@ public class JavaHostScreen extends Screen {
 	private final Screen parent;
 	private Tab tab;
 	private Tab beforeNotifications = Tab.HOME;
+	/** Opened straight onto this tab (e.g. from the dock): Esc there closes the menu. */
+	private final Tab openedOn;
 	private Page page;
 	private UUID subject;
 	private Path screenshot;
@@ -103,6 +109,7 @@ public class JavaHostScreen extends Screen {
 		super(Component.literal("JavaHost"));
 		this.parent = parent;
 		this.tab = tab;
+		this.openedOn = tab;
 		Theme.apply(Config.get().accent);
 	}
 
@@ -192,13 +199,15 @@ public class JavaHostScreen extends Screen {
 
 		int tabY = winY + 38;
 		for (Tab t : Tab.values()) {
-			if (!t.inSidebar()) {
+			if (!t.inSidebar() || t == Tab.ACCOUNT) {
 				continue;
 			}
 			SidebarTab button = new SidebarTab(winX + 6, tabY, sideW - 12, 20, t, compact);
 			sidebarWidgets.add(addWidget(button));
 			tabY += 22;
 		}
+		// You, pinned to the bottom of the sidebar.
+		sidebarWidgets.add(addWidget(new SidebarTab(winX + 6, Math.max(tabY + 6, winY + winH - 30), sideW - 12, 22, Tab.ACCOUNT, compact)));
 
 		// The notification bell, top right of the window.
 		FlatButton bell = new FlatButton(winX + winW - 34, winY + 8, 22, 18, Component.empty(),
@@ -361,7 +370,7 @@ public class JavaHostScreen extends Screen {
 			switchTo(tab.parent);
 			return;
 		}
-		if (tab == Tab.NOTIFICATIONS) {
+		if (tab == Tab.NOTIFICATIONS && openedOn != Tab.NOTIFICATIONS) {
 			switchTo(beforeNotifications);
 			return;
 		}
@@ -400,6 +409,16 @@ public class JavaHostScreen extends Screen {
 			}
 			int color = selected ? Theme.TEXT : Theme.mix(Theme.MUTED, Theme.TEXT, hover);
 			int iconX = compact ? getX() + (getWidth() - Icons.SIZE) / 2 : getX() + 8;
+			if (target == Tab.ACCOUNT) {
+				// Your face and name instead of an icon.
+				int face = 12;
+				int faceX = compact ? getX() + (getWidth() - face) / 2 : getX() + 6;
+				Faces.draw(g, Identity.id(), faceX, getY() + (getHeight() - face) / 2, face);
+				if (!compact) {
+					Draw.text(g, Draw.fit(Identity.name(), getWidth() - 26), getX() + 23, getY() + (getHeight() - 8) / 2 + 1, color);
+				}
+				return;
+			}
 			target.icon.draw(g, iconX, getY() + (getHeight() - Icons.SIZE) / 2, selected ? Theme.ACCENT : color);
 			if (!compact) {
 				Draw.text(g, target.label, getX() + 23, getY() + (getHeight() - 8) / 2 + 1, color);

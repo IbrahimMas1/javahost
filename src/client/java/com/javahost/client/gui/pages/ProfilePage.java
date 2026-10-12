@@ -61,7 +61,12 @@ public class ProfilePage extends Page {
 		int rightW = width - right;
 		Optional<Presence.Status> status = Presence.of(friend.id());
 		int buttonW = Math.max(60, (rightW - 12) / 3);
-		if (status.isPresent() && status.get().hosting()) {
+		if (InviteFlow.playingTogether(friend.id())) {
+			FlatButton together = add(new FlatButton(buttonW, 20, Component.literal("Here"), FlatButton.Style.SECONDARY, Icons.CHECK, b -> {
+			}), right, 72);
+			together.active = false;
+			together.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("You're in the same world")));
+		} else if (InviteFlow.joinable(friend.id())) {
 			add(new FlatButton(buttonW, 20, Component.literal("Join"), FlatButton.Style.PRIMARY, Icons.JOIN,
 					b -> InviteFlow.join(status.get().asInvite(friend.name()))), right, 72);
 		} else {

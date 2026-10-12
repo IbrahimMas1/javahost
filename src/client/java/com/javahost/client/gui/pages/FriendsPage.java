@@ -109,7 +109,12 @@ public class FriendsPage extends Page {
 		for (Friend friend : friends) {
 			add(new RowButton(width - 130, ROW - 2, Component.literal(friend.name()), b -> screen.openProfile(friend.id())), 2, y + 1);
 			Optional<Presence.Status> status = Presence.of(friend.id());
-			if (status.isPresent() && status.get().hosting()) {
+			if (InviteFlow.playingTogether(friend.id())) {
+				FlatButton together = add(new FlatButton(64, 18, Component.literal("Here"), FlatButton.Style.SECONDARY, Icons.CHECK, b -> {
+				}), width - 96, y + 5);
+				together.active = false;
+				together.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("You're in the same world")));
+			} else if (InviteFlow.joinable(friend.id())) {
 				add(new FlatButton(64, 18, Component.literal("Join"), FlatButton.Style.PRIMARY, Icons.JOIN,
 						b -> InviteFlow.join(status.get().asInvite(friend.name()))), width - 96, y + 5);
 			} else {
@@ -184,7 +189,7 @@ public class FriendsPage extends Page {
 		StringBuilder s = new StringBuilder().append(Friends.status()).append(InviteFlow.canInvite()).append(busy);
 		Friends.incoming().forEach(r -> s.append('i').append(r.id()));
 		Friends.outgoing().forEach(o -> s.append('o').append(o.id()));
-		Friends.friends().forEach(f -> s.append('f').append(f.id()).append(InviteFlow.status(f.id())).append(rank(f))
+		Friends.friends().forEach(f -> s.append('f').append(f.id()).append(InviteFlow.status(f.id())).append(rank(f)).append(InviteFlow.playingTogether(f.id()))
 				.append(Chats.unread(f.id())));
 		return s.toString();
 	}
@@ -212,6 +217,9 @@ public class FriendsPage extends Page {
 
 	/** One line describing what a friend is up to. */
 	static String statusLine(Friend friend) {
+		if (InviteFlow.playingTogether(friend.id())) {
+			return "Playing with you";
+		}
 		Optional<Presence.Status> status = Presence.of(friend.id());
 		if (status.isEmpty()) {
 			return "Offline";

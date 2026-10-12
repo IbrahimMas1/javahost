@@ -8,6 +8,7 @@ import com.javahost.client.friends.Friends;
 import com.javahost.client.friends.InviteFlow;
 import com.javahost.client.friends.Presence;
 import com.javahost.client.friends.Screenshots;
+import com.javahost.client.gui.MenuDock;
 import com.javahost.client.gui.TitleFriendsPanel;
 import com.javahost.client.gui.JavaHostScreen;
 import com.javahost.client.gui.ui.Draw;
@@ -113,8 +114,7 @@ public class JavaHostClient implements ClientModInitializer {
 	private static void addMenuButtons() {
 		ScreenEvents.AFTER_INIT.register((minecraft, screen, width, height) -> {
 			if (screen instanceof TitleScreen || (screen instanceof PauseScreen pause && pause.showsPauseMenu())) {
-				Screens.getWidgets(screen).add(new FlatButton(4, 4, 82, 20, Component.literal("JavaHost"), FlatButton.Style.SECONDARY,
-						Icons.HOST, b -> minecraft.gui.setScreen(new JavaHostScreen(screen))));
+				MenuDock.attach(minecraft, screen, width, height, screen instanceof TitleScreen);
 				if (screen instanceof TitleScreen) {
 					TitleFriendsPanel.attach(minecraft, screen, width, height);
 				}

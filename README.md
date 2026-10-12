@@ -15,7 +15,8 @@ A Fabric mod for Minecraft **26.3** (Java Edition).
 - **Host controls.** Change a guest's game mode, kick or ban them, and set a player limit.
 - **Shared look.** Guests get the host's resource packs and **shader, including its settings** (with Iris). They're asked first, and everything goes back to normal when they leave.
 - **Performance.** One click installs Sodium, Lithium, FerriteCore, ImmediatelyFast and Entity Culling for your exact version, checked against Modrinth's hashes. **Quick Tune** gives FPS-friendly settings and can undo them. **Benchmark** measures your average FPS and 1% low, or compares before and after Quick Tune. There's an optional FPS / ping / memory overlay.
-- **Modern menu.** Press `J` in game, or click **JavaHost** on the title or pause screen. Pick an accent colour in Settings.
+- **Modern menu.** Press `J` in game, or use the **dock** down the right side of the title and pause screens: Notifications, Host, Friends, Voice, Screenshots, Performance, Settings and your Account. Badges show what's new, and Friends glows when a friend's world is ready to join. Pick an accent colour in Settings.
+- **Account page.** Your 3D skin, how friends see you, an **Appear offline** switch, and how many friend messages you've sent today.
 - Friends need a Microsoft-account login, which every normal Minecraft purchase has.
 
 ## Install (recommended): the JavaHost Installer
@@ -45,7 +46,7 @@ Friends need JavaHost too to get voice and your packs. The easiest way is to sen
 - Your game checks the connection to the relay and reconnects by itself if it goes quiet, so invites don't get lost.
 - **Friends-only worlds (default):** players who aren't your friends are turned away when they try to join. Minecraft itself verifies accounts. You can switch this off on the Host tab.
 - **Offline friends:** messages are kept for 12 hours, so a friend who's offline gets your request when they next play. Screenshots are kept for 3 hours.
-- ntfy.sh allows about 250 messages a day from one internet connection. Normal play uses far fewer. If you hit the limit, JavaHost tells you.
+- ntfy.sh is free, so it limits each internet connection to about 250 *sent* messages a day (receiving is free). Normal play uses far fewer: your online status sends one every 30 minutes or when it changes. The Account page shows today's count, and JavaHost tells you if you hit the limit.
 
 ## Limits
 

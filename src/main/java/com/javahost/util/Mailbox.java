@@ -86,6 +86,10 @@ public final class Mailbox {
 
 	// ================================================================ sending
 
+	/** Told about every message the relay accepted (for the "friend messages today" counter). */
+	public static volatile Runnable onSent = () -> {
+	};
+
 	/** Posts a text message, retrying network errors and server errors a few times. */
 	public static CompletableFuture<Sent> post(String topic, String message) {
 		if (message.getBytes(StandardCharsets.UTF_8).length > MAX_MESSAGE) {
@@ -114,7 +118,13 @@ public final class Mailbox {
 
 	private static CompletableFuture<Sent> withRetries(java.util.function.Supplier<HttpRequest> request, int attempt) {
 		return HTTP.sendAsync(request.get(), HttpResponse.BodyHandlers.discarding())
-				.thenApply(response -> new Sent(response.statusCode()))
+				.thenApply(response -> {
+					Sent sent = new Sent(response.statusCode());
+					if (sent.ok()) {
+						onSent.run();
+					}
+					return sent;
+				})
 				.exceptionally(error -> new Sent(-1))
 				.thenCompose(sent -> {
 					boolean retry = (sent.status() == -1 || sent.status() >= 500) && attempt < 3;

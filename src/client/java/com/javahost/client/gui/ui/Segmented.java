@@ -46,11 +46,11 @@ public class Segmented<T> extends AbstractWidget {
 	@Override
 	public boolean keyPressed(KeyEvent event) {
 		int index = options.indexOf(selected);
-		if (event.key() == 263 && index > 0) { // left arrow
+		if (event.isLeft() && index > 0) {
 			select(index - 1);
 			return true;
 		}
-		if (event.key() == 262 && index < options.size() - 1) { // right arrow
+		if (event.isRight() && index < options.size() - 1) {
 			select(index + 1);
 			return true;
 		}

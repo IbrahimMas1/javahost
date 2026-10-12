@@ -55,18 +55,15 @@ public final class TitleFriendsPanel extends Button {
 		this.active = false;
 	}
 
-	/** Adds the panel to the title screen; on a narrow window, just a Friends button in the corner. */
+	/** Adds the panel beside the dock when there's room; it only shows when someone is online or an invite waits. */
 	public static void attach(Minecraft minecraft, Screen screen, int width, int height) {
-		int x = width - W - 4;
+		int x = MenuDock.left(width) - W - 8;
 		if (x < width / 2 + 104) {
-			attachCompact(minecraft, screen, width);
-			return;
+			return; // too narrow: the dock's Friends button shows who's online instead
 		}
 		TitleFriendsPanel panel = new TitleFriendsPanel(x, height / 4 + 48, height);
 		List<AbstractWidget> widgets = Screens.getWidgets(screen);
 		widgets.add(panel);
-		widgets.add(new FlatButton(x + W - 22, panel.getY() + 3, 16, 14, Component.empty(), FlatButton.Style.GHOST, Icons.USER,
-				b -> minecraft.gui.setScreen(new JavaHostScreen(screen, JavaHostScreen.Tab.FRIENDS))));
 		panel.inviteJoin = new FlatButton(JOIN_W, 14, Component.literal("Join"), FlatButton.Style.PRIMARY, null, b -> {
 			if (panel.invite != null && panel.invite.payload() instanceof Invite pending) {
 				Notifications.remove(panel.invite);
@@ -89,22 +86,6 @@ public final class TitleFriendsPanel extends Button {
 		ScreenEvents.afterTick(screen).register(s -> panel.update());
 	}
 
-	/** Too narrow for the panel: a Friends button showing how many are online (green when there's an invite or a world to join). */
-	private static void attachCompact(Minecraft minecraft, Screen screen, int width) {
-		FlatButton button = new FlatButton(width - 92, 4, 88, 20, Component.literal("Friends"), FlatButton.Style.SECONDARY, Icons.USER,
-				b -> minecraft.gui.setScreen(new JavaHostScreen(screen, JavaHostScreen.Tab.FRIENDS)));
-		Screens.getWidgets(screen).add(button);
-		Runnable update = () -> {
-			int online = Presence.onlineFriends().size();
-			boolean joinable = Presence.onlineFriends().stream().anyMatch(f -> Presence.of(f.id()).map(Presence.Status::hosting).orElse(false))
-					|| Notifications.items().stream().anyMatch(item -> item.payload() instanceof Invite pending && !pending.expired());
-			button.setMessage(Component.literal(online > 0 ? online + " online" : "Friends"));
-			button.setStyle(joinable ? FlatButton.Style.PRIMARY : FlatButton.Style.SECONDARY);
-		};
-		update.run();
-		ScreenEvents.afterTick(screen).register(s -> update.run());
-	}
-
 	private int maxRows() {
 		int room = screenHeight - 24 - getY() - HEADER - (invite != null ? INVITE : 0);
 		return Math.max(1, Math.min(MAX_ROWS, room / ROW));
@@ -122,22 +103,23 @@ public final class TitleFriendsPanel extends Button {
 			status.ifPresent(s -> list.add(new Entry(friend, s)));
 		}
 		online = list.size();
+		visible = invite != null || !list.isEmpty();
 		list.sort(Comparator.comparing((Entry e) -> !e.status().hosting()).thenComparing(e -> e.friend().name().toLowerCase()));
 		entries = list.subList(0, Math.min(list.size(), maxRows()));
 
 		int x = getX();
 		int y = getY() + HEADER;
-		inviteJoin.visible = invite != null;
+		inviteJoin.visible = visible && invite != null;
 		if (invite != null) {
 			inviteJoin.setPosition(x + W - JOIN_W - 8, y + 9);
 			y += INVITE;
 		}
 		for (int i = 0; i < joins.size(); i++) {
 			FlatButton join = joins.get(i);
-			join.visible = i < entries.size() && entries.get(i).status().hosting();
+			join.visible = visible && i < entries.size() && InviteFlow.joinable(entries.get(i).friend().id());
 			join.setPosition(x + W - JOIN_W - 6, y + i * ROW + 5);
 		}
-		int body = entries.isEmpty() ? ROW : entries.size() * ROW;
+		int body = entries.isEmpty() ? (invite != null ? 0 : ROW) : entries.size() * ROW;
 		setHeight(HEADER + (invite != null ? INVITE : 0) + body + 4);
 	}
 
@@ -154,7 +136,7 @@ public final class TitleFriendsPanel extends Button {
 		Draw.text(g, "Friends", x + 22, y + 7, Theme.TEXT);
 		if (online > 0) {
 			String count = String.valueOf(online);
-			int countX = x + W - 26 - Draw.font().width(count);
+			int countX = x + W - 8 - Draw.font().width(count);
 			Draw.roundRect(g, countX - 7, y + 8, 4, 4, 2, Theme.ACCENT);
 			Draw.text(g, count, countX, y + 7, Theme.MUTED);
 		}
@@ -169,6 +151,9 @@ public final class TitleFriendsPanel extends Button {
 		}
 
 		if (entries.isEmpty()) {
+			if (invite != null) {
+				return;
+			}
 			String hint = Friends.friends().isEmpty() ? "No friends yet" : "No one online";
 			Draw.text(g, Draw.fit(hint, W - 16), x + 8, y + 8, Theme.FAINT);
 			return;

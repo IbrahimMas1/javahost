@@ -50,7 +50,7 @@ public abstract class Page {
 	}
 
 	protected static boolean isEnter(net.minecraft.client.input.KeyEvent event) {
-		return event.key() == 257 || event.key() == 335;
+		return event.isConfirmation(); // Enter or keypad Enter (26.3 uses its own key codes)
 	}
 
 	final void init(JavaHostScreen screen, int width) {

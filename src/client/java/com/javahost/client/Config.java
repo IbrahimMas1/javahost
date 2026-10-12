@@ -54,6 +54,11 @@ public final class Config {
 	/** Accent colour name, see Theme.ACCENTS. */
 	public String accent = "Green";
 	public boolean fpsOverlay = false;
+	/** Friends see you as offline (you still see them). */
+	public boolean appearOffline = false;
+	/** Messages the friend relay accepted today (UTC day), to show against its daily limit. */
+	public String usageDay = "";
+	public int usageCount = 0;
 	/** Recent benchmark results, oldest first. */
 	public java.util.List<BenchmarkResult> benchmarks = new java.util.ArrayList<>();
 
@@ -109,6 +114,9 @@ public final class Config {
 					}
 					if (config.accent == null) {
 						config.accent = "Green";
+					}
+					if (config.usageDay == null) {
+						config.usageDay = "";
 					}
 					if (config.maxPlayers < 2) {
 						config.maxPlayers = 8;
