@@ -49,7 +49,8 @@ public final class Mailbox {
 	static final String SERVER = System.getProperty("javahost.mailboxServer", "https://ntfy.sh");
 	static final long STALL_MS = Long.getLong("javahost.mailboxStallMs", 100_000L);
 	private static final int MAX_MESSAGE = 4000;
-	private static final int MAX_ATTACHMENT = 14 * 1024 * 1024;
+	/** ntfy.sh's free tier: 2 MB per attached file. */
+	private static final int MAX_ATTACHMENT = 2 * 1024 * 1024;
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
 	private final String name;

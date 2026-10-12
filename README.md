@@ -12,9 +12,12 @@ A Fabric mod for Minecraft **26.3** (Java Edition).
   3. **Relay:** a free relay (e4mc) for when nothing direct works. Anyone can join this way, even without mods.
   4. **Same Wi-Fi:** for people at home.
 - **Proximity voice chat.** Push-to-talk (`V`) or voice activation, mute (`M`). Voices fade with distance and come from the speaker's direction. Set each player's volume or mute them. A ♪ appears on the nametag of whoever is talking.
+- **Party voice.** Press `B` (or use the Voice tab) to talk to everyone in the world, wherever they are, instead of only nearby players.
+- **Automatic world backups.** When a friend joins your world, JavaHost saves a backup first (at most every 30 minutes, newest 5 kept). Restore one from the Host tab: your current world is kept as a copy, never deleted.
+- **Same-world fast lane.** When you and a friend are in the same world, chat and screenshots go through the game connection: instant, full size, and they don't count toward the daily limit.
 - **Host controls.** Change a guest's game mode, kick or ban them, and set a player limit.
 - **Shared look.** Guests get the host's resource packs and **shader, including its settings** (with Iris). They're asked first, and everything goes back to normal when they leave.
-- **Performance.** One click installs Sodium, Lithium, FerriteCore, ImmediatelyFast and Entity Culling for your exact version, checked against Modrinth's hashes. **Quick Tune** gives FPS-friendly settings and can undo them. **Benchmark** measures your average FPS and 1% low, or compares before and after Quick Tune. There's an optional FPS / ping / memory overlay.
+- **Performance.** One click installs Sodium, Lithium, FerriteCore, ImmediatelyFast and Entity Culling for your exact version, checked against Modrinth's hashes. **Quick Tune** gives FPS-friendly settings and can undo them. With Sodium installed, choose **Simple** (Minecraft's own Video Settings) or **Sodium** (detailed) under Settings; each screen has a button to switch. **Benchmark** measures your average FPS and 1% low, or compares before and after Quick Tune. There's an optional FPS / ping / memory overlay.
 - **Modern menu.** Press `J` in game, or use the **dock** down the right side of the title and pause screens: Host, Friends, Screenshots, Performance, Settings and your Account. Badges show what's new (including notifications, under Friends), and Friends glows when a friend's world is ready to join. The title screen also shows your 3D skin (drag to turn it) and the JavaHost version. Pick an accent colour in Settings.
 - **Account page.** Your 3D skin, how friends see you, an **Appear offline** switch, and how many friend messages you've sent today.
 - Friends need a Microsoft-account login, which every normal Minecraft purchase has.
@@ -42,6 +45,7 @@ Friends need JavaHost too to get voice and your packs. The easiest way is to sen
 - Friend requests and invites travel through **ntfy.sh**, a free public message relay. Each player has a mailbox named after their account ID.
 - **Requests are signed** with your Mojang-certified chat key (the same one Minecraft signs chat with), so nobody can pretend to be you.
 - **Invites, chat and screenshots are encrypted** with a key only you and that friend share. Nobody else can read your world's address or your messages.
+- **Version check:** your friends list shows when a friend runs a different JavaHost version, so you know who needs to update.
 - **Online status** is encrypted with a separate key that you give each friend. It changes when you remove someone, so they stop seeing you.
 - Your game checks the connection to the relay and reconnects by itself if it goes quiet, so invites don't get lost.
 - **Friends-only worlds (default):** players who aren't your friends are turned away when they try to join. Minecraft itself verifies accounts. You can switch this off on the Host tab.

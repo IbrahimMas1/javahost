@@ -26,7 +26,9 @@ import com.javahost.JavaHost;
 import com.javahost.client.Config;
 import com.javahost.net.Payloads.VoiceConfig;
 import com.javahost.net.Payloads.VoiceDown;
+import com.javahost.net.Payloads.VoiceDown2;
 import com.javahost.net.Payloads.VoiceUp;
+import com.javahost.net.Payloads.VoiceUp2;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -62,6 +64,8 @@ public final class VoiceClient {
 		boolean playing;
 		int concealed;
 		volatile long lastHeard;
+		/** Their latest frame was party voice: play it at full volume, unpanned, wherever they are. */
+		volatile boolean party;
 
 		Speaker() throws OpusException {
 			decoder = new OpusDecoder(SAMPLE_RATE, 1);
@@ -91,7 +95,8 @@ public final class VoiceClient {
 			serverHasVoice = true;
 			range = config.range();
 		});
-		ClientPlayNetworking.registerGlobalReceiver(VoiceDown.TYPE, (frame, context) -> receive(frame));
+		ClientPlayNetworking.registerGlobalReceiver(VoiceDown.TYPE, (frame, context) -> receive(frame.speaker(), frame.opus(), false));
+		ClientPlayNetworking.registerGlobalReceiver(VoiceDown2.TYPE, (frame, context) -> receive(frame.speaker(), frame.opus(), frame.party()));
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, minecraft) -> {
 			serverHasVoice = false;
 			listener = null;
@@ -102,6 +107,25 @@ public final class VoiceClient {
 	}
 
 	// ---------------------------------------------------------------- state for the UI
+
+	/** The host runs JavaHost 1.4+, so party voice works here. */
+	public static boolean partyAvailable() {
+		return serverHasVoice && ClientPlayNetworking.canSend(VoiceUp2.TYPE);
+	}
+
+	/** Talking to everyone in the world rather than just nearby players (only when the host supports it). */
+	public static boolean partyMode() {
+		return "PARTY".equals(Config.get().voiceMode) && partyAvailable();
+	}
+
+	/** Sends one microphone frame, as party or nearby voice, in the format the host understands. */
+	private static void sendFrame(int sequence, byte[] opus) {
+		if (ClientPlayNetworking.canSend(VoiceUp2.TYPE)) {
+			ClientPlayNetworking.send(new VoiceUp2(sequence, partyMode(), opus));
+		} else if (ClientPlayNetworking.canSend(VoiceUp.TYPE)) {
+			ClientPlayNetworking.send(new VoiceUp(sequence, opus));
+		}
+	}
 
 	public static boolean isAvailable() {
 		return serverHasVoice;
@@ -235,16 +259,17 @@ public final class VoiceClient {
 		SPEAKERS.values().removeIf(speaker -> now - speaker.lastHeard > 30_000);
 	}
 
-	private static void receive(VoiceDown frame) {
-		Speaker speaker = SPEAKERS.computeIfAbsent(frame.speaker(), id -> {
+	private static void receive(UUID from, byte[] opus, boolean party) {
+		Speaker speaker = SPEAKERS.computeIfAbsent(from, id -> {
 			try {
 				return new Speaker();
 			} catch (OpusException e) {
 				throw new IllegalStateException(e);
 			}
 		});
+		speaker.party = party;
 		synchronized (speaker.queue) {
-			speaker.queue.add(frame.opus());
+			speaker.queue.add(opus);
 			while (speaker.queue.size() > MAX_QUEUED_FRAMES) {
 				// We fell behind (e.g. a lag spike); drop old audio rather than drift further behind.
 				speaker.queue.poll();
@@ -307,9 +332,9 @@ public final class VoiceClient {
 						pcm[i] = (short) (6000 * Math.sin(2 * Math.PI * 440 * (sequence * FRAME_SAMPLES + i) / SAMPLE_RATE));
 					}
 					transmitting = listener != null;
-					if (transmitting && ClientPlayNetworking.canSend(VoiceUp.TYPE)) {
+					if (transmitting) {
 						int length = encoder.encode(pcm, 0, FRAME_SAMPLES, packet, 0, packet.length);
-						ClientPlayNetworking.send(new VoiceUp(sequence++, java.util.Arrays.copyOf(packet, length)));
+						sendFrame(sequence++, java.util.Arrays.copyOf(packet, length));
 					}
 					continue;
 				}
@@ -372,11 +397,11 @@ public final class VoiceClient {
 				}
 				send &= listener != null && !config.muted;
 				transmitting = send;
-				if (send && ClientPlayNetworking.canSend(VoiceUp.TYPE)) {
+				if (send) {
 					int length = encoder.encode(pcm, 0, FRAME_SAMPLES, packet, 0, packet.length);
 					byte[] opus = new byte[length];
 					System.arraycopy(packet, 0, opus, 0, length);
-					ClientPlayNetworking.send(new VoiceUp(sequence++, opus));
+					sendFrame(sequence++, opus);
 				}
 			} catch (InterruptedException e) {
 				return;
@@ -460,12 +485,19 @@ public final class VoiceClient {
 					if (Math.sqrt(energy / FRAME_SAMPLES) > 300) {
 						AUDIBLE_FRAMES.computeIfAbsent(entry.getKey(), id -> new java.util.concurrent.atomic.AtomicInteger()).incrementAndGet();
 					}
-					Position from = here.players().get(entry.getKey());
-					if (from == null) {
-						continue; // Not loaded on our side (other dimension or just left).
-					}
 					double playerVolume = Config.get().playerVolumes.getOrDefault(entry.getKey().toString(), 1.0);
-					float[] gains = spatialGains(here, from, volume * playerVolume);
+					float[] gains;
+					if (speaker.party) {
+						// Party voice: same loudness from anywhere, straight down the middle.
+						float gain = (float) (volume * playerVolume);
+						gains = new float[] {gain, gain};
+					} else {
+						Position from = here.players().get(entry.getKey());
+						if (from == null) {
+							continue; // Not loaded on our side (other dimension or just left).
+						}
+						gains = spatialGains(here, from, volume * playerVolume);
+					}
 					for (int i = 0; i < FRAME_SAMPLES; i++) {
 						mixL[i] += decoded[i] * gains[0];
 						mixR[i] += decoded[i] * gains[1];

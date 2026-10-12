@@ -11,12 +11,23 @@ import net.fabricmc.api.ModInitializer;
 public class JavaHost implements ModInitializer {
 	public static final String MOD_ID = "javahost";
 	public static final Logger LOGGER = LoggerFactory.getLogger("JavaHost");
+	/** This JavaHost's version, e.g. "1.4.0" (shown to friends for the version check). */
+	public static final String VERSION = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer(MOD_ID)
+			.map(mod -> mod.getMetadata().getVersion().getFriendlyString()).orElse("0");
 
 	@Override
 	public void onInitialize() {
 		Payloads.register();
 		VoiceRelay.register();
 		PackServer.register();
+		com.javahost.net.FastLaneRouter.register();
+
+		// Tell JavaHost players which version the host runs.
+		net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+			if (net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(handler, Payloads.ServerHello.TYPE)) {
+				sender.sendPacket(new Payloads.ServerHello(VERSION));
+			}
+		});
 
 		// Who may join a hosted world: not banned, room left, and (by default) on the host's friends list.
 		net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {

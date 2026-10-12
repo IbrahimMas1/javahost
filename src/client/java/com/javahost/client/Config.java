@@ -56,6 +56,12 @@ public final class Config {
 	public boolean fpsOverlay = false;
 	/** Friends see you as offline (you still see them). */
 	public boolean appearOffline = false;
+	/** "NEARBY" (proximity) or "PARTY" (everyone in the world hears you). */
+	public String voiceMode = "NEARBY";
+	/** Back up the world when the first friend joins (at most every 30 minutes). */
+	public boolean autoBackup = true;
+	/** Options -> Video Settings: "SIMPLE" (Minecraft's screen) or "SODIUM". */
+	public String videoMenu = "SIMPLE";
 	/** Messages the friend relay accepted today (UTC day), to show against its daily limit. */
 	public String usageDay = "";
 	public int usageCount = 0;
@@ -114,6 +120,12 @@ public final class Config {
 					}
 					if (config.accent == null) {
 						config.accent = "Green";
+					}
+					if (config.voiceMode == null) {
+						config.voiceMode = "NEARBY";
+					}
+					if (config.videoMenu == null) {
+						config.videoMenu = "SIMPLE";
 					}
 					if (config.usageDay == null) {
 						config.usageDay = "";

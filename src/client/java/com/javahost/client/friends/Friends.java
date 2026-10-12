@@ -280,6 +280,9 @@ public final class Friends {
 		if (sent.rateLimited()) {
 			return "You've hit the daily message limit. Try again later.";
 		}
+		if (sent.status() == 413) {
+			return "That's too big to send.";
+		}
 		return "Couldn't reach the friends service. Check your internet.";
 	}
 
@@ -370,14 +373,47 @@ public final class Friends {
 			meta.addProperty("caption", caption == null ? "" : caption);
 			message.addProperty("data", FriendCrypto.seal(key, meta.toString(), context(message)));
 			byte[] sealed = FriendCrypto.sealBytes(key, png, context(message) + "|file");
-			return Mailbox.postAttachment(FriendCrypto.mailboxFor(friend.id(), NAMESPACE), sealed, message.toString()).thenApply(sent -> {
-				JavaHost.LOGGER.info("[Friends] sent screenshot ({} KB) to {}: HTTP {}", png.length / 1024, friend.name(), sent.status());
-				return sent;
-			});
+			return deliver(friend, "screenshot (" + png.length / 1024 + " KB)", message.toString(), sealed,
+					() -> Mailbox.postAttachment(FriendCrypto.mailboxFor(friend.id(), NAMESPACE), sealed, message.toString()));
 		} catch (Exception e) {
 			JavaHost.LOGGER.warn("Could not send screenshot to {}", friend.name(), e);
 			return CompletableFuture.completedFuture(new Sent(-1));
 		}
+	}
+
+	/**
+	 * Sends a screenshot file: the full-size original over the fast lane when the friend is in this world,
+	 * otherwise scaled to fit the relay's 2 MB limit. Call off the render thread.
+	 */
+	public static CompletableFuture<Sent> sendScreenshotFile(Friend friend, java.nio.file.Path file) {
+		try {
+			byte[] png = FastLane.canReach(friend.id()) ? Screenshots.prepareForGame(file) : Screenshots.prepareForSending(file);
+			return sendScreenshot(friend, png, file.getFileName().toString());
+		} catch (Exception e) {
+			JavaHost.LOGGER.warn("Could not prepare screenshot {} for {}", file.getFileName(), friend.name(), e);
+			return CompletableFuture.completedFuture(new Sent(413));
+		}
+	}
+
+	/**
+	 * Sends a sealed message (and file): over the game connection when the friend is in this world, otherwise
+	 * (or if that fails) through the internet relay. Logs which way it went.
+	 */
+	private static CompletableFuture<Sent> deliver(Friend friend, String what, String message, byte[] file,
+			java.util.function.Supplier<CompletableFuture<Sent>> relay) {
+		CompletableFuture<Sent> first = FastLane.canReach(friend.id())
+				? FastLane.send(friend.id(), message, file).thenApply(sent -> {
+					if (sent.ok()) {
+						JavaHost.LOGGER.info("[Friends] sent {} to {} via game", what, friend.name());
+					}
+					return sent;
+				})
+				: CompletableFuture.completedFuture(null);
+		return first.thenCompose(sent -> sent != null && sent.ok() ? CompletableFuture.completedFuture(sent)
+				: relay.get().thenApply(viaRelay -> {
+					JavaHost.LOGGER.info("[Friends] sent {} to {}: HTTP {}", what, friend.name(), viaRelay.status());
+					return viaRelay;
+				}));
 	}
 
 	static JsonArray routesJson(List<RouteInfo> routes) {
@@ -486,10 +522,7 @@ public final class Friends {
 			byte[] key = Identity.sharedKeyWith(friend.id(), friend.box());
 			message.addProperty("data", FriendCrypto.seal(key, body.toString(), context(message)));
 			String type = str(message, "type");
-			return Mailbox.post(FriendCrypto.mailboxFor(friend.id(), NAMESPACE), message.toString()).thenApply(sent -> {
-				JavaHost.LOGGER.info("[Friends] sent {} to {}: HTTP {}", type, friend.name(), sent.status());
-				return sent;
-			});
+			return deliver(friend, type, message.toString(), null, () -> Mailbox.post(FriendCrypto.mailboxFor(friend.id(), NAMESPACE), message.toString()));
 		} catch (Exception e) {
 			JavaHost.LOGGER.warn("Could not send {} to {}", str(message, "type"), friend.name(), e);
 			return CompletableFuture.completedFuture(new Sent(-1));
@@ -499,15 +532,33 @@ public final class Friends {
 	// ================================================================ receiving
 
 	private static void receive(Mailbox.Message envelope) {
+		String url = envelope.attachmentUrl();
+		handle(envelope.text(), url == null ? null : () -> Mailbox.download(url), null);
+	}
+
+	/** A message that came over the same-world fast lane; {@code sender} is who the host says sent it. */
+	static void receiveDirect(UUID sender, String text, byte[] file) {
+		handle(text, file == null ? null : () -> CompletableFuture.completedFuture(file), sender);
+	}
+
+	/** Fetches a message's attached file (downloaded from the relay, or already here from the fast lane). */
+	private interface Attachment {
+		CompletableFuture<byte[]> fetch();
+	}
+
+	private static void handle(String text, Attachment attachment, UUID sender) {
 		String type = "?";
 		try {
-			JsonObject m = JsonParser.parseString(envelope.text()).getAsJsonObject();
+			JsonObject m = JsonParser.parseString(text).getAsJsonObject();
 			type = str(m, "type");
 			if (m.get("v").getAsInt() != 1 || !SEEN.add(str(m, "id"))) {
 				return;
 			}
 			UUID from = UUID.fromString(str(m, "from"));
 			UUID to = UUID.fromString(str(m, "to"));
+			if (sender != null && !sender.equals(from)) {
+				return; // the fast lane says someone else sent it
+			}
 			long ts = m.get("ts").getAsLong();
 			long now = System.currentTimeMillis();
 			if (!to.equals(Identity.id()) || from.equals(Identity.id()) || ts < now - MAX_AGE_MS || ts > now + 10 * 60 * 1000L) {
@@ -517,7 +568,7 @@ public final class Friends {
 			if (!name.matches("[A-Za-z0-9_]{1,16}")) {
 				return;
 			}
-			JavaHost.LOGGER.info("[Friends] received {} from {}", type, name);
+			JavaHost.LOGGER.info("[Friends] received {} from {}{}", type, name, sender != null ? " via game" : "");
 			switch (type) {
 				case "request" -> {
 					if (Identity.verify(from, m, signedPayload(m))) {
@@ -541,7 +592,7 @@ public final class Friends {
 					}
 					// Decrypting also proves it came from this friend (only the two of us have the key).
 					String plain = FriendCrypto.open(Identity.sharedKeyWith(from, friend.get().box()), str(m, "data"), context(m));
-					onSealed(type, friend.get(), m, JsonParser.parseString(plain).getAsJsonObject(), envelope);
+					onSealed(type, friend.get(), m, JsonParser.parseString(plain).getAsJsonObject(), attachment);
 				}
 				default -> {
 				}
@@ -551,7 +602,7 @@ public final class Friends {
 		}
 	}
 
-	private static void onSealed(String type, Friend friend, JsonObject message, JsonObject body, Mailbox.Message envelope) {
+	private static void onSealed(String type, Friend friend, JsonObject message, JsonObject body, Attachment attachment) {
 		switch (type) {
 			case "remove" -> {
 				data.friends.removeIf(f -> f.id().equals(friend.id()));
@@ -591,19 +642,19 @@ public final class Friends {
 				events.accept(new Event.ChatReceived(friend, text));
 				changed();
 			}
-			case "screenshot" -> receiveScreenshot(friend, message, body, envelope);
+			case "screenshot" -> receiveScreenshot(friend, message, body, attachment);
 			default -> {
 			}
 		}
 	}
 
-	private static void receiveScreenshot(Friend friend, JsonObject message, JsonObject meta, Mailbox.Message envelope) {
-		if (envelope.attachmentUrl() == null) {
+	private static void receiveScreenshot(Friend friend, JsonObject message, JsonObject meta, Attachment attachment) {
+		if (attachment == null) {
 			return;
 		}
 		String caption = str(meta, "caption");
 		String context = context(message) + "|file";
-		Mailbox.download(envelope.attachmentUrl()).thenAccept(sealed -> {
+		attachment.fetch().thenAccept(sealed -> {
 			try {
 				byte[] png = FriendCrypto.openBytes(Identity.sharedKeyWith(friend.id(), friend.box()), sealed, context);
 				Path file = Screenshots.saveFromFriend(friend.name(), png);

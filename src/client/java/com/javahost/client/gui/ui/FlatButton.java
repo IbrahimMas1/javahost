@@ -14,6 +14,7 @@ public class FlatButton extends Button {
 	private Icons icon;
 	private float hover;
 	private boolean iconOnly;
+	private long pressedAt;
 
 	public FlatButton(int x, int y, int width, int height, Component label, Style style, Icons icon, Consumer<FlatButton> onPress) {
 		super(x, y, width, height, label, button -> onPress.accept((FlatButton) button), DEFAULT_NARRATION);
@@ -28,6 +29,12 @@ public class FlatButton extends Button {
 	public FlatButton setStyle(Style style) {
 		this.style = style;
 		return this;
+	}
+
+	@Override
+	public void onPress(net.minecraft.client.input.InputWithModifiers input) {
+		pressedAt = System.currentTimeMillis();
+		super.onPress(input);
 	}
 
 	/** Shows just the icon; the label is still the button's name for narration (and tests). */
@@ -72,6 +79,9 @@ public class FlatButton extends Button {
 		if (!active) {
 			fill = Theme.withAlpha(Theme.CARD, 0.6f);
 			text = Theme.FAINT;
+		} else if (System.currentTimeMillis() - pressedAt < 140) {
+			// A brief press-down shade, so clicks feel physical.
+			fill = Theme.mix(fill, 0xFF000000, 0.25f);
 		}
 		if (style == Style.SECONDARY && active) {
 			Draw.bordered(g, x, y, w, h, 4, fill, Theme.mix(Theme.BORDER, Theme.FAINT, hover));

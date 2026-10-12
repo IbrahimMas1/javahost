@@ -18,6 +18,7 @@ import com.javahost.client.host.Connectivity.Route;
 import com.javahost.client.host.Connectivity.State;
 import com.javahost.client.host.E4mcCompat;
 import com.javahost.client.host.HostController;
+import com.javahost.client.host.WorldBackups;
 import com.javahost.client.host.HostController.Guest;
 import com.javahost.client.pack.IrisCompat;
 import com.javahost.client.Toasts;
@@ -136,7 +137,85 @@ public class HostPage extends Page {
 		if (!canHost() && error == null) {
 			error = "Open one of your singleplayer worlds to host it.";
 		}
-		reserve(startY + 40);
+		buildBackups(startY + 46);
+	}
+
+	// ================================================================ backups
+
+	private static final int BACKUP_ROW = 22;
+	private int backupsY;
+	private List<WorldBackups.Backup> backups = List.of();
+	private java.nio.file.Path confirmRestore;
+	private long confirmUntil;
+	private String backupMessage;
+
+	private void buildBackups(int y) {
+		Config config = Config.get();
+		backupsY = y;
+		backups = WorldBackups.listAll().stream().limit(8).toList();
+		add(new ToggleSwitch(width - 20, Component.literal("Back up when friends join"), "Every 30 min at most; 5 kept",
+				config.autoBackup, v -> {
+					config.autoBackup = v;
+					config.save();
+				}), 10, y + 18);
+		boolean worldOpen = minecraft.getSingleplayerServer() != null;
+		int rowY = y + 50;
+		for (WorldBackups.Backup backup : backups) {
+			boolean confirming = backup.file().equals(confirmRestore) && System.currentTimeMillis() < confirmUntil;
+			FlatButton restore = add(new FlatButton(confirming ? 96 : 64, 16, Component.literal(confirming ? "Click again" : "Restore"),
+					confirming ? FlatButton.Style.DANGER : FlatButton.Style.SECONDARY, null, b -> restore(backup)),
+					width - (confirming ? 106 : 74), rowY + 3);
+			restore.active = !worldOpen;
+			if (worldOpen) {
+				restore.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Leave the world to restore a backup")));
+			} else {
+				restore.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+						"Your current \"" + backup.world() + "\" is kept as a copy, then this backup takes its place")));
+			}
+			rowY += BACKUP_ROW;
+		}
+		if (backups.isEmpty()) {
+			rowY += BACKUP_ROW;
+		}
+		int half = (width - 6) / 2;
+		FlatButton now = add(new FlatButton(half, 18, Component.literal("Back up now"), FlatButton.Style.SECONDARY, Icons.PACKAGE, b -> {
+			net.minecraft.client.server.IntegratedServer server = minecraft.getSingleplayerServer();
+			if (server != null) {
+				backupMessage = "Backing up...";
+				server.execute(() -> WorldBackups.backUp(server, "you asked").whenComplete((done, error) -> minecraft.execute(() -> {
+					backupMessage = error == null ? "Backed up." : "Couldn't back up.";
+					screen.refresh();
+				})));
+				screen.refresh();
+			}
+		}), 0, rowY + 10);
+		now.active = worldOpen;
+		add(new FlatButton(width - half - 6, 18, Component.literal("Open folder"), FlatButton.Style.GHOST, Icons.PACKAGE, b -> {
+			try {
+				java.nio.file.Files.createDirectories(WorldBackups.root());
+			} catch (java.io.IOException ignored) {
+				// Opening the parent folder below still helps.
+			}
+			com.mojang.blaze3d.Blaze3D.openPath(WorldBackups.root());
+		}), half + 6, rowY + 10);
+		reserve(rowY + 50);
+	}
+
+	private void restore(WorldBackups.Backup backup) {
+		if (!backup.file().equals(confirmRestore) || System.currentTimeMillis() > confirmUntil) {
+			confirmRestore = backup.file();
+			confirmUntil = System.currentTimeMillis() + 4000;
+			screen.refresh();
+			return;
+		}
+		confirmRestore = null;
+		try {
+			String aside = WorldBackups.restore(backup);
+			backupMessage = "Restored " + backup.world() + (aside != null ? ". Your previous copy is \"" + aside + "\"." : ".");
+		} catch (java.io.IOException e) {
+			backupMessage = "Couldn't restore: " + e.getMessage();
+		}
+		screen.refresh();
 	}
 
 	private void start() {
@@ -169,6 +248,32 @@ public class HostPage extends Page {
 		}
 		error = null;
 		screen.refresh();
+	}
+
+	private static final java.time.format.DateTimeFormatter BACKUP_TIME = java.time.format.DateTimeFormatter.ofPattern("d MMM, HH:mm")
+			.withZone(java.time.ZoneId.systemDefault());
+
+	private void drawBackups(GuiGraphicsExtractor g, int left, int top) {
+		int y = top + backupsY;
+		sectionLabel(g, "Backups", left, y);
+		card(g, left, y + 12, width, 38 + Math.max(1, backups.size()) * BACKUP_ROW);
+		int rowY = y + 50;
+		if (backups.isEmpty()) {
+			Draw.text(g, Draw.fit("No backups yet. One is made when a friend joins.", width - 20), left + 10, rowY + 6, Theme.FAINT);
+		}
+		for (WorldBackups.Backup backup : backups) {
+			Icons.PACKAGE.draw(g, left + 10, rowY + 5, Theme.MUTED);
+			String when = BACKUP_TIME.format(java.time.Instant.ofEpochMilli(backup.time())) + " · " + Math.max(1, backup.size() / (1024 * 1024)) + " MB";
+			Draw.text(g, Draw.fit(backup.world(), width - 190), left + 26, rowY + 2, Theme.TEXT);
+			Draw.text(g, Draw.fit(when, width - 120), left + 26, rowY + 12, Theme.FAINT);
+			rowY += BACKUP_ROW;
+		}
+		if (backups.isEmpty()) {
+			rowY += BACKUP_ROW;
+		}
+		if (backupMessage != null) {
+			Draw.text(g, Draw.fit(backupMessage, width), left, rowY + 32, backupMessage.startsWith("Couldn't") ? Theme.WARNING : Theme.ACCENT);
+		}
 	}
 
 	// ================================================================ while hosting
@@ -305,6 +410,7 @@ public class HostPage extends Page {
 			Icons.WARNING.draw(g, left, top + startY + 30, Theme.WARNING);
 			Draw.text(g, Draw.fit(error, width - 14), left + 13, top + startY + 31, Theme.WARNING);
 		}
+		drawBackups(g, left, top);
 	}
 
 	private void drawHosting(GuiGraphicsExtractor g, int left, int top) {

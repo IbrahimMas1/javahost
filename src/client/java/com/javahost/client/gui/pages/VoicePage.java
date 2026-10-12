@@ -52,6 +52,15 @@ public class VoicePage extends Page {
 					config.save();
 					screen.refresh();
 				}), 10, 80);
+		String partyKey = JavaHostClient.PARTY_VOICE.getTranslatedKeyMessage().getString();
+		Segmented<String> who = add(new Segmented<>(inner, List.of("NEARBY", "PARTY"), config.voiceMode,
+				mode -> mode.equals("PARTY") ? "Everyone in the world" : "Nearby players", mode -> {
+					config.voiceMode = mode;
+					config.save();
+				}), 10, 108);
+		who.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+				"Who hears you. Party voice reaches everyone in the world, anywhere (" + partyKey + " in game)."
+						+ (VoiceClient.isAvailable() && !VoiceClient.partyAvailable() ? " This host needs JavaHost 1.4 for party voice." : ""))));
 
 		List<String> mics = new ArrayList<>();
 		mics.add(DEFAULT_MIC);
@@ -64,20 +73,20 @@ public class VoicePage extends Page {
 					config.microphone = next == 0 ? "" : mics.get(next);
 					config.save();
 					screen.refresh();
-				}), 10, 128);
+				}), 10, 156);
 
 		int half = (inner - 10) / 2;
-		add(new FlatSlider(half, "Mic boost", config.micGain, 0, 3, v -> config.micGain = v, v -> Math.round(v * 100) + "%"), 10, 156);
+		add(new FlatSlider(half, "Mic boost", config.micGain, 0, 3, v -> config.micGain = v, v -> Math.round(v * 100) + "%"), 10, 184);
 		add(new FlatSlider(half, "Voice volume", config.outputVolume, 0, 2, v -> config.outputVolume = v, v -> Math.round(v * 100) + "%"),
-				20 + half, 156);
+				20 + half, 184);
 		FlatSlider threshold = add(new FlatSlider(inner, "Voice activation level", config.activationThresholdDb, -80, 0,
-				v -> config.activationThresholdDb = v, v -> Math.round(v) + " dB"), 10, 186);
+				v -> config.activationThresholdDb = v, v -> Math.round(v) + " dB"), 10, 214);
 		threshold.active = !config.pushToTalk;
 
 		// People nearby: a volume and mute for each.
 		nearby = new java.util.ArrayList<>(VoiceClient.nearbyPlayers().entrySet());
 		nearbyKey = nearby.toString();
-		int y = 270;
+		int y = 298;
 		for (var entry : nearby) {
 			String id = entry.getKey().toString();
 			add(new FlatSlider(width - 150, "Volume", config.playerVolumes.getOrDefault(id, 1.0), 0, 2,
@@ -94,18 +103,18 @@ public class VoicePage extends Page {
 					}), width - 34, y + 4);
 			y += 30;
 		}
-		problemY = Math.max(y, 300) + 10;
+		problemY = Math.max(y, 328) + 10;
 		reserve(problemY + 40);
 	}
 
 	private java.util.List<java.util.Map.Entry<java.util.UUID, String>> nearby = java.util.List.of();
 	private String nearbyKey = "";
-	private int problemY = 300;
+	private int problemY = 328;
 
 	@Override
 	protected void draw(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY) {
-		sectionLabel(g, "People nearby", left, top + 258);
-		int rowY = top + 270;
+		sectionLabel(g, "People nearby", left, top + 286);
+		int rowY = top + 298;
 		card(g, left, rowY - 2, width, Math.max(1, nearby.size()) * 30 + 4);
 		if (nearby.isEmpty()) {
 			Draw.text(g, Draw.fit(VoiceClient.isAvailable() ? "Nobody in voice range right now." : "Join a world with voice chat to see people here.",
@@ -119,12 +128,12 @@ public class VoicePage extends Page {
 		}
 		Config config = Config.get();
 		sectionLabel(g, "Talking", left, top);
-		card(g, left, top + 12, width, 92);
-		sectionLabel(g, "Microphone", left, top + 114);
-		card(g, left, top + 122, width, 118);
+		card(g, left, top + 12, width, 120);
+		sectionLabel(g, "Microphone", left, top + 142);
+		card(g, left, top + 150, width, 118);
 
 		// Live level meter under the sliders.
-		int meterY = top + 216;
+		int meterY = top + 244;
 		int x = left + 10;
 		int w = width - 20;
 		float level = Math.max(-80, Math.min(0, VoiceClient.micLevelDb()));

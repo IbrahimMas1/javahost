@@ -133,6 +133,8 @@ public class ProfilePage extends Page {
 		String invite = InviteFlow.status(friend.id());
 		status(g, right, top + 18, dot, Draw.fit(invite != null ? invite : FriendsPage.statusLine(friend), rightW - 14), Theme.MUTED);
 		Draw.text(g, "Friends since " + DATE.format(Instant.ofEpochMilli(friend.since())), right, top + 32, Theme.FAINT);
+		FriendsPage.versionChip(g, friend.id(), right + 4 + (int) (Draw.font().width(Draw.fit(friend.name(), (int) (rightW / 1.5f))) * 1.5f), top + 4,
+				rightW - 8 - (int) (Draw.font().width(friend.name()) * 1.5f));
 
 		sectionLabel(g, "Their voice", right, top + 78);
 		card(g, right, top + 88, rightW, 58);

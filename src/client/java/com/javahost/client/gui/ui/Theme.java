@@ -5,6 +5,12 @@ public final class Theme {
 	public static final int SCRIM = 0xB0070A0E;
 	public static final int WINDOW = 0xF2161B22;
 	public static final int SIDEBAR = 0xFF10141A;
+	/** Frosted glass: translucent panels that let the blurred world behind them show through. */
+	public static final int GLASS = 0xD2161B22;
+	public static final int GLASS_SIDEBAR = 0x9A0B0E13;
+	public static final int GLASS_EDGE = 0x30FFFFFF;
+	/** A lighter scrim behind glass windows, so the blur stays visible. */
+	public static final int SCRIM_GLASS = 0x60070A0E;
 	public static final int CARD = 0xFF1E252E;
 	public static final int CARD_HOVER = 0xFF252D38;
 	public static final int FIELD = 0xFF0D1116;

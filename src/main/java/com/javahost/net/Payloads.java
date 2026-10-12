@@ -69,6 +69,78 @@ public final class Payloads {
 		}
 	}
 
+	/** Client -> server (JavaHost 1.4+): a microphone frame, either for nearby players or the whole party. */
+	public record VoiceUp2(int sequence, boolean party, byte[] opus) implements CustomPacketPayload {
+		public static final Type<VoiceUp2> TYPE = payloadType("voice_up2");
+		public static final StreamCodec<FriendlyByteBuf, VoiceUp2> CODEC = CustomPacketPayload.codec(
+				(p, buf) -> buf.writeVarInt(p.sequence).writeBoolean(p.party).writeByteArray(p.opus),
+				buf -> new VoiceUp2(buf.readVarInt(), buf.readBoolean(), buf.readByteArray(MAX_VOICE_FRAME)));
+
+		@Override
+		public Type<VoiceUp2> type() {
+			return TYPE;
+		}
+	}
+
+	/** Server -> client (1.4+): a relayed frame; party frames come from anywhere in the world and play unpanned. */
+	public record VoiceDown2(UUID speaker, int sequence, boolean party, byte[] opus) implements CustomPacketPayload {
+		public static final Type<VoiceDown2> TYPE = payloadType("voice_down2");
+		public static final StreamCodec<FriendlyByteBuf, VoiceDown2> CODEC = CustomPacketPayload.codec(
+				(p, buf) -> buf.writeUUID(p.speaker).writeVarInt(p.sequence).writeBoolean(p.party).writeByteArray(p.opus),
+				buf -> new VoiceDown2(buf.readUUID(), buf.readVarInt(), buf.readBoolean(), buf.readByteArray(MAX_VOICE_FRAME)));
+
+		@Override
+		public Type<VoiceDown2> type() {
+			return TYPE;
+		}
+	}
+
+	/** Server -> client (1.4+): the host's JavaHost version, sent on join (for the version check). */
+	public record ServerHello(String version) implements CustomPacketPayload {
+		public static final Type<ServerHello> TYPE = payloadType("server_hello");
+		public static final StreamCodec<FriendlyByteBuf, ServerHello> CODEC = CustomPacketPayload.codec(
+				(p, buf) -> buf.writeUtf(p.version, 32),
+				buf -> new ServerHello(buf.readUtf(32)));
+
+		@Override
+		public Type<ServerHello> type() {
+			return TYPE;
+		}
+	}
+
+	// ---------------------------------------------------------------- same-world fast lane
+
+	/** Largest piece of a fast-lane transfer; serverbound custom payloads are capped at 32 KiB. */
+	public static final int RELAY_CHUNK_SIZE = 30 * 1024;
+	/** Largest fast-lane transfer (a sealed message plus a full-size screenshot). */
+	public static final int RELAY_MAX_BYTES = 4 * 1024 * 1024;
+
+	/** Client -> server: one piece of an (already end-to-end encrypted) message for a player in this world. */
+	public record RelayUp(UUID to, long id, int index, int total, byte[] data) implements CustomPacketPayload {
+		public static final Type<RelayUp> TYPE = payloadType("relay_up");
+		public static final StreamCodec<FriendlyByteBuf, RelayUp> CODEC = CustomPacketPayload.codec(
+				(p, buf) -> buf.writeUUID(p.to).writeLong(p.id).writeVarInt(p.index).writeVarInt(p.total).writeByteArray(p.data),
+				buf -> new RelayUp(buf.readUUID(), buf.readLong(), buf.readVarInt(), buf.readVarInt(), buf.readByteArray(RELAY_CHUNK_SIZE)));
+
+		@Override
+		public Type<RelayUp> type() {
+			return TYPE;
+		}
+	}
+
+	/** Server -> client: a piece of a message from another player; the server fills in who it's from. */
+	public record RelayDown(UUID from, long id, int index, int total, byte[] data) implements CustomPacketPayload {
+		public static final Type<RelayDown> TYPE = payloadType("relay_down");
+		public static final StreamCodec<FriendlyByteBuf, RelayDown> CODEC = CustomPacketPayload.codec(
+				(p, buf) -> buf.writeUUID(p.from).writeLong(p.id).writeVarInt(p.index).writeVarInt(p.total).writeByteArray(p.data),
+				buf -> new RelayDown(buf.readUUID(), buf.readLong(), buf.readVarInt(), buf.readVarInt(), buf.readByteArray(RELAY_CHUNK_SIZE)));
+
+		@Override
+		public Type<RelayDown> type() {
+			return TYPE;
+		}
+	}
+
 	// ---------------------------------------------------------------- pack sharing
 
 	public enum PackKind { RESOURCE_PACK, SHADER_PACK }
@@ -163,10 +235,15 @@ public final class Payloads {
 		PayloadTypeRegistry.serverboundPlay().register(VoiceUp.TYPE, VoiceUp.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(PackRequest.TYPE, PackRequest.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(PackAck.TYPE, PackAck.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(VoiceUp2.TYPE, VoiceUp2.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(RelayUp.TYPE, RelayUp.CODEC);
 
 		PayloadTypeRegistry.clientboundPlay().register(VoiceDown.TYPE, VoiceDown.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(VoiceConfig.TYPE, VoiceConfig.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(PackOffer.TYPE, PackOffer.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(PackChunk.TYPE, PackChunk.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(VoiceDown2.TYPE, VoiceDown2.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(ServerHello.TYPE, ServerHello.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(RelayDown.TYPE, RelayDown.CODEC);
 	}
 }

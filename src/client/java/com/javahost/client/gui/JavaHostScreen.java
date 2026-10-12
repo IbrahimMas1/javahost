@@ -87,6 +87,9 @@ public class JavaHostScreen extends Screen {
 	private float scrollTarget;
 	private boolean scrollToBottom;
 	private float openAnim;
+	/** Where the sidebar's selected-tab highlight is drawn; it slides to the new tab on a switch. */
+	private float indicatorY = -1;
+	private float indicatorH = 20;
 	private float tabAnim = 1;
 	private final List<AbstractWidget> sidebarWidgets = new ArrayList<>();
 	private final List<AbstractWidget> pageWidgets = new ArrayList<>();
@@ -285,7 +288,7 @@ public class JavaHostScreen extends Screen {
 		tabAnim = Draw.approach(tabAnim, 1, 0.35f);
 		layoutPage();
 
-		g.fill(0, 0, width, height, Theme.withAlpha(Theme.SCRIM, openAnim));
+		g.fill(0, 0, width, height, Theme.withAlpha(Theme.SCRIM_GLASS, openAnim));
 
 		// Open animation: the window grows slightly into place.
 		float scale = 0.94f + 0.06f * openAnim;
@@ -294,12 +297,10 @@ public class JavaHostScreen extends Screen {
 		g.pose().scale(scale, scale);
 		g.pose().translate(-width / 2f, -height / 2f);
 
-		Draw.shadow(g, winX, winY, winW, winH, 10);
-		Draw.roundRect(g, winX, winY, winW, winH, 10, Theme.BORDER);
-		Draw.roundRect(g, winX + 1, winY + 1, winW - 2, winH - 2, 9, Theme.WINDOW);
-		Draw.roundRect(g, winX + 1, winY + 1, sideW, winH - 2, 9, Theme.SIDEBAR);
-		g.fill(winX + sideW - 8, winY + 1, winX + sideW + 1, winY + winH - 1, Theme.SIDEBAR);
-		g.fill(winX + sideW + 1, winY + 1, winX + sideW + 2, winY + winH - 1, Theme.BORDER);
+		Draw.glass(g, winX, winY, winW, winH, 10);
+		Draw.roundRect(g, winX + 1, winY + 1, sideW, winH - 2, 9, Theme.GLASS_SIDEBAR);
+		g.fill(winX + sideW - 8, winY + 1, winX + sideW + 1, winY + winH - 1, Theme.GLASS_SIDEBAR);
+		g.fill(winX + sideW + 1, winY + 1, winX + sideW + 2, winY + winH - 1, Theme.GLASS_EDGE);
 
 		Icons.logo(g, winX + 9, winY + 9, 16);
 		if (sideW > 40) {
@@ -314,6 +315,7 @@ public class JavaHostScreen extends Screen {
 		g.fill(contentX, winY + HEADER + 2, contentX + contentW, winY + HEADER + 3, Theme.withAlpha(Theme.BORDER, 0.7f));
 
 		g.nextStratum();
+		drawTabIndicator(g);
 		for (AbstractWidget widget : sidebarWidgets) {
 			widget.extractRenderState(g, mouseX, mouseY, a);
 		}
@@ -415,6 +417,25 @@ public class JavaHostScreen extends Screen {
 		minecraft.gui.setScreen(parent);
 	}
 
+	/** The selected-tab highlight, sliding smoothly between tabs. */
+	private void drawTabIndicator(GuiGraphicsExtractor g) {
+		SidebarTab selected = null;
+		for (AbstractWidget widget : sidebarWidgets) {
+			if (widget instanceof SidebarTab t && (t.target == tab || t.target == tab.parent)) {
+				selected = t;
+			}
+		}
+		if (selected == null) {
+			return; // e.g. notifications, which aren't in the sidebar
+		}
+		indicatorY = indicatorY < 0 ? selected.getY() : Draw.approach(indicatorY, selected.getY(), 0.3f);
+		indicatorH = Draw.approach(indicatorH, selected.getHeight(), 0.3f);
+		int y = Math.round(indicatorY);
+		int h = Math.round(indicatorH);
+		Draw.roundRect(g, selected.getX(), y, selected.getWidth(), h, 5, 0x24FFFFFF);
+		Draw.roundRect(g, selected.getX(), y + 5, 2, h - 10, 1, Theme.ACCENT);
+	}
+
 	/** One entry in the sidebar. */
 	private final class SidebarTab extends AbstractButton {
 		private final Tab target;
@@ -438,12 +459,9 @@ public class JavaHostScreen extends Screen {
 		protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
 			boolean selected = tab == target || tab.parent == target;
 			hover = Draw.approach(hover, isHoveredOrFocused() ? 1 : 0, 0.35f);
-			int fill = selected ? Theme.CARD_HOVER : Theme.withAlpha(Theme.CARD, hover);
-			if (selected || hover > 0.01f) {
-				Draw.roundRect(g, getX(), getY(), getWidth(), getHeight(), 5, fill);
-			}
-			if (selected) {
-				Draw.roundRect(g, getX(), getY() + 5, 2, getHeight() - 10, 1, Theme.ACCENT);
+			// The selected highlight is drawn by the screen (it slides between tabs); here just the hover.
+			if (!selected && hover > 0.01f) {
+				Draw.roundRect(g, getX(), getY(), getWidth(), getHeight(), 5, Theme.withAlpha(0x14FFFFFF, hover));
 			}
 			int color = selected ? Theme.TEXT : Theme.mix(Theme.MUTED, Theme.TEXT, hover);
 			int iconX = compact ? getX() + (getWidth() - Icons.SIZE) / 2 : getX() + 8;

@@ -17,7 +17,9 @@ import net.minecraft.network.chat.Component;
 
 public class SettingsPage extends Page {
 	private static final List<KeyMapping> KEYS = List.of(JavaHostClient.OPEN_MENU, JavaHostClient.PUSH_TO_TALK,
-			JavaHostClient.TOGGLE_MUTE, JavaHostClient.SCREENSHOT_SHARE, JavaHostClient.TOGGLE_OVERLAY);
+			JavaHostClient.TOGGLE_MUTE, JavaHostClient.PARTY_VOICE, JavaHostClient.SCREENSHOT_SHARE, JavaHostClient.TOGGLE_OVERLAY);
+
+	private static final int KEYS_TOP = 276;
 
 	@Override
 	public String title() {
@@ -72,7 +74,13 @@ public class SettingsPage extends Page {
 					config.notificationSounds = v;
 					config.save();
 				}), 10, 188);
-		reserve(232 + 12 + KEYS.size() * 20 + 30);
+		if (com.javahost.client.perf.VideoMenu.sodiumInstalled()) {
+			add(new Segmented<>(150, List.of("SIMPLE", "SODIUM"), config.videoMenu, m -> m.equals("SIMPLE") ? "Simple" : "Sodium", m -> {
+				config.videoMenu = m;
+				config.save();
+			}), width - 160, 240);
+		}
+		reserve(KEYS_TOP + 12 + KEYS.size() * 20 + 30);
 	}
 
 	@Override
@@ -85,7 +93,12 @@ public class SettingsPage extends Page {
 		sectionLabel(g, "Friends & sound", left, top + 114);
 		card(g, left, top + 126, width, 90);
 
-		int keysTop = top + 232;
+		if (com.javahost.client.perf.VideoMenu.sodiumInstalled()) {
+			sectionLabel(g, "Video", left, top + 222);
+			card(g, left, top + 234, width, 30);
+			Draw.text(g, Draw.fit("Video settings menu", width - 180), left + 10, top + 245, Theme.TEXT);
+		}
+		int keysTop = top + KEYS_TOP;
 		sectionLabel(g, "Keys", left, keysTop);
 		card(g, left, keysTop + 12, width, KEYS.size() * 20 + 8);
 		int y = keysTop + 20;

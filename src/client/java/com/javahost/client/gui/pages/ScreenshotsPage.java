@@ -202,13 +202,7 @@ public class ScreenshotsPage extends Page {
 		String key = key(friend);
 		SEND_STATUS.put(key, "Sending...");
 		screen.refresh();
-		CompletableFuture.supplyAsync(() -> {
-			try {
-				return Screenshots.prepareForSending(file);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		}).thenCompose(png -> Friends.sendScreenshot(friend, png, file.getFileName().toString()))
+		CompletableFuture.supplyAsync(() -> null).thenCompose(ignored -> Friends.sendScreenshotFile(friend, file))
 				.whenComplete((sent, error) -> minecraft.execute(() -> {
 					SEND_STATUS.put(key, error == null && sent.ok() ? "Sent" : error == null ? Friends.describeFailure(sent) : "Couldn't send");
 					screen.refresh();

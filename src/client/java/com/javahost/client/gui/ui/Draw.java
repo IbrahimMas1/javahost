@@ -42,6 +42,14 @@ public final class Draw {
 		}
 	}
 
+	/** A frosted-glass panel: soft shadow, translucent fill, a faint light edge and a highlight along the top. */
+	public static void glass(GuiGraphicsExtractor g, int x, int y, int w, int h, int r) {
+		shadow(g, x, y, w, h, r);
+		roundRect(g, x, y, w, h, r, Theme.GLASS_EDGE);
+		roundRect(g, x + 1, y + 1, w - 2, h - 2, r - 1, Theme.GLASS);
+		g.fill(x + r, y + 1, x + w - r, y + 2, 0x18FFFFFF);
+	}
+
 	/** A panel: fill with a hairline border. */
 	public static void panel(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int fill) {
 		bordered(g, x, y, w, h, r, fill, Theme.BORDER);

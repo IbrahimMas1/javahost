@@ -52,6 +52,8 @@ public final class Presence {
 	private static final long MIN_GAP_MS = 20_000L;
 
 	private static final Map<UUID, Status> LATEST = new HashMap<>();
+	/** The JavaHost version each friend last reported (kept even when they go offline). */
+	private static final Map<UUID, String> VERSIONS = new HashMap<>();
 	private static Mailbox stream;
 	private static String lastPublished = "";
 	private static long lastPublishTime;
@@ -89,6 +91,24 @@ public final class Presence {
 	public static Optional<Status> of(UUID friend) {
 		Status status = LATEST.get(friend);
 		return status == null || !status.online() ? Optional.empty() : Optional.of(status);
+	}
+
+	/** The friend's JavaHost version, if they've told us (JavaHost 1.4+). */
+	public static Optional<String> versionOf(UUID friend) {
+		return Optional.ofNullable(VERSIONS.get(friend));
+	}
+
+	/**
+	 * "Needs update" when a friend runs an older JavaHost than us, "You need to update" when theirs is newer, or
+	 * null when they match (or we don't know).
+	 */
+	public static String versionNote(UUID friend) {
+		String theirs = VERSIONS.get(friend);
+		if (theirs == null) {
+			return null;
+		}
+		int diff = com.javahost.util.Versions.compare(theirs, JavaHost.VERSION);
+		return diff < 0 ? "Needs update (" + theirs + ")" : diff > 0 ? "You need to update (they have " + theirs + ")" : null;
 	}
 
 	public static List<Friend> onlineFriends() {
@@ -131,6 +151,7 @@ public final class Presence {
 
 	private static JsonObject currentState(Minecraft minecraft) {
 		JsonObject state = new JsonObject();
+		state.addProperty("jv", JavaHost.VERSION);
 		IntegratedServer server = minecraft.getSingleplayerServer();
 		if (Config.get().appearOffline) {
 			state.addProperty("state", State.OFFLINE.name());
@@ -156,7 +177,17 @@ public final class Presence {
 		if (Friends.friends().isEmpty()) {
 			return; // nobody to tell
 		}
-		send(state);
+		String sentState = lastPublished;
+		send(state).thenAccept(sent -> {
+			if (!sent.ok()) {
+				// Didn't go out: forget it so the next tick (after the minimum gap) tries again.
+				Minecraft.getInstance().execute(() -> {
+					if (lastPublished.equals(sentState)) {
+						lastPublished = "";
+					}
+				});
+			}
+		});
 	}
 
 	private static java.util.concurrent.CompletableFuture<Mailbox.Sent> send(JsonObject state) {
@@ -201,6 +232,9 @@ public final class Presence {
 					body.has("players") ? body.get("players").getAsInt() : 0, body.has("max") ? body.get("max").getAsInt() : 0,
 					body.has("routes") ? Friends.routesFrom(body.getAsJsonArray("routes")) : List.of(), Friends.str(body, "hostIp"), ts);
 			LATEST.put(from, status);
+			if (body.has("jv")) {
+				VERSIONS.put(from, body.get("jv").getAsString());
+			}
 			boolean fresh = System.currentTimeMillis() - ts < 2 * 60 * 1000L;
 			boolean startedHosting = status.hosting() && (previous == null || !previous.hosting());
 			if (fresh && startedHosting) {

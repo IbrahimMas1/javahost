@@ -115,8 +115,9 @@ public class FriendsPage extends Page {
 				together.active = false;
 				together.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("You're in the same world")));
 			} else if (InviteFlow.joinable(friend.id())) {
-				add(new FlatButton(64, 18, Component.literal("Join"), FlatButton.Style.PRIMARY, Icons.JOIN,
+				FlatButton join = add(new FlatButton(64, 18, Component.literal("Join"), FlatButton.Style.PRIMARY, Icons.JOIN,
 						b -> InviteFlow.join(status.get().asInvite(friend.name()))), width - 96, y + 5);
+				versionTooltip(join, friend);
 			} else {
 				boolean busyInviting = InviteFlow.busy(friend.id());
 				FlatButton invite = add(new FlatButton(64, 18, Component.literal(busyInviting ? "..." : "Invite"),
@@ -125,6 +126,9 @@ public class FriendsPage extends Page {
 							screen.refresh();
 						}), width - 96, y + 5);
 				invite.active = canInvite && !busyInviting;
+				if (canInvite) {
+					versionTooltip(invite, friend);
+				}
 				if (!canInvite) {
 					invite.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
 							minecraft.level == null ? "Open one of your worlds to invite friends" : "You can only invite people into your own world")));
@@ -205,6 +209,32 @@ public class FriendsPage extends Page {
 		}
 	}
 
+	/** Explains a version mismatch on a friend's Join/Invite button. */
+	private static void versionTooltip(FlatButton button, Friend friend) {
+		String note = Presence.versionNote(friend.id());
+		if (note != null) {
+			String advice = note.startsWith("Needs") ? friend.name() + " should run the latest JavaHost installer."
+					: "Run the latest JavaHost installer to update.";
+			button.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+					friend.name() + ": " + note + ". Some features (party voice, fast sending) need the same version. " + advice)));
+		}
+	}
+
+	/** A small amber "Needs update" / "Update JavaHost" chip when this friend runs a different version. */
+	static void versionChip(GuiGraphicsExtractor g, java.util.UUID id, int x, int y, int room) {
+		String note = Presence.versionNote(id);
+		if (note == null) {
+			return;
+		}
+		String text = note.startsWith("Needs") ? "Needs update" : "Update JavaHost";
+		int w = Draw.font().width(text) + 8;
+		if (w > room) {
+			return;
+		}
+		Draw.roundRect(g, x, y, w, 11, 3, Theme.withAlpha(Theme.WARNING, 0.18f));
+		Draw.text(g, text, x + 4, y + 2, Theme.WARNING);
+	}
+
 	/** Friend face with an online dot in the corner. */
 	static void faceWithDot(GuiGraphicsExtractor g, java.util.UUID id, int x, int y, int size) {
 		Faces.draw(g, id, x, y, size);
@@ -266,7 +296,9 @@ public class FriendsPage extends Page {
 		}
 		for (Friend friend : friends) {
 			faceWithDot(g, friend.id(), left + 8, y + 5, 18);
-			Draw.text(g, Draw.fit(friend.name(), width - 140), left + 32, y + 5, Theme.TEXT);
+			String name = Draw.fit(friend.name(), width - 140);
+			Draw.text(g, name, left + 32, y + 5, Theme.TEXT);
+			versionChip(g, friend.id(), left + 36 + Draw.font().width(name), y + 4, width - 176 - Draw.font().width(name));
 			String invite = InviteFlow.status(friend.id());
 			String line = invite != null ? invite : statusLine(friend);
 			int color = invite != null

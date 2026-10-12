@@ -23,6 +23,10 @@ import net.minecraft.resources.Identifier;
 /** Taking, listing, shrinking and receiving screenshots, plus small thumbnail textures for the gallery. */
 public final class Screenshots {
 	private static final int MAX_SEND_WIDTH = 1920;
+	private static final int[] SEND_WIDTHS = {1920, 1600, 1366, 1280, 1024, 800, 640};
+	/** ntfy.sh's free tier takes files up to 2 MB; leave room for encryption overhead. */
+	private static final int RELAY_LIMIT = 1_900_000;
+	private static final int GAME_LIMIT = 3_800_000;
 	private static final int THUMB_WIDTH = 160;
 	private static final int PREVIEW_WIDTH = 960;
 	private static final byte[] PNG_MAGIC = {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
@@ -96,23 +100,49 @@ public final class Screenshots {
 		}
 	}
 
-	/** The PNG to send: scaled down to at most 1920 px wide so it uploads quickly. Call off the render thread. */
+	/**
+	 * The PNG to send through the friend relay, which takes at most 2 MB per file: scaled down step by step until
+	 * it fits. Call off the render thread.
+	 */
 	public static byte[] prepareForSending(Path file) throws IOException {
+		return prepare(file, RELAY_LIMIT);
+	}
+
+	/** Same, for the in-game fast lane, which allows bigger files (so friends usually get the original). */
+	public static byte[] prepareForGame(Path file) throws IOException {
+		return prepare(file, GAME_LIMIT);
+	}
+
+	private static byte[] prepare(Path file, int limit) throws IOException {
 		byte[] original = Files.readAllBytes(file);
 		try (NativeImage image = NativeImage.read(original)) {
-			if (image.getWidth() <= MAX_SEND_WIDTH) {
+			if (original.length <= limit && image.getWidth() <= MAX_SEND_WIDTH) {
 				return original;
 			}
-			int height = Math.max(1, image.getHeight() * MAX_SEND_WIDTH / image.getWidth());
-			try (NativeImage scaled = new NativeImage(MAX_SEND_WIDTH, height, false)) {
-				image.resizeSubRectTo(0, 0, image.getWidth(), image.getHeight(), scaled);
-				Path temp = Files.createTempFile("javahost-send", ".png");
-				try {
-					scaled.writeToFile(temp);
-					return Files.readAllBytes(temp);
-				} finally {
-					Files.deleteIfExists(temp);
+			byte[] best = null;
+			for (int width : SEND_WIDTHS) {
+				if (width >= image.getWidth() && best != null) {
+					continue;
 				}
+				best = scaled(image, Math.min(width, image.getWidth()));
+				if (best.length <= limit) {
+					return best;
+				}
+			}
+			throw new IOException("Screenshot is too big to send (" + best.length / 1024 + " KB)");
+		}
+	}
+
+	private static byte[] scaled(NativeImage image, int width) throws IOException {
+		int height = Math.max(1, image.getHeight() * width / image.getWidth());
+		try (NativeImage scaled = new NativeImage(width, height, false)) {
+			image.resizeSubRectTo(0, 0, image.getWidth(), image.getHeight(), scaled);
+			Path temp = Files.createTempFile("javahost-send", ".png");
+			try {
+				scaled.writeToFile(temp);
+				return Files.readAllBytes(temp);
+			} finally {
+				Files.deleteIfExists(temp);
 			}
 		}
 	}

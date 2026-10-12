@@ -57,9 +57,12 @@ public final class Toasts {
 
 		@Override
 		public void extractRenderState(GuiGraphicsExtractor g, Font font, long fullyVisibleForMs) {
-			Draw.roundRect(g, 0, 0, width(), height(), 6, Theme.BORDER);
-			Draw.roundRect(g, 1, 1, width() - 2, height() - 2, 5, Theme.WINDOW);
+			Draw.roundRect(g, 0, 0, width(), height(), 6, Theme.GLASS_EDGE);
+			Draw.roundRect(g, 1, 1, width() - 2, height() - 2, 5, 0xEC161B22);
 			Draw.roundRect(g, 1, 6, 2, height() - 12, 1, Theme.ACCENT);
+			// A thin line along the bottom shows how long the toast stays.
+			float left = 1 - Math.min(1f, fullyVisibleForMs / (float) SHOW_MS);
+			g.fill(6, height() - 2, 6 + Math.round((width() - 12) * left), height() - 1, Theme.withAlpha(Theme.ACCENT, 0.7f));
 			if (face != null) {
 				Faces.draw(g, face, 9, 8, 16);
 			} else {

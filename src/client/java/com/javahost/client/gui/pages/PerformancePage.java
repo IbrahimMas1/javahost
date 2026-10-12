@@ -47,6 +47,14 @@ public class PerformancePage extends Page {
 	@Override
 	protected void build() {
 		lastSignature = signature();
+		// Video settings, in whichever menu the player prefers (Settings -> Video settings menu).
+		add(new FlatButton(104, 14, Component.literal("Video settings"), FlatButton.Style.GHOST, Icons.GEAR, b -> {
+			if (com.javahost.client.perf.VideoMenu.sodiumInstalled() && "SODIUM".equals(com.javahost.client.Config.get().videoMenu)) {
+				com.javahost.client.perf.VideoMenu.openSodium(minecraft, screen);
+			} else {
+				minecraft.gui.setScreen(new net.minecraft.client.gui.screens.options.VideoSettingsScreen(screen, minecraft, minecraft.options));
+			}
+		}), width - 104, -3);
 		add(new ToggleSwitch(width - 20, Component.literal("Quick Tune"), "Faster video settings; turn off to undo",
 				QuickTune.isApplied(), on -> {
 					if (on) {

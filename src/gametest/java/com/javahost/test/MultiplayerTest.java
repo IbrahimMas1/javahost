@@ -254,6 +254,51 @@ final class MultiplayerTest {
 			context.runOnClient(mc -> Config.get().mutedPlayers.remove(guestPlayer.toString()));
 			context.waitFor(mc -> VoiceClient.audibleFramesFrom(guestPlayer) > afterMute + 25, ONE_MINUTE);
 			check(true, "unmuting brings Guest's voice back");
+
+			// ---- 1.4: a backup when a friend joins.
+			String worldFolder = context.computeOnClient(mc -> mc.getSingleplayerServer()
+					.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).toAbsolutePath().normalize().getFileName().toString());
+			context.waitFor(mc -> !com.javahost.client.host.WorldBackups.list(worldFolder).isEmpty(), ONE_MINUTE);
+			check(true, "the world was backed up when Guest joined");
+
+			// ---- 1.4: version check.
+			context.waitFor(mc -> Presence.versionOf(guestFriend.id()).isPresent(), 3 * ONE_MINUTE);
+			check(JavaHost.VERSION.equals(Presence.versionOf(guestFriend.id()).get()), "host knows Guest's JavaHost version (" + JavaHost.VERSION + ")");
+
+			// ---- 1.4: same-world fast lane: chat and a big screenshot go through the game, not the relay.
+			int usageBefore = context.computeOnClient(mc -> com.javahost.client.friends.MessageUsage.sentToday());
+			Mailbox.Sent fastChat = await(context, context.computeOnClient(mc -> Friends.sendChat(guestFriend, "fast hello")));
+			check(fastChat.ok(), "chat to Guest sent while in the same world");
+			Path noise = context.computeOnClient(mc -> JavaHostClientTest.writeNoisePng(Screenshots.dir().resolve("zz-fast-lane.png"), 1920, 1080));
+			byte[] full;
+			try {
+				full = Screenshots.prepareForGame(noise);
+				Files.delete(noise);
+			} catch (IOException e) {
+				throw new AssertionError(e);
+			}
+			writeShared("host-fast-sha", sha256(full));
+			Mailbox.Sent fastShot = await(context, context.computeOnClient(mc -> Friends.sendScreenshot(guestFriend, full, "fast.png")));
+			check(fastShot.ok() && full.length > 2_100_000, "a " + full.length / 1024 + " KB screenshot (too big for the relay) sent to Guest");
+			check(context.computeOnClient(mc -> com.javahost.client.friends.MessageUsage.sentToday()) == usageBefore,
+					"both went through the game connection: no relay messages used");
+			waitForShared(context, "guest-fast-ok", 2 * ONE_MINUTE);
+			check(true, "Guest got the chat and the full-size screenshot through the game");
+
+			// ---- 1.4: party voice reaches a friend far away.
+			runCommand(context, "tp Guest 600 120 600");
+			context.waitTicks(60);
+			int far = VoiceClient.audibleFramesFrom(guestPlayer);
+			context.waitTicks(60);
+			check(VoiceClient.audibleFramesFrom(guestPlayer) - far <= 2, "Guest 600 blocks away is out of nearby voice range");
+			writeShared("host-wants-party", "ok");
+			waitForShared(context, "guest-party-on", ONE_MINUTE);
+			int beforeParty = VoiceClient.audibleFramesFrom(guestPlayer);
+			context.waitFor(mc -> VoiceClient.audibleFramesFrom(guestPlayer) > beforeParty + 25, ONE_MINUTE);
+			check(true, "party voice: the host hears Guest from 600 blocks away");
+			writeShared("host-party-ok", "ok");
+			waitForShared(context, "guest-party-off", ONE_MINUTE);
+			runCommand(context, "tp Guest Host");
 			context.runOnClient(mc -> HostController.setGameMode(guestPlayer, GameType.SURVIVAL));
 			writeShared("host-controls-done", "ok");
 
@@ -352,6 +397,15 @@ final class MultiplayerTest {
 			return false;
 		});
 		check(pressed, "pressed \"" + label + "\" in the JavaHost menu");
+	}
+
+	/** Runs a command on the host's server, as the server. */
+	private static void runCommand(ClientGameTestContext context, String command) {
+		context.runOnClient(mc -> {
+			var server = mc.getSingleplayerServer();
+			server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), command));
+		});
+		context.waitTicks(5);
 	}
 
 	/** The other game wrote {@code asked} and we haven't answered with {@code answer} yet. */
@@ -471,6 +525,29 @@ final class MultiplayerTest {
 		context.waitTicks(10);
 		context.takeScreenshot("mp-guest-friends-together");
 		context.setScreen(() -> null);
+
+		// ---- 1.4: version check, fast lane, party voice.
+		check(JavaHost.VERSION.equals(com.javahost.client.JavaHostClient.hostVersion), "guest knows the host's JavaHost version");
+		waitForShared(context, "host-fast-sha", 3 * ONE_MINUTE);
+		context.waitFor(mc -> Chats.with(host.id()).stream().anyMatch(l -> !l.mine() && l.text().equals("fast hello")), ONE_MINUTE);
+		String wantSha = readShared("host-fast-sha");
+		context.waitFor(mc -> {
+			List<Path> received = Screenshots.list(true);
+			try {
+				return !received.isEmpty() && sha256(Files.readAllBytes(received.getFirst())).equals(wantSha);
+			} catch (IOException e) {
+				return false;
+			}
+		}, ONE_MINUTE);
+		check(true, "guest got the fast-lane chat and the full-size screenshot, byte-for-byte identical");
+		writeShared("guest-fast-ok", "ok");
+		waitForShared(context, "host-wants-party", 2 * ONE_MINUTE);
+		context.runOnClient(mc -> Config.get().voiceMode = "PARTY");
+		check(context.computeOnClient(mc -> VoiceClient.partyMode()), "guest switched to party voice");
+		writeShared("guest-party-on", "ok");
+		waitForShared(context, "host-party-ok", ONE_MINUTE);
+		context.runOnClient(mc -> Config.get().voiceMode = "NEARBY");
+		writeShared("guest-party-off", "ok");
 		context.takeScreenshot("mp-guest-joined-from-invite");
 		waitForShared(context, "host-controls-done", 3 * ONE_MINUTE);
 		VoiceClient.setTestTone(false);

@@ -46,6 +46,9 @@ public class JavaHostClient implements ClientModInitializer {
 	public static final KeyMapping OPEN_MENU = new KeyMapping("key.javahost.menu", InputConstants.KEY_J, CATEGORY);
 	public static final KeyMapping TOGGLE_MUTE = new KeyMapping("key.javahost.mute", InputConstants.KEY_M, CATEGORY);
 	public static final KeyMapping SCREENSHOT_SHARE = new KeyMapping("key.javahost.screenshot", InputConstants.KEY_F6, CATEGORY);
+	/** The JavaHost version of the world we're in (null if not JavaHost 1.4+, or not connected). */
+	public static volatile String hostVersion;
+	public static final KeyMapping PARTY_VOICE = new KeyMapping("key.javahost.party", InputConstants.KEY_B, CATEGORY);
 	public static final KeyMapping TOGGLE_OVERLAY = new KeyMapping("key.javahost.overlay", InputConstants.UNKNOWN.getValue(), CATEGORY);
 
 	@Override
@@ -56,8 +59,23 @@ public class JavaHostClient implements ClientModInitializer {
 		KeyMappingHelper.registerKeyMapping(TOGGLE_MUTE);
 		KeyMappingHelper.registerKeyMapping(SCREENSHOT_SHARE);
 		KeyMappingHelper.registerKeyMapping(TOGGLE_OVERLAY);
+		KeyMappingHelper.registerKeyMapping(PARTY_VOICE);
 
 		VoiceClient.register();
+		com.javahost.client.perf.VideoMenu.register();
+		// The version check, in world: the host tells us its JavaHost version when we join.
+		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(com.javahost.net.Payloads.ServerHello.TYPE,
+				(hello, context) -> {
+					hostVersion = hello.version();
+					Minecraft minecraft = Minecraft.getInstance();
+					if (minecraft.getSingleplayerServer() == null && com.javahost.util.Versions.compare(hello.version(), JavaHost.VERSION) != 0) {
+						boolean hostOlder = com.javahost.util.Versions.compare(hello.version(), JavaHost.VERSION) < 0;
+						Toasts.show("Host runs JavaHost " + hello.version(), hostOlder
+								? "You have " + JavaHost.VERSION + ". Some newer features won't work until they update."
+								: "You have " + JavaHost.VERSION + ". Run the latest installer to update.");
+					}
+				});
+		net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register((handler, minecraft) -> hostVersion = null);
 		PackReceiver.register();
 
 		ClientTickEvents.END_CLIENT_TICK.register(minecraft -> {
@@ -75,6 +93,9 @@ public class JavaHostClient implements ClientModInitializer {
 				config.muted = !config.muted;
 				config.save();
 				Toasts.show(config.muted ? "Microphone muted" : "Microphone on", "Press " + TOGGLE_MUTE.getTranslatedKeyMessage().getString() + " to toggle");
+			}
+			while (PARTY_VOICE.consumeClick()) {
+				toggleParty();
 			}
 			while (TOGGLE_OVERLAY.consumeClick()) {
 				Config config = Config.get();
@@ -104,6 +125,7 @@ public class JavaHostClient implements ClientModInitializer {
 				UUID id = handler.player.getUUID();
 				String name = handler.player.getPlainTextName();
 				Toasts.player(id, name + " joined your world", "Say hi!");
+				com.javahost.client.host.WorldBackups.onFriendJoined(server);
 			}
 		});
 
@@ -123,6 +145,21 @@ public class JavaHostClient implements ClientModInitializer {
 						FlatButton.Style.PRIMARY, Icons.USERS, b -> minecraft.gui.setScreen(new JavaHostScreen(screen, JavaHostScreen.Tab.FRIENDS))));
 			}
 		});
+	}
+
+	/** Switches between nearby (proximity) and party (whole world) voice. */
+	public static void toggleParty() {
+		Config config = Config.get();
+		config.voiceMode = "PARTY".equals(config.voiceMode) ? "NEARBY" : "PARTY";
+		config.save();
+		String key = PARTY_VOICE.getTranslatedKeyMessage().getString();
+		if (!"PARTY".equals(config.voiceMode)) {
+			Toasts.show("Nearby voice", "Only players close to you hear you. " + key + " for party.");
+		} else if (VoiceClient.isAvailable() && !VoiceClient.partyAvailable()) {
+			Toasts.show("Party voice needs JavaHost 1.4", "The host needs to update. Nearby voice still works.");
+		} else {
+			Toasts.show("Party voice", "Everyone in this world hears you, wherever they are. " + key + " to switch back.");
+		}
 	}
 
 	// ---------------------------------------------------------------- HUD
@@ -145,7 +182,9 @@ public class JavaHostClient implements ClientModInitializer {
 			if (config.muted) {
 				y = pill(g, right, y, Icons.MIC_OFF, null, "Muted", Theme.DANGER);
 			} else if (VoiceClient.isTransmitting()) {
-				y = pill(g, right, y, Icons.MIC, null, "Talking", Theme.ACCENT);
+				y = pill(g, right, y, Icons.MIC, null, VoiceClient.partyMode() ? "Talking to party" : "Talking", Theme.ACCENT);
+			} else if (VoiceClient.partyMode()) {
+				y = pill(g, right, y, Icons.USERS, null, "Party voice", Theme.INFO);
 			}
 			for (Map.Entry<UUID, String> speaker : VoiceClient.talking().entrySet()) {
 				y = pill(g, right, y, null, speaker.getKey(), speaker.getValue(), Theme.ACCENT);

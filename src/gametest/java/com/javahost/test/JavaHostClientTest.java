@@ -237,6 +237,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.runOnClient(mc -> HostController.stop());
 			context.runOnClient(mc -> check(!mc.getSingleplayerServer().isPublished(), "stop hosting closes the world again"));
 		}
+		restoreBackup(context);
 		// The title screen with the friends panel, with an invite waiting.
 		java.util.UUID alex = java.util.UUID.nameUUIDFromBytes("Alex".getBytes());
 		context.runOnClient(mc -> com.javahost.client.friends.Notifications.add(com.javahost.client.friends.Notifications.Kind.INVITE, alex, "Alex",
@@ -282,6 +283,106 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.waitTicks(10);
 		context.takeScreenshot("ui-title-small-window");
 		context.runOnClient(mc -> com.javahost.client.friends.Notifications.items().forEach(com.javahost.client.friends.Notifications::remove));
+	}
+
+	/** A worst-case screenshot (random noise doesn't compress): written as a PNG of the given size. */
+	static Path writeNoisePng(Path file, int width, int height) {
+		try (com.mojang.blaze3d.platform.NativeImage image = new com.mojang.blaze3d.platform.NativeImage(width, height, false)) {
+			java.util.Random random = new java.util.Random(42);
+			for (int y = 0; y < height; y++) {
+				for (int x = 0; x < width; x++) {
+					image.setPixel(x, y, 0xFF000000 | random.nextInt(0xFFFFFF));
+				}
+			}
+			java.nio.file.Files.createDirectories(file.getParent());
+			image.writeToFile(file);
+			return file;
+		} catch (IOException e) {
+			throw new AssertionError(e);
+		}
+	}
+
+	/** 1.4: big screenshots fit the relay, the video settings switch, and world backups. */
+	private static void version14(ClientGameTestContext context) {
+		// Screenshot size: ntfy.sh takes at most 2 MB per file.
+		Path big = context.computeOnClient(mc -> writeNoisePng(com.javahost.client.friends.Screenshots.dir().resolve("zz-noise-test.png"), 2560, 1440));
+		try {
+			long original = java.nio.file.Files.size(big);
+			byte[] sendable = com.javahost.client.friends.Screenshots.prepareForSending(big);
+			check(sendable.length <= 1_900_000 && com.javahost.client.friends.Screenshots.isPng(sendable),
+					"a " + original / 1024 + " KB screenshot is scaled to " + sendable.length / 1024 + " KB for the relay (limit 2 MB)");
+			byte[] forGame = com.javahost.client.friends.Screenshots.prepareForGame(big);
+			check(forGame.length > 2_000_000 && forGame.length <= 3_800_000, "the in-game fast lane keeps it bigger (" + forGame.length / 1024 + " KB)");
+			java.nio.file.Files.delete(big);
+		} catch (IOException e) {
+			throw new AssertionError(e);
+		}
+
+		// Video settings: Simple (Minecraft's screen) or Sodium, with a button on each to switch.
+		if (com.javahost.client.perf.VideoMenu.sodiumInstalled()) {
+			Config config = Config.get();
+			config.videoMenu = "SIMPLE";
+			context.runOnClient(mc -> com.javahost.client.perf.VideoMenu.openSodium(mc, null));
+			context.waitTicks(5);
+			check(context.computeOnClient(mc -> mc.gui.screen() instanceof net.minecraft.client.gui.screens.options.VideoSettingsScreen),
+					"with Simple chosen, Video Settings opens Minecraft's own screen");
+			context.takeScreenshot("video-simple");
+			clickMenu(context, "More settings (Sodium)");
+			context.waitTicks(5);
+			check(context.computeOnClient(mc -> mc.gui.screen().getClass().getName().contains("sodium")) && "SODIUM".equals(config.videoMenu),
+					"\"More settings (Sodium)\" opens Sodium's screen and remembers it");
+			context.takeScreenshot("video-sodium");
+			clickMenu(context, "Simple");
+			context.waitTicks(5);
+			check(context.computeOnClient(mc -> mc.gui.screen() instanceof net.minecraft.client.gui.screens.options.VideoSettingsScreen)
+					&& "SIMPLE".equals(config.videoMenu), "\"Simple\" switches back");
+			context.setScreen(() -> null);
+		}
+
+		// World backup while playing.
+		java.util.concurrent.CompletableFuture<Path> backup = context.computeOnClient(mc -> {
+			java.util.concurrent.CompletableFuture<Path> done = new java.util.concurrent.CompletableFuture<>();
+			mc.getSingleplayerServer().execute(() -> com.javahost.client.host.WorldBackups.backUp(mc.getSingleplayerServer(), "test")
+					.whenComplete((file, error) -> {
+						if (error != null) {
+							done.completeExceptionally(error);
+						} else {
+							done.complete(file);
+						}
+					}));
+			return done;
+		});
+		context.waitFor(mc -> backup.isDone(), 60 * 20);
+		Path zip = backup.join();
+		check(java.nio.file.Files.exists(zip), "world backed up while playing: " + zip.getFileName());
+		context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
+		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40,
+				mc.getWindow().getGuiScaledHeight() / 2.0, 0, -20));
+		context.waitTicks(10);
+		context.takeScreenshot("ui-host-backups");
+		context.setScreen(() -> null);
+	}
+
+	/** After leaving the world: restoring a backup keeps the current world as a copy. */
+	private static void restoreBackup(ClientGameTestContext context) {
+		var backups = context.computeOnClient(mc -> com.javahost.client.host.WorldBackups.listAll());
+		check(!backups.isEmpty(), "backups are listed after leaving the world");
+		var newest = backups.getFirst();
+		String aside = context.computeOnClient(mc -> {
+			try {
+				return com.javahost.client.host.WorldBackups.restore(newest);
+			} catch (IOException e) {
+				throw new AssertionError(e);
+			}
+		});
+		Path saves = context.computeOnClient(mc -> mc.getLevelSource().getBaseDir());
+		check(java.nio.file.Files.exists(saves.resolve(newest.world()).resolve("level.dat")), "restore puts the backup back as " + newest.world());
+		check(aside == null || java.nio.file.Files.exists(saves.resolve(aside)), "the world it replaced is kept as \"" + aside + "\"");
+		context.setScreen(() -> new JavaHostScreen(new net.minecraft.client.gui.screens.TitleScreen(), Tab.HOST));
+		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40,
+				mc.getWindow().getGuiScaledHeight() / 2.0, 0, -30));
+		context.waitTicks(12);
+		context.takeScreenshot("ui-backups-no-world");
 	}
 
 	/** Everything in the menu can be reached and left with the mouse: ← goes back, ✕ closes. */
@@ -442,6 +543,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.waitTicks(10);
 		context.takeScreenshot("ui-screenshots-preview");
 		navigation(context, file);
+		version14(context);
 
 		java.util.UUID alex = java.util.UUID.nameUUIDFromBytes("Alex".getBytes());
 		context.runOnClient(mc -> {

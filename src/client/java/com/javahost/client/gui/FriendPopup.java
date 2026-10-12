@@ -58,10 +58,8 @@ public class FriendPopup extends Screen {
 
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
-		g.fill(0, 0, width, height, Theme.SCRIM);
-		Draw.shadow(g, boxX, boxY, boxW, boxH, 10);
-		Draw.roundRect(g, boxX, boxY, boxW, boxH, 10, Theme.BORDER);
-		Draw.roundRect(g, boxX + 1, boxY + 1, boxW - 2, boxH - 2, 9, Theme.WINDOW);
+		g.fill(0, 0, width, height, Theme.SCRIM_GLASS);
+		Draw.glass(g, boxX, boxY, boxW, boxH, 10);
 
 		int face = 32;
 		Draw.roundRect(g, boxX + 15, boxY + 15, face + 2, face + 2, 4, Theme.ACCENT);
