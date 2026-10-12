@@ -659,6 +659,56 @@ public enum Icons {
 			"........########........",
 			"........................",
 			"........................",
+			"........................"),
+	GAUGE( // speed-fast
+			"........................",
+			"........................",
+			"........................",
+			"........................",
+			"........................",
+			".........######.........",
+			".........######.........",
+			".....####.........##....",
+			".....####.........##....",
+			"...##...........##......",
+			"...##...........##......",
+			".##...........##.....##.",
+			".##...........##.....##.",
+			".##.......####.......##.",
+			".##.......####.......##.",
+			".##.......####.......##.",
+			".##.......####.......##.",
+			"...##..............##...",
+			"...##..............##...",
+			"........................",
+			"........................",
+			"........................",
+			"........................",
+			"........................"),
+	CLOUD( // cloud
+			"........................",
+			"........................",
+			"........................",
+			"........................",
+			"..........######........",
+			"..........######........",
+			"........##......##......",
+			"........##......##......",
+			"....####..........##....",
+			"....####..........##....",
+			"..##....##........####..",
+			"..##....##........####..",
+			"##..............##....##",
+			"##..............##....##",
+			"##....................##",
+			"##....................##",
+			"##....................##",
+			"##....................##",
+			"..####################..",
+			"..####################..",
+			"........................",
+			"........................",
+			"........................",
 			"........................");
 	// END GENERATED
 
@@ -666,18 +716,88 @@ public enum Icons {
 	public static final int SIZE = 11;
 	private static final int GRID = 24;
 	private final boolean[][] pixels = new boolean[GRID][GRID];
-	/** A half-size copy for GUI scale 1, where the full grid would be twice too big. */
+	/**
+	 * A half-size copy, for GUI scales where it's the crisper choice (e.g. scale 3). Built from whichever 2x2
+	 * alignment keeps lines thinnest, so strokes that start on odd pixels don't merge into blobs.
+	 */
 	private final boolean[][] small = new boolean[GRID / 2][GRID / 2];
+	/** Centre of the drawn pixels (not the grid), in grid units, so every icon sits visually centred. */
+	private final float centreX;
+	private final float centreY;
+	private final float smallCentreX;
+	private final float smallCentreY;
 
 	Icons(String... rows) {
 		for (int y = 0; y < GRID; y++) {
 			for (int x = 0; x < GRID; x++) {
 				pixels[y][x] = rows[y].charAt(x) == '#';
-				if (pixels[y][x]) {
-					small[y / 2][x / 2] = true;
+			}
+		}
+		// Half grid: try the four 2x2 alignments and keep the one with the fewest half-filled cells.
+		int bestScore = Integer.MAX_VALUE;
+		int bestDx = 0;
+		int bestDy = 0;
+		for (int dy = 0; dy < 2; dy++) {
+			for (int dx = 0; dx < 2; dx++) {
+				int score = 0;
+				for (int cy = -1; cy < GRID / 2 + 1; cy++) {
+					for (int cx = -1; cx < GRID / 2 + 1; cx++) {
+						int count = 0;
+						for (int py = 0; py < 2; py++) {
+							for (int px = 0; px < 2; px++) {
+								int gx = cx * 2 + px - dx;
+								int gy = cy * 2 + py - dy;
+								if (gx >= 0 && gy >= 0 && gx < GRID && gy < GRID && pixels[gy][gx]) {
+									count++;
+								}
+							}
+						}
+						if (count > 0 && count < 4) {
+							score++;
+						}
+					}
+				}
+				if (score < bestScore) {
+					bestScore = score;
+					bestDx = dx;
+					bestDy = dy;
 				}
 			}
 		}
+		for (int y = 0; y < GRID; y++) {
+			for (int x = 0; x < GRID; x++) {
+				int sx = Math.min(GRID / 2 - 1, (x + bestDx) / 2);
+				int sy = Math.min(GRID / 2 - 1, (y + bestDy) / 2);
+				if (pixels[y][x]) {
+					small[sy][sx] = true;
+				}
+			}
+		}
+		float[] full = centre(pixels);
+		float[] half = centre(small);
+		centreX = full[0];
+		centreY = full[1];
+		smallCentreX = half[0];
+		smallCentreY = half[1];
+	}
+
+	/** Centre of the set pixels' bounding box, in cells. */
+	private static float[] centre(boolean[][] grid) {
+		int minX = grid.length;
+		int minY = grid.length;
+		int maxX = -1;
+		int maxY = -1;
+		for (int y = 0; y < grid.length; y++) {
+			for (int x = 0; x < grid.length; x++) {
+				if (grid[y][x]) {
+					minX = Math.min(minX, x);
+					maxX = Math.max(maxX, x);
+					minY = Math.min(minY, y);
+					maxY = Math.max(maxY, y);
+				}
+			}
+		}
+		return maxX < 0 ? new float[] {grid.length / 2f, grid.length / 2f} : new float[] {(minX + maxX + 1) / 2f, (minY + maxY + 1) / 2f};
 	}
 
 	public void draw(GuiGraphicsExtractor g, int x, int y, int color) {
@@ -686,6 +806,14 @@ public enum Icons {
 
 	/** Draws the icon centred in a {@code box}×{@code box} area at (x, y), as big as stays crisp. */
 	public void draw(GuiGraphicsExtractor g, int x, int y, int box, int color) {
+		drawCentred(g, x + box / 2f, y + box / 2f, box, color);
+	}
+
+	/**
+	 * Draws the icon with its visible pixels centred on (cx, cy), about {@code box} GUI pixels big, at the largest
+	 * size where every icon pixel is a whole number of screen pixels (so it's always crisp).
+	 */
+	public void drawCentred(GuiGraphicsExtractor g, float cx, float cy, int box, int color) {
 		float guiScale = (float) Minecraft.getInstance().getWindow().getGuiScale();
 		// Two crisp options: the full grid or the half grid, each pixel a whole number (k) of screen pixels.
 		// Use whichever lands closer to the box; on a tie keep the full grid's detail.
@@ -698,10 +826,9 @@ public enum Icons {
 		int n = useHalf ? GRID / 2 : GRID;
 		int k = useHalf ? kHalf : kFull;
 		float unit = k / guiScale;
-		float size = n * unit;
-		// Centre on the box, snapped to whole screen pixels.
-		float ox = x + Math.round((box - size) / 2 * guiScale) / guiScale;
-		float oy = y + Math.round((box - size) / 2 * guiScale) / guiScale;
+		// Put the drawn pixels' centre on (cx, cy), snapped to whole screen pixels.
+		float ox = Math.round((cx - (useHalf ? smallCentreX : centreX) * unit) * guiScale) / guiScale;
+		float oy = Math.round((cy - (useHalf ? smallCentreY : centreY) * unit) * guiScale) / guiScale;
 		g.pose().pushMatrix();
 		g.pose().translate(ox, oy);
 		g.pose().scale(unit, unit);

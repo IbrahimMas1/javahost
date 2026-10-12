@@ -206,17 +206,22 @@ public class JavaHostScreen extends Screen {
 		contentY = winY + HEADER + 8;
 		contentH = winY + winH - 10 - contentY;
 
-		int tabY = winY + 38;
+		// Tabs share the height between the logo and the account row, so the sidebar never overflows the window.
+		int tabCount = (int) java.util.Arrays.stream(Tab.values()).filter(t -> t.inSidebar() && t != Tab.ACCOUNT).count();
+		int accountY = winY + winH - 28;
+		int tabTop = winY + 38;
+		int step = Math.max(14, Math.min(22, (accountY - 4 - tabTop) / tabCount));
+		int tabY = tabTop;
 		for (Tab t : Tab.values()) {
 			if (!t.inSidebar() || t == Tab.ACCOUNT) {
 				continue;
 			}
-			SidebarTab button = new SidebarTab(winX + 6, tabY, sideW - 12, 20, t, compact);
+			SidebarTab button = new SidebarTab(winX + 6, tabY, sideW - 12, step - 2, t, compact);
 			sidebarWidgets.add(addWidget(button));
-			tabY += 22;
+			tabY += step;
 		}
 		// You, pinned to the bottom of the sidebar.
-		sidebarWidgets.add(addWidget(new SidebarTab(winX + 6, Math.max(tabY + 6, winY + winH - 30), sideW - 12, 22, Tab.ACCOUNT, compact)));
+		sidebarWidgets.add(addWidget(new SidebarTab(winX + 6, accountY, sideW - 12, 22, Tab.ACCOUNT, compact)));
 
 		if (page == null) {
 			page = tab.factory.get();
@@ -476,7 +481,8 @@ public class JavaHostScreen extends Screen {
 				}
 				return;
 			}
-			target.icon.draw(g, iconX, getY() + (getHeight() - Icons.SIZE) / 2, selected ? Theme.ACCENT : color);
+			float iconCentreX = compact ? getX() + getWidth() / 2f : iconX + Icons.SIZE / 2f;
+			target.icon.drawCentred(g, iconCentreX, getY() + getHeight() / 2f, Icons.SIZE, selected ? Theme.ACCENT : color);
 			if (!compact) {
 				Draw.text(g, target.label, getX() + 23, getY() + (getHeight() - 8) / 2 + 1, color);
 			}

@@ -304,8 +304,12 @@ public class JavaHostClientTest implements FabricClientGameTest {
 
 	/** UI review at the player's real setup: a 2000x1250 window at GUI scale 4 (and 3), every screen captured. */
 	private static void reviewAtScale(ClientGameTestContext context, int guiScale) {
+		reviewAtScale(context, guiScale, 2000, 1250);
+	}
+
+	private static void reviewAtScale(ClientGameTestContext context, int guiScale, int windowW, int windowH) {
 		int previous = context.computeOnClient(mc -> mc.options.guiScale().get());
-		context.getInput().resizeWindow(2000, 1250);
+		context.getInput().resizeWindow(windowW, windowH);
 		context.runOnClient(mc -> {
 			mc.options.guiScale().set(guiScale);
 			mc.resizeGui();
@@ -313,7 +317,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		Config.get().fpsOverlay = true;
 		context.setScreen(() -> null);
 		context.waitTicks(10);
-		context.takeScreenshot("review-s" + guiScale + "-hud");
+		context.takeScreenshot("review-" + windowW + "-s" + guiScale + "-hud");
 		Config.get().fpsOverlay = false;
 		for (Tab tab : Tab.values()) {
 			if (tab == Tab.PROFILE || tab == Tab.CHAT) {
@@ -321,11 +325,11 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			}
 			context.setScreen(() -> new JavaHostScreen(null, tab));
 			context.waitTicks(8);
-			context.takeScreenshot("review-s" + guiScale + "-" + tab.name().toLowerCase());
+			context.takeScreenshot("review-" + windowW + "-s" + guiScale + "-" + tab.name().toLowerCase());
 		}
 		context.setScreen(() -> new net.minecraft.client.gui.screens.PauseScreen(true));
 		context.waitTicks(8);
-		context.takeScreenshot("review-s" + guiScale + "-pause");
+		context.takeScreenshot("review-" + windowW + "-s" + guiScale + "-pause");
 		context.setScreen(() -> null);
 		context.getInput().resizeWindow(854, 480);
 		context.runOnClient(mc -> {
@@ -579,6 +583,9 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		version14(context);
 		reviewAtScale(context, 4);
 		reviewAtScale(context, 3);
+		// A laptop-sized window, where the menu switches to its compact icon sidebar.
+		reviewAtScale(context, 4, 1710, 1070);
+		reviewAtScale(context, 3, 1280, 800);
 
 		java.util.UUID alex = java.util.UUID.nameUUIDFromBytes("Alex".getBytes());
 		context.runOnClient(mc -> {

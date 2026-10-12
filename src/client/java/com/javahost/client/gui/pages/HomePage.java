@@ -62,7 +62,7 @@ public class HomePage extends Page {
 		add(new CardButton(half, 52, Icons.USERS, Component.literal(requests > 0 ? "Friends (" + requests + " new)" : "Friends"),
 				hosting ? "Invite them in with one click" : "Add friends and play together",
 				b -> screen.switchTo(JavaHostScreen.Tab.FRIENDS)), width - half, CARDS_Y);
-		reserve(TILES_Y + 46);
+		reserve(TILES_Y + 68); // tiles and the tip under them
 	}
 
 	@Override
@@ -88,7 +88,7 @@ public class HomePage extends Page {
 		tile(g, left + tileW + 8, y, tileW, Icons.BOLT, "FPS mods", installed + " of " + total,
 				installed == total ? Theme.ACCENT : Theme.WARNING);
 
-		tile(g, left + (tileW + 8) * 2, y, width - (tileW + 8) * 2, Icons.SPARKLE, "Frame rate", minecraft.getFps() + " FPS", Theme.INFO);
+		tile(g, left + (tileW + 8) * 2, y, width - (tileW + 8) * 2, Icons.GAUGE, "Frame rate", minecraft.getFps() + " FPS", Theme.INFO);
 
 		Draw.text(g, "Tip: press " + JavaHostClient.OPEN_MENU.getTranslatedKeyMessage().getString() + " in game to open this menu.",
 				left, Math.max(y + 54, top + screen.contentHeight() - 12), Theme.FAINT); // pinned to the bottom

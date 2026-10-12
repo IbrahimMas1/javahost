@@ -175,9 +175,8 @@ public final class MenuDock {
 				int face = size - 8;
 				Faces.draw(g, Identity.id(), x + 4, y + 4, face);
 			} else {
-				int box = size - 9;
 				int color = glow ? Theme.ACCENT : Theme.mix(0xFFD8DEE6, 0xFFFFFFFF, hover);
-				icon.draw(g, x + (size - box) / 2, y + (size - box) / 2, box, color);
+				icon.drawCentred(g, x + size / 2f, y + size / 2f, size - 9, color);
 			}
 
 			int count = item.badge().getAsInt();

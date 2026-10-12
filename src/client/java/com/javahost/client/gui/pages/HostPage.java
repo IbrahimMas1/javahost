@@ -98,7 +98,7 @@ public class HostPage extends Page {
 						default -> "When needed";
 					}, mode -> config.relayMode = mode), width - 160, 132);
 		} else {
-			add(new FlatButton(110, 18, Component.literal("Get relay"), FlatButton.Style.SECONDARY, Icons.SPARKLE,
+			add(new FlatButton(110, 18, Component.literal("Get relay"), FlatButton.Style.SECONDARY, Icons.CLOUD,
 					b -> screen.switchTo(JavaHostScreen.Tab.PERFORMANCE)), width - 120, 132);
 		}
 
@@ -445,7 +445,7 @@ public class HostPage extends Page {
 		card(g, left, rowY - 2, width, routes.size() * ROW + 4);
 		for (Route route : routes) {
 			Icons icon = switch (route.name()) {
-				case "Relay" -> Icons.SPARKLE;
+				case "Relay" -> Icons.CLOUD;
 				case "Same Wi-Fi" -> Icons.HOME;
 				default -> Icons.GLOBE;
 			};
