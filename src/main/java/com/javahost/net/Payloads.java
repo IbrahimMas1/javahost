@@ -169,6 +169,37 @@ public final class Payloads {
 		}
 	}
 
+	// ---------------------------------------------------------------- sending a world copy
+
+	/** What a world-transfer packet carries: see {@code client/share/WorldShare}. */
+	public static final byte SHARE_OFFER = 0, SHARE_ANSWER = 1, SHARE_CHUNK = 2, SHARE_ACK = 3, SHARE_CANCEL = 4;
+
+	/** Client -> server: one step of sending a world to a player in this world (chunks are end-to-end encrypted). */
+	public record ShareUp(UUID to, long id, byte kind, int index, byte[] data) implements CustomPacketPayload {
+		public static final Type<ShareUp> TYPE = payloadType("share_up");
+		public static final StreamCodec<FriendlyByteBuf, ShareUp> CODEC = CustomPacketPayload.codec(
+				(p, buf) -> buf.writeUUID(p.to).writeLong(p.id).writeByte(p.kind).writeVarInt(p.index).writeByteArray(p.data),
+				buf -> new ShareUp(buf.readUUID(), buf.readLong(), buf.readByte(), buf.readVarInt(), buf.readByteArray(RELAY_CHUNK_SIZE)));
+
+		@Override
+		public Type<ShareUp> type() {
+			return TYPE;
+		}
+	}
+
+	/** Server -> client: the same step, from another player; the server fills in who it's from. */
+	public record ShareDown(UUID from, long id, byte kind, int index, byte[] data) implements CustomPacketPayload {
+		public static final Type<ShareDown> TYPE = payloadType("share_down");
+		public static final StreamCodec<FriendlyByteBuf, ShareDown> CODEC = CustomPacketPayload.codec(
+				(p, buf) -> buf.writeUUID(p.from).writeLong(p.id).writeByte(p.kind).writeVarInt(p.index).writeByteArray(p.data),
+				buf -> new ShareDown(buf.readUUID(), buf.readLong(), buf.readByte(), buf.readVarInt(), buf.readByteArray(RELAY_CHUNK_SIZE)));
+
+		@Override
+		public Type<ShareDown> type() {
+			return TYPE;
+		}
+	}
+
 	// ---------------------------------------------------------------- pack sharing
 
 	public enum PackKind { RESOURCE_PACK, SHADER_PACK }
@@ -266,6 +297,7 @@ public final class Payloads {
 		PayloadTypeRegistry.serverboundPlay().register(VoiceUp2.TYPE, VoiceUp2.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(RelayUp.TYPE, RelayUp.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(RulesChange.TYPE, RulesChange.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(ShareUp.TYPE, ShareUp.CODEC);
 
 		PayloadTypeRegistry.clientboundPlay().register(VoiceDown.TYPE, VoiceDown.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(VoiceConfig.TYPE, VoiceConfig.CODEC);
@@ -275,5 +307,6 @@ public final class Payloads {
 		PayloadTypeRegistry.clientboundPlay().register(ServerHello.TYPE, ServerHello.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(RelayDown.TYPE, RelayDown.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(RulesState.TYPE, RulesState.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(ShareDown.TYPE, ShareDown.CODEC);
 	}
 }

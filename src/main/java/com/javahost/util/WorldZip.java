@@ -8,10 +8,11 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-/** Zips a world folder for a backup, and unzips one safely for a restore. */
+/** Zips a world folder for a backup or to send to a friend, and unzips one safely. */
 public final class WorldZip {
 	private WorldZip() {
 	}
@@ -62,5 +63,87 @@ public final class WorldZip {
 				}
 			}
 		}
+	}
+
+	/** The total size of the files in a zip once unpacked (from its directory, so it's quick). */
+	public static long unpackedSize(Path zipFile) throws IOException {
+		long total = 0;
+		try (ZipFile zip = new ZipFile(zipFile.toFile())) {
+			var entries = zip.entries();
+			while (entries.hasMoreElements()) {
+				total += Math.max(0, entries.nextElement().getSize());
+			}
+		}
+		return total;
+	}
+
+	/**
+	 * Unzips a world someone sent into {@code target} (which must not exist yet). The zip must hold a world:
+	 * {@code level.dat} at the top, or inside a single folder (which is then flattened). Refuses paths that
+	 * would escape {@code target}, more than {@code maxEntries} files, and more than {@code maxBytes} unpacked,
+	 * counting the bytes actually written so a zip can't lie about its sizes.
+	 */
+	public static void unzipWorld(Path zipFile, Path target, long maxBytes, int maxEntries) throws IOException {
+		String prefix = worldPrefix(zipFile);
+		if (Files.exists(target)) {
+			throw new IOException(target + " already exists");
+		}
+		Path root = target.toAbsolutePath().normalize();
+		Files.createDirectories(root);
+		long written = 0;
+		int count = 0;
+		byte[] buffer = new byte[1 << 16];
+		try (InputStream in = Files.newInputStream(zipFile); ZipInputStream zip = new ZipInputStream(in)) {
+			ZipEntry entry;
+			while ((entry = zip.getNextEntry()) != null) {
+				if (!entry.getName().startsWith(prefix) || entry.getName().length() == prefix.length()) {
+					continue;
+				}
+				if (++count > maxEntries) {
+					throw new IOException("Too many files in this world");
+				}
+				Path out = root.resolve(entry.getName().substring(prefix.length())).normalize();
+				if (!out.startsWith(root) || out.equals(root)) {
+					throw new IOException("Unsafe path in world: " + entry.getName());
+				}
+				if (entry.isDirectory()) {
+					Files.createDirectories(out);
+					continue;
+				}
+				Files.createDirectories(out.getParent());
+				try (OutputStream file = Files.newOutputStream(out)) {
+					int read;
+					while ((read = zip.read(buffer)) > 0) {
+						written += read;
+						if (written > maxBytes) {
+							throw new IOException("This world is bigger than it said");
+						}
+						file.write(buffer, 0, read);
+					}
+				}
+			}
+		}
+	}
+
+	/** "" when level.dat is at the top of the zip, "Folder/" when it's inside one folder; otherwise not a world. */
+	static String worldPrefix(Path zipFile) throws IOException {
+		String found = null;
+		try (ZipFile zip = new ZipFile(zipFile.toFile())) {
+			var entries = zip.entries();
+			while (entries.hasMoreElements()) {
+				String name = entries.nextElement().getName();
+				if (name.equals("level.dat")) {
+					return "";
+				}
+				int slash = name.indexOf('/');
+				if (slash > 0 && name.substring(slash + 1).equals("level.dat")) {
+					found = found == null ? name.substring(0, slash + 1) : found;
+				}
+			}
+		}
+		if (found == null) {
+			throw new IOException("This isn't a Minecraft world (no level.dat)");
+		}
+		return found;
 	}
 }

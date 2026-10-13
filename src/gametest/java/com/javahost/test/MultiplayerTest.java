@@ -24,6 +24,8 @@ import com.javahost.client.friends.Presence;
 import com.javahost.client.friends.Screenshots;
 import com.javahost.client.gui.FriendPopup;
 import com.javahost.client.gui.JavaHostScreen;
+import com.javahost.client.gui.WorldPickerScreen;
+import com.javahost.client.share.WorldShare;
 import com.javahost.util.Mailbox;
 import com.javahost.client.host.Connectivity;
 import com.javahost.client.host.HostController;
@@ -325,6 +327,7 @@ final class MultiplayerTest {
 				com.javahost.client.rules.RulesClient.request("__lock", "false");
 				com.javahost.client.rules.RulesClient.request("__cohost:" + guestPlayer, "false");
 			});
+			sendWorlds(context, guestPlayer);
 			writeShared("host-controls-done", "ok");
 
 			// ---- The guest leaves, sees us hosting in their friends list and joins with no invite.
@@ -395,6 +398,10 @@ final class MultiplayerTest {
 				context.takeScreenshot("mp-host-" + route);
 
 				if (route.equals("relay")) {
+					WorldShare.Transfer overRelay = context.computeOnClient(mc -> WorldShare.send(Friends.friend(guestId).orElseThrow(),
+							WorldShare.sources().stream().filter(src -> src.kind() == WorldShare.Source.Kind.BACKUP).findFirst().orElseThrow()));
+					context.waitFor(mc -> !overRelay.active(), 3 * ONE_MINUTE);
+					check(overRelay.stage() == WorldShare.Stage.DONE, "relay: a backup sent through the relay arrived (" + overRelay.status() + ")");
 					context.runOnClient(mc -> HostController.kick(guestId));
 					context.waitFor(mc -> HostController.guests().isEmpty(), ONE_MINUTE);
 					check(true, route + ": kick removes the guest");
@@ -407,6 +414,140 @@ final class MultiplayerTest {
 		}
 		JavaHost.LOGGER.info("[JavaHost MP] HOST DONE: {}", readShared("guest-done"));
 		check(readShared("guest-done").startsWith("PASS"), "guest reported success");
+	}
+
+	// ================================================================ 1.6: sending a world copy
+
+	private static WorldShare.Source liveWorld() {
+		return WorldShare.sources().stream().filter(src -> src.kind() == WorldShare.Source.Kind.LIVE).findFirst().orElseThrow();
+	}
+
+	/** Host side: send the live world, have one declined, cancel one halfway, then receive one from the guest. */
+	private static void sendWorlds(ClientGameTestContext context, UUID guestPlayer) {
+		Friends.Friend guest = context.computeOnClient(mc -> Friends.friend(guestPlayer).orElseThrow());
+		String problem = context.computeOnClient(mc -> WorldShare.cannotSendTo(guestPlayer));
+		check(problem == null, "the host can send Guest a world" + (problem == null ? "" : " (" + problem + ")"));
+		context.setScreen(() -> new WorldPickerScreen(null, guest, null, null));
+		context.waitTicks(10);
+		context.takeScreenshot("mp-host-world-picker");
+		context.setScreen(() -> null);
+
+		WorldShare.Transfer live = context.computeOnClient(mc -> WorldShare.send(guest, liveWorld()));
+		writeShared("host-sending-world", "ok");
+		context.waitFor(mc -> live.stage() == WorldShare.Stage.SENDING || !live.active(), 2 * ONE_MINUTE);
+		context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.NOTIFICATIONS));
+		context.waitTicks(2);
+		context.takeScreenshot("mp-host-world-sending");
+		context.waitFor(mc -> !live.active(), 3 * ONE_MINUTE);
+		check(live.stage() == WorldShare.Stage.DONE, "the live world reached Guest, unpacked (" + live.status() + ")");
+		context.waitTicks(2);
+		context.takeScreenshot("mp-host-world-sent");
+		context.setScreen(() -> null);
+		waitForShared(context, "guest-got-world", ONE_MINUTE);
+
+		WorldShare.Transfer declined = context.computeOnClient(mc -> WorldShare.send(guest,
+				WorldShare.sources().stream().filter(src -> src.kind() == WorldShare.Source.Kind.BACKUP).findFirst().orElseThrow()));
+		context.waitFor(mc -> !declined.active(), 2 * ONE_MINUTE);
+		check(declined.stage() == WorldShare.Stage.FAILED && declined.status().contains("no thanks"),
+				"a declined offer is reported to the sender (" + declined.status() + ")");
+
+		// The test world is tiny, so sending is held still (no chunks go out) to cancel it mid-way for sure.
+		context.runOnClient(mc -> WorldShare.throttleForTests(0));
+		WorldShare.Transfer halfway = context.computeOnClient(mc -> WorldShare.send(guest, liveWorld()));
+		context.waitFor(mc -> halfway.stage() == WorldShare.Stage.SENDING || !halfway.active(), 3 * ONE_MINUTE);
+		context.waitTicks(10);
+		check(halfway.stage() == WorldShare.Stage.SENDING, "a transfer is still going when cancelled (" + halfway.status() + ")");
+		context.runOnClient(mc -> WorldShare.cancel(halfway));
+		context.runOnClient(mc -> WorldShare.throttleForTests(32));
+		waitForShared(context, "guest-saw-cancel", ONE_MINUTE);
+		boolean noZip = context.computeOnClient(mc -> {
+			try (var files = Files.list(WorldShare.outgoingDir())) {
+				return files.findAny().isEmpty();
+			} catch (IOException e) {
+				return true;
+			}
+		});
+		check(noZip, "cancelling removes the sender's temporary copy");
+
+		writeShared("host-ready-for-world", "ok");
+		WorldShare.Transfer incoming = awaitOffer(context, guestPlayer);
+		context.runOnClient(mc -> WorldShare.accept(incoming));
+		context.waitFor(mc -> !incoming.active(), 3 * ONE_MINUTE);
+		check(incoming.stage() == WorldShare.Stage.DONE, "the host received a world from Guest (" + incoming.status() + ")");
+		checkReceived(context, incoming);
+		writeShared("host-got-world", "ok");
+	}
+
+	/** Guest side of {@link #sendWorlds}. */
+	private static void receiveWorlds(ClientGameTestContext context, Friends.Friend host) {
+		waitForShared(context, "host-sending-world", 2 * ONE_MINUTE);
+		WorldShare.Transfer offer = awaitOffer(context, host.id());
+		context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.NOTIFICATIONS));
+		context.waitTicks(4);
+		context.takeScreenshot("mp-guest-world-offer");
+		context.runOnClient(mc -> WorldShare.accept(offer));
+		context.waitFor(mc -> !offer.active(), 3 * ONE_MINUTE);
+		check(offer.stage() == WorldShare.Stage.DONE, "Guest received the host's live world (" + offer.status() + ")");
+		context.waitTicks(2);
+		context.takeScreenshot("mp-guest-world-received");
+		context.setScreen(() -> null);
+		checkReceived(context, offer);
+		check(Files.exists(offer.result().resolve("players").resolve("data").resolve(host.id() + ".dat")), "the host's own player is kept in the copy");
+		writeShared("guest-got-world", "ok");
+
+		WorldShare.Transfer unwanted = awaitOffer(context, host.id());
+		context.runOnClient(mc -> WorldShare.decline(unwanted));
+
+		WorldShare.Transfer halfway = awaitOffer(context, host.id());
+		long saves = countSaves(context);
+		context.runOnClient(mc -> WorldShare.accept(halfway));
+		context.waitFor(mc -> !halfway.active(), 3 * ONE_MINUTE);
+		check(halfway.stage() == WorldShare.Stage.FAILED, "a transfer the host cancels stops on the guest too (" + halfway.status() + ")");
+		boolean noPart = context.computeOnClient(mc -> {
+			try (var files = Files.list(WorldShare.incomingDir())) {
+				return files.findAny().isEmpty();
+			} catch (IOException e) {
+				return true;
+			}
+		});
+		check(noPart && countSaves(context) == saves, "a cancelled transfer leaves no partial files or worlds");
+		writeShared("guest-saw-cancel", "ok");
+
+		waitForShared(context, "host-ready-for-world", ONE_MINUTE);
+		WorldShare.Source received = context.computeOnClient(mc -> WorldShare.sources().stream()
+				.filter(src -> src.path().toAbsolutePath().normalize().equals(offer.result().toAbsolutePath().normalize())).findFirst().orElseThrow());
+		WorldShare.Transfer back = context.computeOnClient(mc -> WorldShare.send(host, received));
+		context.waitFor(mc -> !back.active(), 3 * ONE_MINUTE);
+		check(back.stage() == WorldShare.Stage.DONE, "Guest sent a saved world to the host (" + back.status() + ")");
+		waitForShared(context, "host-got-world", ONE_MINUTE);
+	}
+
+	private static WorldShare.Transfer awaitOffer(ClientGameTestContext context, UUID from) {
+		context.waitFor(mc -> WorldShare.transfers().stream().anyMatch(t -> !t.outgoing && t.peer.equals(from) && t.stage() == WorldShare.Stage.OFFERED),
+				2 * ONE_MINUTE);
+		return context.computeOnClient(mc -> WorldShare.transfers().stream()
+				.filter(t -> !t.outgoing && t.peer.equals(from) && t.stage() == WorldShare.Stage.OFFERED).findFirst().orElseThrow());
+	}
+
+	private static void checkReceived(ClientGameTestContext context, WorldShare.Transfer transfer) {
+		Path world = transfer.result();
+		check(world != null && Files.isRegularFile(world.resolve("level.dat")), "the received world is in saves/ (" + world + ")");
+		UUID me = context.computeOnClient(mc -> com.javahost.client.friends.Identity.id());
+		try {
+			check(com.javahost.share.WorldOwner.ownerOf(world).orElse(null).equals(me), "the receiver owns the copy, so they play as themselves");
+		} catch (IOException e) {
+			throw new AssertionError(e);
+		}
+	}
+
+	private static long countSaves(ClientGameTestContext context) {
+		return context.computeOnClient(mc -> {
+			try (var dirs = Files.list(mc.getLevelSource().getBaseDir())) {
+				return dirs.count();
+			} catch (IOException e) {
+				return -1L;
+			}
+		});
 	}
 
 	/** Presses a button inside the JavaHost menu (it draws its own widgets, so the stock helper can't see them). */
@@ -593,6 +734,7 @@ final class MultiplayerTest {
 		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("DIFFICULTY", "easy"));
 		writeShared("guest-tried-locked", "ok");
 		context.takeScreenshot("mp-guest-joined-from-invite");
+		receiveWorlds(context, host);
 		waitForShared(context, "host-controls-done", 3 * ONE_MINUTE);
 		VoiceClient.setTestTone(false);
 		context.runOnClient(mc -> mc.disconnect(new TitleScreen(), false));
@@ -706,6 +848,12 @@ final class MultiplayerTest {
 		context.takeScreenshot("mp-guest-" + route);
 
 		writeShared("guest-route", route);
+		if (route.equals("relay")) {
+			WorldShare.Transfer offer = awaitOffer(context, hostId);
+			context.runOnClient(mc -> WorldShare.accept(offer));
+			context.waitFor(mc -> !offer.active(), 3 * ONE_MINUTE);
+			check(offer.stage() == WorldShare.Stage.DONE, "relay: guest received a world through the relay (" + offer.status() + ")");
+		}
 		waitForShared(context, "host-ack-" + route, 3 * ONE_MINUTE);
 
 		if (route.equals("relay")) {

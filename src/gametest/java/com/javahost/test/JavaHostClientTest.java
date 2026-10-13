@@ -727,6 +727,98 @@ public class JavaHostClientTest implements FabricClientGameTest {
 	}
 
 	/** Clicks a visible button in the current screen with the real mouse. */
+	// ================================================================ 1.6
+
+	/** A transfer in a given state, for screenshots (the real flow is covered by the two-game test). */
+	private static com.javahost.client.share.WorldShare.Transfer fakeTransfer(java.util.UUID peer, boolean outgoing, String world,
+			com.javahost.client.share.WorldShare.Stage stage, long size, long done, String message, Path result) {
+		try {
+			Class<com.javahost.client.share.WorldShare.Transfer> type = com.javahost.client.share.WorldShare.Transfer.class;
+			var constructor = type.getDeclaredConstructor(long.class, boolean.class, java.util.UUID.class, String.class, String.class,
+					com.javahost.client.share.WorldShare.Stage.class);
+			constructor.setAccessible(true);
+			var transfer = constructor.newInstance(new java.util.Random().nextLong(), outgoing, peer, "Alex_TheBuilder", world, stage);
+			for (var entry : java.util.Map.<String, Object>of("size", size, "done", done, "speed", 1.6 * 1024 * 1024).entrySet()) {
+				var field = type.getDeclaredField(entry.getKey());
+				field.setAccessible(true);
+				field.set(transfer, entry.getValue());
+			}
+			for (var entry : new String[][] {{"message", message}}) {
+				var field = type.getDeclaredField(entry[0]);
+				field.setAccessible(true);
+				field.set(transfer, entry[1]);
+			}
+			var resultField = type.getDeclaredField("result");
+			resultField.setAccessible(true);
+			resultField.set(transfer, result);
+			return transfer;
+		} catch (ReflectiveOperationException e) {
+			throw new AssertionError(e);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private static java.util.List<com.javahost.client.share.WorldShare.Transfer> transferList() {
+		try {
+			var field = com.javahost.client.share.WorldShare.class.getDeclaredField("TRANSFERS");
+			field.setAccessible(true);
+			return (java.util.List<com.javahost.client.share.WorldShare.Transfer>) field.get(null);
+		} catch (ReflectiveOperationException e) {
+			throw new AssertionError(e);
+		}
+	}
+
+	/** The world picker, the transfers card in every state, and the offer popup, at laptop sizes. */
+	private static void worldShareScreens(ClientGameTestContext context, java.util.UUID alexId) {
+		check(context.computeOnClient(mc -> com.javahost.client.share.WorldShare.cannotSendTo(java.util.UUID.randomUUID()))
+				.startsWith("Only friends"), "worlds can only be sent to friends");
+		check(context.computeOnClient(mc -> com.javahost.client.share.WorldShare.cannotSendTo(alexId)).startsWith("Join the same world"),
+				"a friend who isn't in this world can't be sent a world");
+		long mb = 1024 * 1024;
+		context.runOnClient(mc -> {
+			com.javahost.client.share.WorldShare.pauseForTests(true);
+			var list = transferList();
+			list.clear();
+			list.add(fakeTransfer(alexId, false, "Hardcore Island", com.javahost.client.share.WorldShare.Stage.OFFERED, 412 * mb, 0, null, null));
+			list.add(fakeTransfer(alexId, true, "Survival with the boys and a very long name", com.javahost.client.share.WorldShare.Stage.SENDING,
+					184 * mb, 77 * mb, null, null));
+			list.add(fakeTransfer(alexId, false, "Skyblock", com.javahost.client.share.WorldShare.Stage.DONE, 52 * mb, 52 * mb, null,
+					mc.getLevelSource().getBaseDir().resolve("Skyblock (from Alex_TheBuilder)")));
+			list.add(fakeTransfer(alexId, true, "Creative", com.javahost.client.share.WorldShare.Stage.FAILED, 30 * mb, 4 * mb,
+					"Alex_TheBuilder left the world", null));
+		});
+		for (int[] size : new int[][] {{1710, 1070, 4}, {1280, 800, 3}, {2000, 1250, 4}}) {
+			context.getInput().resizeWindow(size[0], size[1]);
+			context.runOnClient(mc -> {
+				mc.options.guiScale().set(size[2]);
+				mc.resizeGui();
+			});
+			context.setScreen(() -> new JavaHostScreen(null, Tab.NOTIFICATIONS));
+			context.waitTicks(8);
+			boolean fits = context.computeOnClient(mc -> mc.gui.screen().children().stream()
+					.filter(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w && w.visible)
+					.map(c -> (net.minecraft.client.gui.components.AbstractWidget) c)
+					.allMatch(w -> w.getRight() <= mc.getWindow().getGuiScaledWidth() - 8));
+			check(fits, "transfer buttons fit at " + size[0] + "x" + size[1] + " scale " + size[2]);
+			context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-world-transfers");
+			context.setScreen(() -> new com.javahost.client.gui.WorldPickerScreen(null,
+					com.javahost.client.friends.Friends.friend(alexId).orElseThrow(), null, null));
+			context.waitTicks(30); // folder sizes are measured in the background
+			context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-world-picker");
+			// The real popup: offers wait for a menu, then ask.
+			context.runOnClient(mc -> com.javahost.client.Popups.offerWorld(transferList().getFirst()));
+			context.setScreen(() -> new JavaHostScreen(null, Tab.HOME));
+			context.waitTicks(6);
+			check(context.computeOnClient(mc -> mc.gui.screen() instanceof com.javahost.client.gui.FriendPopup), "a world offer pops up on a menu");
+			context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-world-offer");
+		}
+		context.runOnClient(mc -> {
+			transferList().clear();
+			com.javahost.client.share.WorldShare.pauseForTests(false);
+		});
+		context.setScreen(() -> null);
+	}
+
 	private static void clickMenu(ClientGameTestContext context, String label) {
 		double[] at = context.computeOnClient(mc -> {
 			for (var child : mc.gui.screen().children()) {
@@ -876,6 +968,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-profile");
 			// Rest the mouse on a cut-off label for over a second: the full text appears.
 		}
+		worldShareScreens(context, alexId);
 		context.runOnClient(mc -> {
 			try {
 				java.lang.reflect.Field dataField = com.javahost.client.friends.Friends.class.getDeclaredField("data");

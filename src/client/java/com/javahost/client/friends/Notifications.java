@@ -37,6 +37,12 @@ public final class Notifications {
 		chime(kind);
 	}
 
+	/** Counts something that lives elsewhere in the center (like a world offer) as unread, with its chime. */
+	public static void ping(Kind kind) {
+		unread++;
+		chime(kind);
+	}
+
 	public static List<Item> items() {
 		return List.copyOf(ITEMS);
 	}

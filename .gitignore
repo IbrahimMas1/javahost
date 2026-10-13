@@ -55,3 +55,7 @@ CLAUDE.local.md
 *.pem
 *.key
 keys/
+
+# written when unit tests load Minecraft classes
+
+/logs/

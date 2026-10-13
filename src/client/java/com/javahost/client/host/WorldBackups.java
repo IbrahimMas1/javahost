@@ -58,10 +58,38 @@ public final class WorldBackups {
 	/** Saves the world, pauses autosave, zips it in the background, then turns autosave back on. Server thread only. */
 	public static CompletableFuture<Path> backUp(MinecraftServer server, String why) {
 		String world = worldFolder(server);
-		Path worldDir = server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize();
 		Path zip = root().resolve(world).resolve(LocalDateTime.now().format(STAMP) + ".zip");
-		running = true;
 		LAST.put(world, System.currentTimeMillis());
+		return snapshot(server, zip).whenComplete((done, error) -> {
+			if (error == null) {
+				JavaHost.LOGGER.info("[Backups] backed up {} because {}", world, why);
+				try {
+					trim(world);
+				} catch (IOException e) {
+					JavaHost.LOGGER.warn("[Backups] couldn't remove old backups of {}", world, e);
+				}
+			}
+			Minecraft.getInstance().execute(() -> {
+				if (error == null) {
+					Toasts.notify("World backed up", "Restore it any time from the Host tab.");
+				} else {
+					JavaHost.LOGGER.warn("[Backups] could not back up {}", world, error);
+					Toasts.notify("Couldn't back up your world", "JavaHost will try again later.");
+				}
+			});
+		});
+	}
+
+	/**
+	 * Saves the open world, pauses autosave, zips it to {@code zip} in the background, then turns autosave back
+	 * on. Used for backups and for sending a live copy to a friend. Server thread only.
+	 */
+	public static CompletableFuture<Path> snapshot(MinecraftServer server, Path zip) {
+		if (running) {
+			return CompletableFuture.failedFuture(new IOException("A copy of this world is already being made"));
+		}
+		Path worldDir = server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize();
+		running = true;
 		server.saveEverything(true, true, false);
 		List<ServerLevel> paused = new ArrayList<>();
 		for (ServerLevel level : server.getAllLevels()) {
@@ -73,23 +101,14 @@ public final class WorldBackups {
 		return CompletableFuture.supplyAsync(() -> {
 			try {
 				long size = WorldZip.zip(worldDir, zip);
-				JavaHost.LOGGER.info("[Backups] backed up {} ({} KB) because {}", world, size / 1024, why);
-				trim(world);
+				JavaHost.LOGGER.info("[Backups] zipped {} ({} KB)", worldDir.getFileName(), size / 1024);
 				return zip;
 			} catch (IOException e) {
-				throw new RuntimeException(e);
+				throw new java.util.concurrent.CompletionException(e);
 			}
 		}).whenComplete((done, error) -> {
 			server.execute(() -> paused.forEach(level -> level.noSave = false));
 			running = false;
-			Minecraft.getInstance().execute(() -> {
-				if (error == null) {
-					Toasts.notify("World backed up", "Restore it any time from the Host tab.");
-				} else {
-					JavaHost.LOGGER.warn("[Backups] could not back up {}", world, error);
-					Toasts.notify("Couldn't back up your world", "JavaHost will try again later.");
-				}
-			});
 		});
 	}
 

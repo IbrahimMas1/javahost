@@ -21,6 +21,8 @@ import com.javahost.client.host.E4mcCompat;
 import com.javahost.client.host.HostController;
 import com.javahost.client.host.HostController.Guest;
 import com.javahost.client.host.WorldBackups;
+import com.javahost.client.share.WorldShare;
+import com.javahost.client.gui.WorldPickerScreen;
 import com.javahost.client.pack.IrisCompat;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Tooltip;
@@ -269,6 +271,11 @@ public class HostPage extends Page {
 			FlatButton restore = add(new FlatButton(confirming ? 96 : 64, 16, Component.literal(confirming ? "Click again" : "Restore"),
 					confirming ? FlatButton.Style.DANGER : FlatButton.Style.SECONDARY, null, b -> restore(backup)),
 					width - (confirming ? 106 : 74), rowY + 3);
+			if (!WorldShare.reachableFriends().isEmpty()) {
+				FlatButton send = add(new FlatButton(18, 16, Component.literal("Send"), FlatButton.Style.GHOST, Icons.UPLOAD,
+						b -> openPicker(null, backup.file())).iconOnly(), width - (confirming ? 106 : 74) - 22, rowY + 3);
+				send.setTooltip(Tooltip.create(Component.literal("Send this backup to a friend in this world")));
+			}
 			restore.active = !worldOpen;
 			restore.setTooltip(Tooltip.create(Component.literal(worldOpen ? "Leave the world to restore a backup"
 					: "Your current \"" + backup.world() + "\" is kept as a copy, then this backup takes its place")));
@@ -299,6 +306,10 @@ public class HostPage extends Page {
 			com.mojang.blaze3d.Blaze3D.openPath(WorldBackups.root());
 		}), half + 6, rowY + 10);
 		reserve(rowY + 50);
+	}
+
+	private void openPicker(com.javahost.client.friends.Friends.Friend friend, java.nio.file.Path preselect) {
+		minecraft.gui.setScreen(new WorldPickerScreen(screen, friend, preselect, () -> screen.switchTo(JavaHostScreen.Tab.NOTIFICATIONS)));
 	}
 
 	private void restore(WorldBackups.Backup backup) {
@@ -355,6 +366,13 @@ public class HostPage extends Page {
 						case SPECTATOR -> "Sp";
 						default -> "S";
 					}, m -> HostController.setGameMode(guest.id(), m)), width - 200, y + 5);
+			if (com.javahost.client.friends.Friends.friend(guest.id()).isPresent()) {
+				String problem = WorldShare.cannotSendTo(guest.id());
+				FlatButton send = add(new FlatButton(18, 18, Component.literal("Send a world"), FlatButton.Style.GHOST, Icons.UPLOAD,
+						b -> openPicker(com.javahost.client.friends.Friends.friend(guest.id()).orElse(null), null)).iconOnly(), width - 224, y + 5);
+				send.active = problem == null;
+				send.setTooltip(Tooltip.create(Component.literal(problem != null ? problem : "Send " + guest.name() + " a copy of a world")));
+			}
 			add(new FlatButton(40, 18, Component.literal("Kick"), FlatButton.Style.SECONDARY, null,
 					b -> HostController.kick(guest.id())), width - 84, y + 5);
 			add(new FlatButton(36, 18, Component.literal("Ban"), FlatButton.Style.DANGER, null,
@@ -411,7 +429,7 @@ public class HostPage extends Page {
 			s.append(r.name()).append(r.state()).append(r.invite());
 		}
 		for (Guest guest : HostController.guests()) {
-			s.append(guest.id());
+			s.append(guest.id()).append(WorldShare.cannotSendTo(guest.id()));
 		}
 		s.append(copiedValue != null && System.currentTimeMillis() - copiedAt < 2000);
 		return s.toString();
@@ -545,7 +563,7 @@ public class HostPage extends Page {
 		}
 		for (Guest guest : guests) {
 			Faces.draw(g, guest.id(), left + 8, rowY + 5, 18);
-			Draw.textFit(g, guest.name(), width - 240, left + 32, rowY + 5, Theme.TEXT);
+			Draw.textFit(g, guest.name(), width - 264, left + 32, rowY + 5, Theme.TEXT);
 			int ping = guest.pingMs();
 			Draw.text(g, ping <= 0 ? "ping —" : ping + " ms", left + 32, rowY + 15,
 					ping <= 0 ? Theme.FAINT : ping < 80 ? Theme.ACCENT : ping < 200 ? Theme.WARNING : Theme.DANGER);

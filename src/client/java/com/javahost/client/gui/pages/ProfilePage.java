@@ -10,8 +10,10 @@ import com.javahost.client.friends.Friends;
 import com.javahost.client.friends.Friends.Friend;
 import com.javahost.client.friends.InviteFlow;
 import com.javahost.client.friends.Presence;
+import com.javahost.client.share.WorldShare;
 import com.javahost.client.gui.JavaHostScreen;
 import com.javahost.client.gui.Page;
+import com.javahost.client.gui.WorldPickerScreen;
 import com.javahost.client.gui.ui.Draw;
 import com.javahost.client.gui.ui.Faces;
 import com.javahost.client.gui.ui.FlatButton;
@@ -66,10 +68,14 @@ public class ProfilePage extends Page {
 		int row2X = oneRow ? right + buttonW + 6 : right;
 		shift = oneRow ? 0 : 24;
 		if (InviteFlow.playingTogether(friend.id())) {
-			FlatButton together = add(new FlatButton(buttonW, 20, Component.literal("Here"), FlatButton.Style.SECONDARY, Icons.CHECK, b -> {
-			}), right, 48);
-			together.active = false;
-			together.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("You're in the same world")));
+			// You're in the same world: the main thing left to do together is hand them a copy of a world.
+			String problem = WorldShare.cannotSendTo(friend.id());
+			FlatButton send = add(new FlatButton(buttonW, 20, Component.literal("Send a world"), FlatButton.Style.PRIMARY, Icons.UPLOAD,
+					b -> minecraft.gui.setScreen(new WorldPickerScreen(screen, friend, null,
+							() -> screen.switchTo(JavaHostScreen.Tab.NOTIFICATIONS)))), right, 48);
+			send.active = problem == null;
+			send.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(problem != null ? problem
+					: "You're in the same world. Send " + friend.name() + " a copy of one of your worlds")));
 		} else if (InviteFlow.joinable(friend.id())) {
 			add(new FlatButton(buttonW, 20, Component.literal("Join"), FlatButton.Style.PRIMARY, Icons.JOIN,
 					b -> InviteFlow.join(status.get().asInvite(friend.name()))), right, 48);
@@ -116,7 +122,7 @@ public class ProfilePage extends Page {
 
 	private String signature() {
 		return friend == null ? "" : FriendsPage.statusLine(friend) + InviteFlow.status(friend.id()) + InviteFlow.canInvite()
-				+ (System.currentTimeMillis() < confirmRemoveUntil);
+				+ (System.currentTimeMillis() < confirmRemoveUntil) + WorldShare.cannotSendTo(friend.id());
 	}
 
 	@Override

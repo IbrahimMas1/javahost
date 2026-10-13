@@ -24,6 +24,7 @@ A Fabric mod for Minecraft **26.3** (Java Edition).
 
 - **Automatic updates.** JavaHost checks for new versions when the game starts (and every few hours). It asks before updating, never mid-game; if you'd rather wait, it tells you whether you can still play with friends who updated. Updates are signed, checked file by file, and installed when Minecraft closes. Settings has Check for updates and Go back to the previous version.
 - **World rules.** Difficulty, keep inventory, PvP, daylight and more, on their own page from the Host tab. Only the host (and friends they make co-hosts) can change them, every change is announced in chat and listed, and the host can lock the rules for a challenge run.
+- **Send a world copy.** While you and a friend are in the same world, send them a copy of the world you're in (as it is right now), any other saved world, or a backup. It travels over the game connection (LAN, direct or the relay), encrypted so only the two of you can read it, with progress and Cancel in the notification center. Your friend accepts first; the copy lands in their Singleplayer worlds as "World (from you)", and they play as themselves there (their own inventory if they've played it before). Your character is kept too, so when you join their copy you're where you left off.
 - **Welcome tour, debug report, screenshot tools.** A short tour the first time; Settings → Copy debug report (no IPs or names) for asking for help; favourite, rename and delete screenshots.
 
 ## Install (recommended): the JavaHost Installer

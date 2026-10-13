@@ -87,6 +87,7 @@ public class JavaHostClient implements ClientModInitializer {
 			com.javahost.client.update.UpdateChecker.tick(minecraft);
 			Friends.tick();
 			Presence.tick(minecraft);
+			com.javahost.client.share.WorldShare.tick(minecraft);
 			while (OPEN_MENU.consumeClick()) {
 				minecraft.gui.setScreen(new JavaHostScreen(null));
 			}
@@ -122,6 +123,7 @@ public class JavaHostClient implements ClientModInitializer {
 		});
 		ClientLifecycleEvents.CLIENT_STARTED.register(minecraft -> {
 			Popups.startFriends();
+			com.javahost.client.share.WorldShare.register();
 			com.javahost.client.update.UpdateChecker.start();
 		});
 

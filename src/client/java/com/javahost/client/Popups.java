@@ -12,6 +12,7 @@ import com.javahost.client.friends.Notifications;
 import com.javahost.client.friends.Presence;
 import com.javahost.client.gui.FriendPopup;
 import com.javahost.client.gui.JavaHostScreen;
+import com.javahost.client.share.WorldShare;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
@@ -26,6 +27,7 @@ import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 public final class Popups {
 	private static final Deque<Invite> INVITES = new ArrayDeque<>();
 	private static final Deque<Request> REQUESTS = new ArrayDeque<>();
+	private static final Deque<WorldShare.Transfer> WORLD_OFFERS = new ArrayDeque<>();
 
 	private Popups() {
 	}
@@ -70,6 +72,15 @@ public final class Popups {
 		}
 	}
 
+	/** A friend wants to send a world: asked on the next menu, never in the middle of play. */
+	public static void offerWorld(WorldShare.Transfer transfer) {
+		WORLD_OFFERS.add(transfer);
+	}
+
+	private static String shorten(String text, int max) {
+		return text.length() <= max ? text : text.substring(0, max - 1).trim() + "…";
+	}
+
 	/** Screens a popup may cover. */
 	private static boolean calm(Screen screen, boolean allowInGame) {
 		return (screen == null && allowInGame) || screen instanceof TitleScreen || screen instanceof JoinMultiplayerScreen
@@ -102,6 +113,17 @@ public final class Popups {
 			minecraft.gui.setScreen(new FriendPopup(screen, request.id(), request.name() + " wants to be friends",
 					"Friends can invite each other into their worlds with one click.",
 					"Accept", "Decline", () -> Friends.accept(request), () -> Friends.decline(request)));
+			return;
+		}
+
+		// World offers also wait for a menu; "Not now" leaves them in the notification center.
+		WORLD_OFFERS.removeIf(offer -> offer.stage() != WorldShare.Stage.OFFERED);
+		if (!WORLD_OFFERS.isEmpty() && calm(screen, false)) {
+			WorldShare.Transfer offer = WORLD_OFFERS.poll();
+			minecraft.gui.setScreen(new FriendPopup(screen, offer.peer, "World from " + offer.peerName,
+					"\"" + shorten(offer.world(), 28) + "\" · " + WorldShare.megabytes(offer.size()) + ". Accept to add it to your Singleplayer worlds.",
+					"Accept", "Not now", () -> WorldShare.accept(offer), () -> {
+					}));
 		}
 	}
 }

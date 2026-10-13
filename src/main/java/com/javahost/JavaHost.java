@@ -26,6 +26,7 @@ public class JavaHost implements ModInitializer {
 		VoiceRelay.register();
 		PackServer.register();
 		com.javahost.net.FastLaneRouter.register();
+		com.javahost.net.WorldShareRouter.register();
 		com.javahost.rules.WorldRules.register();
 
 		// Tell JavaHost players which version the host runs.

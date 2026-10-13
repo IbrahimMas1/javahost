@@ -17,13 +17,19 @@ import com.javahost.client.gui.ui.Faces;
 import com.javahost.client.gui.ui.FlatButton;
 import com.javahost.client.gui.ui.Icons;
 import com.javahost.client.gui.ui.Theme;
+import com.javahost.client.share.WorldShare;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 
 /** Everything that happened recently, each with its action, so a missed popup is never lost. */
 public class NotificationsPage extends Page {
+	private static final int TRANSFER_ROW = 40;
 	private List<Item> items = List.of();
 	private int seen = -1;
+	private List<WorldShare.Transfer> transfers = List.of();
+	private String transferSignature = "";
+	/** Where "Recent" starts: below the world transfers, when there are any. */
+	private int recentY;
 
 	@Override
 	public String title() {
@@ -45,13 +51,14 @@ public class NotificationsPage extends Page {
 		seen = items.size();
 		hasAction.clear();
 		rowHeights.clear();
+		recentY = buildTransfers();
 		if (!items.isEmpty()) {
 			add(new FlatButton(80, 16, Component.literal("Clear all"), FlatButton.Style.GHOST, Icons.CROSS, b -> {
 				Notifications.clear();
 				screen.refresh();
-			}), width - 80, 0);
+			}), width - 80, recentY);
 		}
-		int y = 22;
+		int y = recentY + 22;
 		for (Item item : items) {
 			FlatButton action = action(item);
 			int h = rowHeight(item, action != null);
@@ -68,6 +75,107 @@ public class NotificationsPage extends Page {
 			y += h;
 		}
 		reserve(Math.max(y, 60) + 10);
+	}
+
+	/** Worlds being sent or offered, each with what you can do about it. Returns where the next section starts. */
+	private int buildTransfers() {
+		transfers = WorldShare.transfers();
+		transferSignature = transferSignature();
+		if (transfers.isEmpty()) {
+			return 0;
+		}
+		int y = 22;
+		for (WorldShare.Transfer transfer : transfers) {
+			int buttonY = y + (TRANSFER_ROW - 18) / 2;
+			switch (transfer.stage()) {
+				case OFFERED -> {
+					add(new FlatButton(62, 18, Component.literal("Accept"), FlatButton.Style.PRIMARY, Icons.CHECK, b -> {
+						WorldShare.accept(transfer);
+						screen.refresh();
+					}), width - 152, buttonY);
+					add(new FlatButton(60, 18, Component.literal("Decline"), FlatButton.Style.SECONDARY, null, b -> {
+						WorldShare.decline(transfer);
+						screen.refresh();
+					}), width - 86, buttonY);
+				}
+				case PREPARING, WAITING, SENDING, RECEIVING -> add(button("Cancel", Icons.CROSS, FlatButton.Style.SECONDARY, () -> {
+					WorldShare.cancel(transfer);
+					screen.refresh();
+				}), width - 96, buttonY);
+				case DONE, FAILED -> {
+					if (transfer.stage() == WorldShare.Stage.DONE && transfer.result() != null) {
+						add(button("Show", Icons.FOLDER, FlatButton.Style.SECONDARY,
+								() -> com.mojang.blaze3d.Blaze3D.openPath(transfer.result())), width - 96, buttonY);
+					}
+					FlatButton dismiss = add(new FlatButton(18, 16, Component.literal("Dismiss"), FlatButton.Style.GHOST, Icons.CROSS, b -> {
+						WorldShare.dismiss(transfer);
+						screen.refresh();
+					}).iconOnly(), width - 24, y + (TRANSFER_ROW - 16) / 2);
+					dismiss.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Dismiss")));
+				}
+				default -> {
+				}
+			}
+			y += TRANSFER_ROW;
+		}
+		return y + 14;
+	}
+
+	private static String transferSignature() {
+		StringBuilder s = new StringBuilder();
+		for (WorldShare.Transfer transfer : WorldShare.transfers()) {
+			s.append(transfer.id).append(transfer.stage()).append(';');
+		}
+		return s.toString();
+	}
+
+	/** Room for the buttons on the right of a transfer row. */
+	private int transferTextWidth(WorldShare.Transfer transfer) {
+		return width - 45 - switch (transfer.stage()) {
+			case OFFERED -> 160;
+			case DONE -> transfer.result() != null ? 104 : 30;
+			case FAILED -> 30;
+			default -> 104;
+		};
+	}
+
+	private void drawTransfers(GuiGraphicsExtractor g, int left, int top) {
+		if (transfers.isEmpty()) {
+			return;
+		}
+		sectionLabel(g, "World transfers", left, top + 4);
+		int y = top + 22;
+		card(g, left, y - 2, width, transfers.size() * TRANSFER_ROW + 4);
+		for (int i = 0; i < transfers.size(); i++) {
+			WorldShare.Transfer transfer = transfers.get(i);
+			if (i > 0) {
+				g.fill(left + 8, y - 1, left + width - 8, y, Theme.withAlpha(Theme.BORDER, 0.6f));
+			}
+			Faces.draw(g, transfer.peer, left + 8, y + (TRANSFER_ROW - 18) / 2, 18);
+			Icons icon = transfer.outgoing ? Icons.UPLOAD : Icons.PACKAGE;
+			int textW = transferTextWidth(transfer);
+			int textX = left + 45;
+			int textY = y + 8;
+			icon.draw(g, left + 32, textY - 1, Theme.ACCENT);
+			Draw.textFit(g, transfer.headline(), textW, textX, textY, Theme.TEXT);
+			int color = switch (transfer.stage()) {
+				case FAILED -> Theme.WARNING;
+				case DONE -> Theme.ACCENT;
+				default -> Theme.MUTED;
+			};
+			Draw.textFit(g, transfer.status(), textW, textX, textY + 11, color);
+			boolean moving = transfer.stage() == WorldShare.Stage.SENDING || transfer.stage() == WorldShare.Stage.RECEIVING
+					|| transfer.stage() == WorldShare.Stage.FINISHING;
+			if (moving) {
+				int barY = textY + 22;
+				Draw.roundRect(g, textX, barY, textW, 3, 1, Theme.FIELD);
+				int filled = (int) Math.round(textW * transfer.progress());
+				if (filled > 0) {
+					Draw.roundRect(g, textX, barY, Math.max(2, filled), 3, 1, Theme.ACCENT);
+				}
+			}
+			y += TRANSFER_ROW;
+		}
 	}
 
 	private final java.util.List<Integer> rowHeights = new java.util.ArrayList<>();
@@ -132,7 +240,7 @@ public class NotificationsPage extends Page {
 
 	@Override
 	public void tick() {
-		if (Notifications.items().size() != seen) {
+		if (Notifications.items().size() != seen || !transferSignature().equals(transferSignature)) {
 			screen.refresh();
 		}
 	}
@@ -150,6 +258,8 @@ public class NotificationsPage extends Page {
 
 	@Override
 	protected void draw(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY) {
+		drawTransfers(g, left, top);
+		top += recentY;
 		sectionLabel(g, "Recent", left, top + 4);
 		int y = top + 22;
 		if (items.isEmpty()) {
