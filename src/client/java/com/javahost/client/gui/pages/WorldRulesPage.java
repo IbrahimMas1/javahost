@@ -80,8 +80,9 @@ public class WorldRulesPage extends Page {
 						on -> RulesClient.request(rule.name(), String.valueOf(on))), 10, y + 5);
 				toggle.active = editable;
 			} else {
-				Segmented<String> choice = add(new Segmented<>(Math.min(220, inner - 110), rule.choices, value,
-						v -> WorldRules.describe(rule, v), v -> RulesClient.request(rule.name(), v)), width - 10 - Math.min(220, inner - 110), y + 4);
+				int choiceW = Math.min(240, inner - 80);
+				Segmented<String> choice = add(new Segmented<>(choiceW, rule.choices, value,
+						v -> WorldRules.describe(rule, v), v -> RulesClient.request(rule.name(), v)), width - 10 - choiceW, y + 4);
 				choice.active = editable;
 			}
 			y += ROW;
@@ -142,7 +143,7 @@ public class WorldRulesPage extends Page {
 		int y = top + rulesY + 12;
 		for (Rule rule : Rule.values()) {
 			if (!(rule.choices.size() == 2 && rule.choices.contains("true"))) {
-				Draw.textFit(g, rule.label, width - Math.min(220, width - 130) - 30, left + 10, y + 9, Theme.TEXT);
+				Draw.textFit(g, rule.label, width - Math.min(240, width - 100) - 30, left + 10, y + 9, Theme.TEXT);
 			}
 			y += ROW;
 		}

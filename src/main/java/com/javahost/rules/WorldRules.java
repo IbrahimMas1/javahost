@@ -136,7 +136,7 @@ public final class WorldRules {
 	public static String describe(Rule rule, String value) {
 		return switch (rule) {
 			case DIFFICULTY -> Character.toUpperCase(value.charAt(0)) + value.substring(1);
-			case SLEEPING -> value.equals("1") ? "One player" : value.equals("50") ? "Half the players" : "Everyone";
+			case SLEEPING -> value.equals("1") ? "One" : value.equals("50") ? "Half" : "Everyone";
 			default -> Boolean.parseBoolean(value) ? "On" : "Off";
 		};
 	}
