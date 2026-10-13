@@ -6,7 +6,7 @@ import { handle } from "../src/worker.js";
 import { d1 } from "./d1.js";
 
 const port = Number(process.argv[2] ?? 8788);
-const env = { DB: d1(), TOKEN_SECRET: "dev-secret", ADMIN_SECRET: process.env.ADMIN_SECRET ?? "dev-admin", MOJANG_URL: "http://mojang.local" };
+const env = { DB: d1(), TOKEN_SECRET: "dev-secret-for-local-tests-only-0123456789", ADMIN_SECRET: process.env.ADMIN_SECRET ?? "dev-admin", MOJANG_URL: "http://mojang.local" };
 
 function offlineId(name) {
 	const hash = createHash("md5").update("OfflinePlayer:" + name).digest();

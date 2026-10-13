@@ -28,8 +28,8 @@ import net.minecraft.client.Minecraft;
  * Mojang whether we did. So nobody can list a world or report in someone else's name.
  */
 public final class Directory {
-	/** Where the list lives. Set once the service is deployed; empty means public worlds aren't available yet. */
-	static final String SERVICE = "";
+	/** Where the list lives (the Worker in directory/, on Cloudflare). */
+	static final String SERVICE = "https://javahost-directory.javahost-ibrahim.workers.dev";
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).executor(IoExecutor.NET).build();
 
 	/** A world someone opened to the public. */

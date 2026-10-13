@@ -14,7 +14,7 @@ const PROFILES = {
 };
 
 function environment() {
-	const env = { DB: d1(), TOKEN_SECRET: "test-secret", ADMIN_SECRET: "admin-secret", MOJANG_URL: "https://mojang.test" };
+	const env = { DB: d1(), TOKEN_SECRET: "test-secret-0123456789abcdef0123456789", ADMIN_SECRET: "admin-secret", MOJANG_URL: "https://mojang.test" };
 	// Mojang's hasJoined, stubbed: anyone in PROFILES "joined" with any serverId.
 	globalThis.fetch = async (url) => {
 		const name = new URL(url).searchParams.get("username");
@@ -124,6 +124,12 @@ test("a banned account loses its listing and can't sign in or list again", async
 	assert.equal((await call(env, "PUT", "/listing", LISTING, token, now + 120_000)).status, 403);
 	const challenge = (await call(env, "POST", "/auth/challenge", undefined, null, now)).body;
 	assert.equal((await call(env, "POST", "/auth/verify", { name: "Lee", serverId: challenge.serverId, expires: challenge.expires }, null, now)).status, 403);
+});
+
+test("without a real secret the service refuses everything", async () => {
+	const env = { ...environment(), TOKEN_SECRET: undefined };
+	assert.equal((await call(env, "GET", "/listings")).status, 503);
+	assert.equal((await call(env, "POST", "/auth/challenge")).status, 503);
 });
 
 test("the text rules", () => {

@@ -215,6 +215,10 @@ async function admin(env, request, path, now) {
 export async function handle(request, env, now = Date.now()) {
 	const url = new URL(request.url);
 	const path = url.pathname;
+	// Without a real secret, sign-ins could be forged: refuse everything until it's set.
+	if (typeof env.TOKEN_SECRET !== "string" || env.TOKEN_SECRET.length < 32) {
+		return json({ error: "the public list isn't ready yet" }, 503);
+	}
 	try {
 		if (path === "/listings" && request.method === "GET") {
 			return await list(env, now);
@@ -256,12 +260,15 @@ export default {
 		const url = new URL(request.url);
 		// The public list is the same for everyone: serve it from Cloudflare's cache for a few seconds.
 		if (url.pathname === "/listings" && request.method === "GET" && typeof caches !== "undefined") {
-			const cached = await caches.default.match(request);
+			const key = new Request(new URL("/listings?cache=2", url).toString());
+			const cached = await caches.default.match(key);
 			if (cached) {
 				return cached;
 			}
 			const response = await handle(request, env);
-			ctx.waitUntil(caches.default.put(request, response.clone()));
+			if (response.status === 200) {
+				ctx.waitUntil(caches.default.put(key, response.clone())); // only good answers, for 15 seconds
+			}
 			return response;
 		}
 		return handle(request, env);

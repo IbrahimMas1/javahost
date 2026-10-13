@@ -7,7 +7,7 @@ compatibility_date = "2026-09-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "javahost-directory"
-database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
+database_id = "751ad928-702e-47c3-aab8-774aceac0374"
 
 [triggers]
 crons = ["17 * * * *"]
