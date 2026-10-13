@@ -158,6 +158,17 @@ public class DiscoverPage extends Page {
 		if (shown.isEmpty()) {
 			y += ROW + 10;
 		}
+		// Hosts you hid (or blocked players) are left out; let them back in from here.
+		int hiddenCount = Config.get().hiddenHosts.size();
+		if (hiddenCount > 0) {
+			add(new FlatButton(width, 18, Component.literal("Show hidden hosts again (" + hiddenCount + ")"), FlatButton.Style.GHOST, Icons.USERS, b -> {
+				Config config = Config.get();
+				config.hiddenHosts.clear();
+				config.save();
+				screen.refresh();
+			}), 0, y + 8);
+			y += 30;
+		}
 		reserve(y + 16);
 	}
 
@@ -246,6 +257,8 @@ public class DiscoverPage extends Page {
 		Directory.list().thenAccept(found -> minecraft.execute(() -> {
 			worlds = found;
 			Directory.checkNames(found);
+			com.javahost.JavaHost.LOGGER.info("[Public] the public list has {} world(s); {} hidden host(s)", found.size(),
+					Config.get().hiddenHosts.size());
 			fetchedAt = System.currentTimeMillis();
 			fetching = false;
 			PINGS.keySet().removeIf(id -> found.stream().noneMatch(w -> w.host().equals(id)));
