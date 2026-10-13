@@ -304,7 +304,8 @@ public class DiscoverPage extends Page {
 				}, () -> data.setState(data.players == null || data.protocol < 0 ? ServerData.State.UNREACHABLE
 						: data.protocol == SharedConstants.getCurrentVersion().protocolVersion() ? ServerData.State.SUCCESSFUL
 						: ServerData.State.INCOMPATIBLE), EventLoopGroupHolder.remote(nativeTransport));
-			} catch (Exception e) {
+			} catch (Exception | LinkageError e) {
+				com.javahost.JavaHost.LOGGER.warn("[Public] couldn't ping {}", world.relay(), e);
 				data.setState(ServerData.State.UNREACHABLE);
 			}
 		});

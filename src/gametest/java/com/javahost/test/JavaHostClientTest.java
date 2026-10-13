@@ -783,6 +783,17 @@ public class JavaHostClientTest implements FabricClientGameTest {
 
 	/** Discover with a few public worlds, an opened row, the Open-to-the-public form and Report, at real sizes. */
 	private static void publicWorldScreens(ClientGameTestContext context) {
+		// JavaHost's background threads must load classes like the game does, or pinging a server from one breaks
+		// Minecraft's address checks for the rest of the session (every join then hangs on "Connecting").
+		for (var pool : List.of(com.javahost.util.IoExecutor.POOL, com.javahost.util.IoExecutor.NET)) {
+			try {
+				ClassLoader loader = java.util.concurrent.CompletableFuture.supplyAsync(() -> Thread.currentThread().getContextClassLoader(), pool)
+						.get(5, java.util.concurrent.TimeUnit.SECONDS);
+				check(loader == JavaHost.class.getClassLoader(), "background threads use the game's class loader");
+			} catch (Exception e) {
+				throw new AssertionError(e);
+			}
+		}
 		String serverJs = System.getProperty("javahost.directoryServer");
 		if (serverJs == null) {
 			JavaHost.LOGGER.info("[JavaHost test] skipping public worlds (no local list service)");
