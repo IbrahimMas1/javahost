@@ -18,7 +18,8 @@ import com.google.gson.JsonParser;
  * What a JavaHost release contains (update.json), checked against its Ed25519 signature (update.json.sig) before
  * anything is trusted. The public key is built into the mod, so only releases signed with our key are accepted.
  */
-public record UpdateManifest(String version, int protocol, String minecraft, String notes, String releasePage, List<FileEntry> files) {
+public record UpdateManifest(String version, int protocol, String minecraft, String notes, String releasePage, String minimum,
+		List<FileEntry> files) {
 	/**
 	 * One file to install. {@code replaces} is a regular expression for the jars in mods/ it takes the place of
 	 * (e.g. "javahost-[0-9].*\\.jar"), so older versions are moved out of the way.
@@ -55,7 +56,16 @@ public record UpdateManifest(String version, int protocol, String minecraft, Str
 		}
 		return new UpdateManifest(root.get("version").getAsString(), root.get("protocol").getAsInt(),
 				root.get("minecraft").getAsString(), root.has("notes") ? root.get("notes").getAsString() : "",
-				root.has("releasePage") ? root.get("releasePage").getAsString() : "", List.copyOf(files));
+				root.has("releasePage") ? root.get("releasePage").getAsString() : "",
+				root.has("minimum") ? root.get("minimum").getAsString() : "0", List.copyOf(files));
+	}
+
+	/**
+	 * Releases can name a minimum version: the oldest that's still safe to use (raised by an important update).
+	 * Anything older must update and can't be restored with "Go back".
+	 */
+	public boolean requires(String installedVersion) {
+		return Versions.compare(installedVersion, minimum) < 0;
 	}
 
 	public long totalSize() {

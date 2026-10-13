@@ -25,6 +25,8 @@ public class UpdateScreen extends Screen {
 
 	private final Screen behind;
 	private final UpdateManifest update;
+	/** Older than the minimum safe version: this update can't be skipped (only put off for a few minutes). */
+	private final boolean important;
 	private Stage stage;
 	private volatile double progress;
 	private volatile String error;
@@ -38,6 +40,7 @@ public class UpdateScreen extends Screen {
 		this.behind = behind;
 		this.update = update;
 		this.stage = sameMinecraft() ? Stage.OFFER : Stage.NEEDS_INSTALLER;
+		this.important = update.requires(JavaHost.VERSION);
 	}
 
 	private boolean sameMinecraft() {
@@ -54,7 +57,7 @@ public class UpdateScreen extends Screen {
 
 	private String headline() {
 		return switch (stage) {
-			case OFFER, NEEDS_INSTALLER -> "JavaHost " + update.version() + " is out";
+			case OFFER, NEEDS_INSTALLER -> important ? "Important update: JavaHost " + update.version() : "JavaHost " + update.version() + " is out";
 			case COMPATIBILITY -> compatible() ? "You can keep playing together" : "Friends on " + update.version() + " can't play with you";
 			case DOWNLOADING -> "Downloading JavaHost " + update.version();
 			case READY -> "Ready to install";
@@ -64,7 +67,8 @@ public class UpdateScreen extends Screen {
 
 	private String body() {
 		return switch (stage) {
-			case OFFER -> "You have " + JavaHost.VERSION + " (" + Math.max(1, update.totalSize() / (1024 * 1024)) + " MB to download)."
+			case OFFER -> (important ? "This update fixes something important, so it can't be skipped. " : "")
+					+ "You have " + JavaHost.VERSION + " (" + Math.max(1, update.totalSize() / (1024 * 1024)) + " MB to download)."
 					+ (update.notes().isEmpty() ? "" : "\n\n" + update.notes());
 			case NEEDS_INSTALLER -> "This version needs Minecraft " + update.minecraft() + " (you're on " + minecraftVersion()
 					+ "). Download the new JavaHost installer to update.";
@@ -89,7 +93,13 @@ public class UpdateScreen extends Screen {
 		int buttonW = (boxW - 40) / 2;
 		int buttonY = boxY + boxH - 32;
 		switch (stage) {
-			case OFFER -> buttons(buttonW, buttonY, "Not now", () -> go(Stage.COMPATIBILITY), "Update now", this::startDownload, Icons.CHECK);
+			case OFFER -> {
+				if (important) {
+					buttons(buttonW, buttonY, "Remind me soon", this::keep, "Update now", this::startDownload, Icons.CHECK);
+				} else {
+					buttons(buttonW, buttonY, "Not now", () -> go(Stage.COMPATIBILITY), "Update now", this::startDownload, Icons.CHECK);
+				}
+			}
 			case NEEDS_INSTALLER -> buttons(buttonW, buttonY, "Not now", this::keep, "Get installer",
 					() -> ConfirmLinkScreen.confirmLinkNow(this, java.net.URI.create(update.releasePage())), Icons.PACKAGE);
 			case COMPATIBILITY -> buttons(buttonW, buttonY, "Keep " + JavaHost.VERSION, this::keep, "Update now", this::startDownload, Icons.CHECK);
@@ -142,6 +152,7 @@ public class UpdateScreen extends Screen {
 		Icons icon = switch (stage) {
 			case COMPATIBILITY -> compatible() ? Icons.USERS : Icons.WARNING;
 			case FAILED, NEEDS_INSTALLER -> Icons.WARNING;
+			case OFFER -> important ? Icons.SHIELD : Icons.SPARKLE;
 			case READY -> Icons.CHECK;
 			default -> Icons.SPARKLE;
 		};

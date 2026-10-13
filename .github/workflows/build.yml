@@ -107,7 +107,8 @@ jobs:
           MC=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2)
           API=$(grep '^fabric_api_version=' gradle.properties | cut -d= -f2)
           PROTOCOL=$(grep -o 'PROTOCOL = [0-9]*' src/main/java/com/javahost/JavaHost.java | grep -o '[0-9]*$')
-          java scripts/MakeUpdateManifest.java dist/update "$VERSION" "$PROTOCOL" "$MC" "$API" "dist/javahost-mod/javahost-$VERSION.jar" notes.txt
+          MINIMUM=$(grep '^minimum_version=' gradle.properties | cut -d= -f2)
+          java scripts/MakeUpdateManifest.java dist/update "$VERSION" "$PROTOCOL" "$MC" "$API" "dist/javahost-mod/javahost-$VERSION.jar" notes.txt "$MINIMUM"
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}

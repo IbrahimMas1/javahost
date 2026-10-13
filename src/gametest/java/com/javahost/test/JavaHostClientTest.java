@@ -348,12 +348,16 @@ public class JavaHostClientTest implements FabricClientGameTest {
 
 	/** A pretend GitHub release on localhost, signed with a throwaway key the game is told to trust. */
 	private static com.sun.net.httpserver.HttpServer fakeRelease(String version, int protocol, boolean tamper) throws Exception {
+		return fakeRelease(version, protocol, tamper, "0");
+	}
+
+	private static com.sun.net.httpserver.HttpServer fakeRelease(String version, int protocol, boolean tamper, String minimum) throws Exception {
 		java.security.KeyPair keys = java.security.KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
 		byte[] jar = ("not really a jar " + version).getBytes(java.nio.charset.StandardCharsets.UTF_8);
 		com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("localhost", 0), 0);
 		String base = "http://localhost:" + server.getAddress().getPort();
 		String json = "{\"version\": \"" + version + "\", \"protocol\": " + protocol + ", \"minecraft\": \"26.3\", "
-				+ "\"notes\": \"Faster joining, world rules and a welcome tour.\", \"releasePage\": \"" + base + "\", "
+				+ "\"notes\": \"Faster joining, world rules and a welcome tour.\", \"releasePage\": \"" + base + "\", \"minimum\": \"" + minimum + "\", "
 				+ "\"files\": [{\"name\": \"javahost-" + version + ".jar\", \"url\": \"" + base + "/javahost-" + version + ".jar\", "
 				+ "\"sha256\": \"" + sha256(jar) + "\", \"size\": " + jar.length + ", \"replaces\": \"javahost-[0-9].*\\\\.jar\"}]}";
 		byte[] jsonBytes = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -409,6 +413,96 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		}
 	}
 
+	private static FlatButtonFinder settingsButton(ClientGameTestContext context, String label) {
+		return new FlatButtonFinder(context.computeOnClient(mc -> mc.gui.screen().children().stream()
+				.filter(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w && w.visible && w.getMessage().getString().equals(label))
+				.map(c -> (net.minecraft.client.gui.components.AbstractWidget) c).findFirst().orElse(null)));
+	}
+
+	private record FlatButtonFinder(net.minecraft.client.gui.components.AbstractWidget widget) {
+	}
+
+	/** 1.5.2: a rollback can be cancelled; important releases can't be undone or skipped. */
+	private static void rollbackAndImportantUpdates(ClientGameTestContext context) {
+		java.nio.file.Path previous = context.computeOnClient(mc -> mc.gameDirectory.toPath().resolve("javahost/updates/previous"));
+		try {
+			java.nio.file.Files.createDirectories(previous);
+			java.nio.file.Files.writeString(previous.resolve("javahost-1.0.0.jar"), "pretend old version");
+		} catch (IOException e) {
+			throw new AssertionError(e);
+		}
+		// Restore, then change your mind.
+		context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
+		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -40));
+		context.waitTicks(10);
+		clickMenu(context, "Restore 1.0.0");
+		clickMenu(context, "Click again to confirm");
+		check("rollback".equals(context.computeOnClient(mc -> com.javahost.client.update.Updater.stagedKind())), "Restore (confirmed) waits for Minecraft to close");
+		context.waitTicks(6);
+		context.takeScreenshot("ui-settings-rollback-pending");
+		clickMenu(context, "Cancel going back");
+		check(!context.computeOnClient(mc -> com.javahost.client.update.Updater.staged()), "a pending rollback can be cancelled");
+
+		// An important release that 1.0.0 is older than: restoring it is blocked, and a pending rollback is called off.
+		context.runOnClient(mc -> {
+			try {
+				com.javahost.client.update.Updater.stageRollBack();
+			} catch (IOException e) {
+				throw new AssertionError(e);
+			}
+		});
+		try {
+			com.sun.net.httpserver.HttpServer server = fakeRelease(com.javahost.JavaHost.VERSION, com.javahost.JavaHost.PROTOCOL, false, com.javahost.JavaHost.VERSION);
+			try {
+				java.util.concurrent.CompletableFuture<Void> done = new java.util.concurrent.CompletableFuture<>();
+				context.runOnClient(mc -> com.javahost.client.update.UpdateChecker.checkNow(() -> done.complete(null)));
+				context.waitFor(mc -> done.isDone(), 400);
+			} finally {
+				server.stop(0);
+			}
+		} catch (Exception e) {
+			throw new AssertionError(e);
+		}
+		check(!context.computeOnClient(mc -> com.javahost.client.update.Updater.staged()),
+				"a pending rollback below an important release is cancelled automatically");
+		context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
+		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -40));
+		context.waitTicks(10);
+		var restore = settingsButton(context, "Restore 1.0.0").widget();
+		check(restore != null && !restore.active, "Restore is blocked when the previous version is older than an important update");
+		context.takeScreenshot("ui-settings-rollback-blocked");
+
+		// An important update for us: no "Not now" / "Keep", only "Remind me soon".
+		try {
+			com.sun.net.httpserver.HttpServer server = fakeRelease("9.9.11", com.javahost.JavaHost.PROTOCOL, false, "9.9.11");
+			try {
+				context.setScreen(() -> null);
+				java.util.concurrent.CompletableFuture<Void> found = new java.util.concurrent.CompletableFuture<>();
+				context.runOnClient(mc -> com.javahost.client.update.UpdateChecker.checkNow(() -> found.complete(null)));
+				context.waitFor(mc -> found.isDone(), 400);
+				context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+				context.waitFor(mc -> mc.gui.screen() instanceof com.javahost.client.update.UpdateScreen, 400);
+				context.waitTicks(4);
+				check(settingsButton(context, "Remind me soon").widget() != null && settingsButton(context, "Not now").widget() == null,
+						"an important update can't be skipped, only put off for a few minutes");
+				context.takeScreenshot("update-important");
+				clickMenu(context, "Remind me soon");
+			} finally {
+				server.stop(0);
+				System.clearProperty("javahost.updateUrl");
+				System.clearProperty("javahost.updateKey");
+			}
+		} catch (Exception e) {
+			throw new AssertionError(e);
+		}
+		try (var files = java.nio.file.Files.walk(previous)) {
+			files.sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+		} catch (IOException e) {
+			throw new AssertionError(e);
+		}
+		context.setScreen(() -> null);
+	}
+
 	/** 1.5: updater, world rules, welcome tour, screenshot tools, debug report. */
 	private static void version15(ClientGameTestContext context) {
 		try {
@@ -417,6 +511,8 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		} catch (Exception e) {
 			throw new AssertionError(e);
 		}
+
+		rollbackAndImportantUpdates(context);
 
 		// World rules: the host changes a rule; locking stops changes, even by command.
 		context.setScreen(() -> new JavaHostScreen(null, Tab.RULES));

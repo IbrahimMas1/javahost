@@ -86,5 +86,8 @@ Icons: [Pixelarticons](https://github.com/halfmage/pixelarticons) by Gerrit Half
 1. Bump `version=` in `gradle.properties` (and `PROTOCOL` in `JavaHost.java` only if old and new versions can't play together).
 2. Commit and push, then run `scripts/release.sh "What's new"`.
 3. GitHub builds everything and publishes a release with a signed `update.json`; players' games offer the update on their next launch.
+4. For a fix everyone must have, use `scripts/release.sh --important "What's new"`. Players can't skip it (only "Remind me soon"), and older versions can't be restored with Settings → Restore.
+
+Players can restore the previous version from Settings, and cancel that (or a pending update) any time before Minecraft closes.
 
 The signing key's private half is the `UPDATE_SIGNING_KEY` Actions secret (a copy is kept outside the repo). Without it, releases can't be signed and the game ignores them.

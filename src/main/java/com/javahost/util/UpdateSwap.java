@@ -34,7 +34,7 @@ public final class UpdateSwap {
 		long pid = Long.parseLong(plan.getProperty("pid", "-1"));
 		Path result = Path.of(plan.getProperty("result"));
 		if (pid > 0 && !waitForExit(pid, 180)) {
-			writeResult(result, false, plan.getProperty("version"), "The game didn't close in time.");
+			writeResult(result, false, plan, "The game didn't close in time.");
 			return;
 		}
 		run(plan, result);
@@ -86,7 +86,7 @@ public final class UpdateSwap {
 			deleteTree(backup);
 			Files.move(staging, backup);
 			// The jars we kept are now in backup/ (not staging/) - nothing more to undo.
-			writeResult(result, true, version, "");
+			writeResult(result, true, plan, "");
 			return true;
 		} catch (IOException | RuntimeException e) {
 			// Undo: remove what we added, put back what we moved.
@@ -100,7 +100,7 @@ public final class UpdateSwap {
 					// Best effort; keep going so as much as possible is restored.
 				}
 			}
-			writeResult(result, false, version, e.getMessage() == null ? e.toString() : e.getMessage());
+			writeResult(result, false, plan, e.getMessage() == null ? e.toString() : e.getMessage());
 			return false;
 		}
 	}
@@ -135,10 +135,11 @@ public final class UpdateSwap {
 		}
 	}
 
-	private static void writeResult(Path result, boolean ok, String version, String reason) throws IOException {
+	private static void writeResult(Path result, boolean ok, Properties plan, String reason) throws IOException {
 		Properties out = new Properties();
 		out.setProperty("ok", String.valueOf(ok));
-		out.setProperty("version", version == null ? "" : version);
+		out.setProperty("version", plan.getProperty("version", ""));
+		out.setProperty("kind", plan.getProperty("kind", "update"));
 		out.setProperty("reason", reason == null ? "" : reason);
 		out.setProperty("time", String.valueOf(System.currentTimeMillis()));
 		Files.createDirectories(result.getParent());

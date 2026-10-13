@@ -19,7 +19,10 @@ import java.util.regex.Pattern;
 /**
  * Release tool (run by CI on a version tag): writes update.json for the release and signs it.
  *
- *   java scripts/MakeUpdateManifest.java <out dir> <version> <protocol> <minecraft> <fabric api version> <javahost jar> <notes file>
+ *   java scripts/MakeUpdateManifest.java <out dir> <version> <protocol> <minecraft> <fabric api version> <javahost jar> <notes file> [minimum]
+ *
+ * minimum: the oldest version that's still safe (set by an important release); older ones must update and can't
+ * be restored with "Go back to the previous version".
  *
  * The signing key comes from the UPDATE_SIGNING_KEY environment variable (base64 PKCS#8 Ed25519).
  * Fabric API is looked up on Modrinth for the exact version the mod was built against.
@@ -35,6 +38,7 @@ public class MakeUpdateManifest {
 		String fabricApi = a[4];
 		Path jar = Path.of(a[5]);
 		String notes = Files.exists(Path.of(a[6])) ? Files.readString(Path.of(a[6])).strip() : "";
+		String minimum = a.length > 7 && !a[7].isBlank() ? a[7] : "0";
 
 		StringBuilder files = new StringBuilder();
 		byte[] jarBytes = Files.readAllBytes(jar);
@@ -62,6 +66,7 @@ public class MakeUpdateManifest {
 				+ "  \"minecraft\": \"" + esc(minecraft) + "\",\n"
 				+ "  \"notes\": \"" + esc(notes) + "\",\n"
 				+ "  \"releasePage\": \"https://github.com/" + REPO + "/releases/tag/v" + esc(version) + "\",\n"
+				+ "  \"minimum\": \"" + esc(minimum) + "\",\n"
 				+ "  \"files\": [\n" + files + "\n  ]\n}\n";
 		byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
 		PrivateKey key = KeyFactory.getInstance("Ed25519").generatePrivate(new PKCS8EncodedKeySpec(

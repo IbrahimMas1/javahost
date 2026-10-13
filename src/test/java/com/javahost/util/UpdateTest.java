@@ -24,7 +24,7 @@ class UpdateTest {
 	Path temp;
 
 	static final String JSON = """
-			{"version": "1.5.1", "protocol": 2, "minecraft": "26.3", "notes": "Fixes", "releasePage": "https://example",
+			{"version": "1.5.1", "protocol": 2, "minecraft": "26.3", "notes": "Fixes", "releasePage": "https://example", "minimum": "1.5.1",
 			 "files": [{"name": "javahost-1.5.1.jar", "url": "https://github.com/x", "sha256": "AB12", "size": 10, "replaces": "javahost-[0-9].*\\\\.jar"}]}
 			""";
 
@@ -45,6 +45,9 @@ class UpdateTest {
 		UpdateManifest manifest = UpdateManifest.verifyAndParse(json, sig, pub);
 		assertEquals("1.5.1", manifest.version());
 		assertEquals(2, manifest.protocol());
+		assertTrue(manifest.requires("1.5.0"), "older than the minimum: must update, can't be restored");
+		assertFalse(manifest.requires("1.5.1"));
+		assertFalse(UpdateManifest.parse(JSON.replace("\"minimum\": \"1.5.1\",", "")).requires("0.1"), "no minimum: nothing is required");
 		assertEquals("ab12", manifest.files().getFirst().sha256());
 		assertTrue("javahost-1.4.4.jar".matches(manifest.files().getFirst().replaces()));
 		assertFalse("javahost-gametest-1.0.0.jar".matches(manifest.files().getFirst().replaces()));
@@ -67,6 +70,7 @@ class UpdateTest {
 		plan.setProperty("mods", mods.toString());
 		plan.setProperty("backup", temp.resolve("updates/previous").toString());
 		plan.setProperty("version", "1.5.1");
+		plan.setProperty("kind", "rollback");
 		plan.setProperty("file.0.new", newJar.toString());
 		plan.setProperty("file.0.replaces", "javahost-[0-9].*\\.jar");
 		return plan;
@@ -102,6 +106,7 @@ class UpdateTest {
 		assertEquals("old", Files.readString(mods.resolve("javahost-1.4.4.jar")), "the old jar is back");
 		assertFalse(Files.exists(mods.resolve("javahost-1.5.1.jar")), "the new jar was removed again");
 		assertEquals("false", load(result).getProperty("ok"));
+		assertEquals("rollback", load(result).getProperty("kind"), "the result says what was attempted");
 	}
 
 	private static Properties load(Path file) throws Exception {

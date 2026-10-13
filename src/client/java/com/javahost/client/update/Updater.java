@@ -61,8 +61,8 @@ public final class Updater {
 
 	// ---------------------------------------------------------------- checking
 
-	/** Finds the newest release; completes with it only if it's newer than this JavaHost (otherwise null). */
-	static CompletableFuture<UpdateManifest> fetchNewer() {
+	/** Finds the newest release (verified), newer than us or not; null if there isn't one or it can't be checked. */
+	static CompletableFuture<UpdateManifest> fetchLatest() {
 		return CompletableFuture.supplyAsync(() -> {
 			try {
 				String override = System.getProperty("javahost.updateUrl"); // tests: a folder with update.json(.sig)
@@ -84,8 +84,9 @@ public final class Updater {
 				String key = System.getProperty("javahost.updateKey", UpdateManifest.PUBLIC_KEY);
 				UpdateManifest manifest = UpdateManifest.verifyAndParse(json, sig, key);
 				boolean newer = Versions.compare(manifest.version(), JavaHost.VERSION) > 0;
-				JavaHost.LOGGER.info("[Update] latest is {} (we have {}){}", manifest.version(), JavaHost.VERSION, newer ? ": update available" : "");
-				return newer ? manifest : null;
+				JavaHost.LOGGER.info("[Update] latest is {} (we have {}){}{}", manifest.version(), JavaHost.VERSION,
+						newer ? ": update available" : "", manifest.requires(JavaHost.VERSION) ? " (important)" : "");
+				return manifest;
 			} catch (Exception e) {
 				JavaHost.LOGGER.warn("[Update] couldn't check for updates: {}", e.toString());
 				return null;
@@ -201,6 +202,7 @@ public final class Updater {
 
 	private static void writePlan(UpdateManifest manifest, Path target, List<FileEntry> files) throws IOException {
 		Properties plan = new Properties();
+		plan.setProperty("kind", "update");
 		plan.setProperty("version", manifest.version());
 		plan.setProperty("mods", modsDir().toAbsolutePath().toString());
 		plan.setProperty("backup", dir().resolve("previous").toAbsolutePath().toString());
@@ -244,6 +246,27 @@ public final class Updater {
 	/** An update is downloaded and will be installed when the game closes. */
 	public static boolean staged() {
 		return Files.exists(planFile());
+	}
+
+	/** "update" or "rollback" for what's waiting to happen when the game closes (null if nothing). */
+	public static String stagedKind() {
+		try (InputStream in = Files.newInputStream(planFile())) {
+			Properties plan = new Properties();
+			plan.load(in);
+			return plan.getProperty("kind", "update");
+		} catch (IOException e) {
+			return null;
+		}
+	}
+
+	/** Changes your mind: nothing happens when the game closes. */
+	public static void cancelStaged() {
+		try {
+			Files.deleteIfExists(planFile());
+			JavaHost.LOGGER.info("[Update] the waiting update/rollback was cancelled");
+		} catch (IOException e) {
+			JavaHost.LOGGER.warn("[Update] couldn't cancel", e);
+		}
 	}
 
 	public static String stagedVersion() {
@@ -292,7 +315,7 @@ public final class Updater {
 		try (InputStream in = Files.newInputStream(result)) {
 			Properties r = new Properties();
 			r.load(in);
-			if (Boolean.parseBoolean(r.getProperty("ok")) && "previous".equals(r.getProperty("version"))) {
+			if (Boolean.parseBoolean(r.getProperty("ok")) && "rollback".equals(r.getProperty("kind"))) {
 				Toasts.notify("Back on JavaHost " + JavaHost.VERSION, "The previous version is restored.");
 			} else if (Boolean.parseBoolean(r.getProperty("ok"))) {
 				Toasts.notify("Updated to JavaHost " + r.getProperty("version"), "You're on the latest version. Have fun!");
@@ -313,13 +336,33 @@ public final class Updater {
 
 	// ---------------------------------------------------------------- going back
 
-	/** Whether a previous version is kept (from the last update) and can be restored. */
-	public static boolean canRollBack() {
+	/** The JavaHost version kept from the last update (null if none), e.g. "1.5.0". */
+	public static String previousVersion() {
 		try (Stream<Path> files = Files.list(dir().resolve("previous"))) {
-			return files.anyMatch(p -> p.getFileName().toString().endsWith(".jar"));
+			return files.map(p -> p.getFileName().toString())
+					.filter(name -> name.matches("javahost-[0-9].*\\.jar"))
+					.map(name -> name.substring("javahost-".length(), name.length() - ".jar".length()))
+					.findFirst().orElse(null);
 		} catch (IOException e) {
-			return false;
+			return null;
 		}
+	}
+
+	/** Whether a previous version is kept (from the last update). */
+	public static boolean canRollBack() {
+		return previousVersion() != null;
+	}
+
+	/**
+	 * Why the previous version can't be restored, or null if it can. An important release raises the minimum safe
+	 * version; versions older than that stay updated.
+	 */
+	public static String rollBackBlockedReason(UpdateManifest latest) {
+		String previous = previousVersion();
+		if (previous == null || latest == null || !latest.requires(previous)) {
+			return null;
+		}
+		return "JavaHost " + latest.minimum() + " is an important update, so " + previous + " can't be restored.";
 	}
 
 	/** Puts the previous version back when the game closes (same helper, the other direction). */
@@ -328,7 +371,8 @@ public final class Updater {
 		Path restore = dir().resolve("restore");
 		Files.createDirectories(restore);
 		Properties plan = new Properties();
-		plan.setProperty("version", "previous");
+		plan.setProperty("kind", "rollback");
+		plan.setProperty("version", String.valueOf(previousVersion()));
 		plan.setProperty("mods", modsDir().toAbsolutePath().toString());
 		plan.setProperty("backup", dir().resolve("rolled-back").toAbsolutePath().toString());
 		plan.setProperty("result", resultFile().toAbsolutePath().toString());

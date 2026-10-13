@@ -86,35 +86,53 @@ public class SettingsPage extends Page {
 		updatesY = KEYS_TOP + 12 + KEYS.size() * 20 + 46;
 		int half = (inner - 6) / 2;
 		var update = com.javahost.client.update.UpdateChecker.available();
-		if (update != null && !com.javahost.client.update.Updater.staged()) {
-			add(new FlatButton(half, 18, Component.literal("Update to " + update.version()), FlatButton.Style.PRIMARY, Icons.CHECK,
-					b -> minecraft.gui.setScreen(new com.javahost.client.update.UpdateScreen(screen, update))), 10, updatesY + 34);
-		} else {
-			FlatButton check = add(new FlatButton(half, 18, Component.literal(com.javahost.client.update.UpdateChecker.checking() ? "Checking..." : "Check for updates"),
-					FlatButton.Style.SECONDARY, Icons.SPARKLE, b -> {
-						checkedManually = true;
-						com.javahost.client.update.UpdateChecker.checkNow(screen::refresh);
+		if (com.javahost.client.update.Updater.staged()) {
+			// Something happens when Minecraft closes: let the player change their mind.
+			boolean rollback = "rollback".equals(com.javahost.client.update.Updater.stagedKind());
+			add(new FlatButton(half, 18, Component.literal(rollback ? "Cancel going back" : "Cancel update"), FlatButton.Style.SECONDARY,
+					Icons.CROSS, b -> {
+						com.javahost.client.update.Updater.cancelStaged();
+						com.javahost.client.Toasts.show("update", rollback ? "Staying on " + com.javahost.JavaHost.VERSION : "Update cancelled",
+								rollback ? "Nothing changes when Minecraft closes." : "You'll be offered it again next launch.");
 						screen.refresh();
 					}), 10, updatesY + 34);
-			check.active = !com.javahost.client.update.UpdateChecker.checking();
-		}
-		if (com.javahost.client.update.Updater.canRollBack()) {
-			add(new FlatButton(half, 18, Component.literal(confirmRollback ? "Click again to confirm" : "Previous version"),
-					confirmRollback ? FlatButton.Style.DANGER : FlatButton.Style.GHOST, Icons.BACK, b -> {
-						if (!confirmRollback) {
-							confirmRollback = true;
+		} else {
+			if (update != null) {
+				add(new FlatButton(half, 18, Component.literal("Update to " + update.version()), FlatButton.Style.PRIMARY, Icons.CHECK,
+						b -> minecraft.gui.setScreen(new com.javahost.client.update.UpdateScreen(screen, update))), 10, updatesY + 34);
+			} else {
+				FlatButton check = add(new FlatButton(half, 18, Component.literal(com.javahost.client.update.UpdateChecker.checking() ? "Checking..." : "Check for updates"),
+						FlatButton.Style.SECONDARY, Icons.SPARKLE, b -> {
+							checkedManually = true;
+							com.javahost.client.update.UpdateChecker.checkNow(screen::refresh);
 							screen.refresh();
-							return;
-						}
-						try {
-							com.javahost.client.update.Updater.stageRollBack();
-							com.javahost.client.Toasts.notify("Going back to the previous version", "It's restored when Minecraft closes.");
-						} catch (java.io.IOException e) {
-							com.javahost.client.Toasts.notify("Couldn't go back", String.valueOf(e.getMessage()));
-						}
-						confirmRollback = false;
-						screen.refresh();
-					}), 10 + half + 6, updatesY + 34);
+						}), 10, updatesY + 34);
+				check.active = !com.javahost.client.update.UpdateChecker.checking();
+			}
+			String previous = com.javahost.client.update.Updater.previousVersion();
+			if (previous != null) {
+				String blocked = com.javahost.client.update.Updater.rollBackBlockedReason(com.javahost.client.update.UpdateChecker.latest());
+				FlatButton restore = add(new FlatButton(half, 18, Component.literal(confirmRollback ? "Click again to confirm" : "Restore " + previous),
+						confirmRollback ? FlatButton.Style.DANGER : FlatButton.Style.GHOST, blocked != null ? Icons.LOCK : Icons.BACK, b -> {
+							if (!confirmRollback) {
+								confirmRollback = true;
+								screen.refresh();
+								return;
+							}
+							try {
+								com.javahost.client.update.Updater.stageRollBack();
+								com.javahost.client.Toasts.notify("Going back to JavaHost " + previous,
+										"It's restored when Minecraft closes. Changed your mind? Settings → Cancel going back.");
+							} catch (java.io.IOException e) {
+								com.javahost.client.Toasts.notify("Couldn't go back", String.valueOf(e.getMessage()));
+							}
+							confirmRollback = false;
+							screen.refresh();
+						}), 10 + half + 6, updatesY + 34);
+				restore.active = blocked == null;
+				restore.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(blocked != null ? blocked
+						: "Puts JavaHost " + previous + " back when Minecraft closes. You can cancel until then.")));
+			}
 		}
 		helpY = updatesY + 70;
 		add(new FlatButton(half, 18, Component.literal("Copy debug report"), FlatButton.Style.SECONDARY, Icons.COPY, b -> {
@@ -135,7 +153,7 @@ public class SettingsPage extends Page {
 	private String updateState() {
 		var update = com.javahost.client.update.UpdateChecker.available();
 		return com.javahost.client.update.UpdateChecker.checking() + "|" + (update == null ? "" : update.version()) + "|"
-				+ com.javahost.client.update.Updater.staged();
+				+ com.javahost.client.update.Updater.staged() + "|" + com.javahost.client.update.Updater.stagedKind();
 	}
 
 	@Override
@@ -181,12 +199,15 @@ public class SettingsPage extends Page {
 		String status;
 		int color = Theme.MUTED;
 		if (com.javahost.client.update.Updater.staged()) {
-			status = "JavaHost " + com.javahost.client.update.Updater.stagedVersion() + " installs when Minecraft closes";
-			color = Theme.ACCENT;
+			boolean rollback = "rollback".equals(com.javahost.client.update.Updater.stagedKind());
+			status = rollback ? "Going back to " + com.javahost.client.update.Updater.stagedVersion() + " when Minecraft closes"
+					: "JavaHost " + com.javahost.client.update.Updater.stagedVersion() + " installs when Minecraft closes";
+			color = rollback ? Theme.WARNING : Theme.ACCENT;
 		} else if (com.javahost.client.update.UpdateChecker.checking()) {
 			status = "Checking for updates...";
 		} else if (update != null) {
-			status = "JavaHost " + update.version() + " is available (you have " + com.javahost.JavaHost.VERSION + ")";
+			status = (com.javahost.client.update.UpdateChecker.important() ? "Important update: JavaHost " : "JavaHost ") + update.version()
+					+ " is available (you have " + com.javahost.JavaHost.VERSION + ")";
 			color = Theme.ACCENT;
 		} else {
 			status = "JavaHost " + com.javahost.JavaHost.VERSION + (checkedManually ? " · you're up to date" : " · checks automatically");
