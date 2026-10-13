@@ -7,6 +7,8 @@ import com.javahost.client.Config;
 import com.javahost.client.JavaHostClient;
 import com.javahost.client.gui.Page;
 import com.javahost.client.gui.ui.Draw;
+import com.javahost.client.gui.ui.FlatButton;
+import com.javahost.client.gui.ui.Icons;
 import com.javahost.client.gui.ui.Segmented;
 import com.javahost.client.gui.ui.SwatchButton;
 import com.javahost.client.gui.ui.Theme;
@@ -80,7 +82,68 @@ public class SettingsPage extends Page {
 				config.save();
 			}), width - 160, 240);
 		}
-		reserve(KEYS_TOP + 12 + KEYS.size() * 20 + 30);
+		// Updates and help, under the keys.
+		updatesY = KEYS_TOP + 12 + KEYS.size() * 20 + 46;
+		int half = (inner - 6) / 2;
+		var update = com.javahost.client.update.UpdateChecker.available();
+		if (update != null && !com.javahost.client.update.Updater.staged()) {
+			add(new FlatButton(half, 18, Component.literal("Update to " + update.version()), FlatButton.Style.PRIMARY, Icons.CHECK,
+					b -> minecraft.gui.setScreen(new com.javahost.client.update.UpdateScreen(screen, update))), 10, updatesY + 34);
+		} else {
+			FlatButton check = add(new FlatButton(half, 18, Component.literal(com.javahost.client.update.UpdateChecker.checking() ? "Checking..." : "Check for updates"),
+					FlatButton.Style.SECONDARY, Icons.SPARKLE, b -> {
+						checkedManually = true;
+						com.javahost.client.update.UpdateChecker.checkNow(screen::refresh);
+						screen.refresh();
+					}), 10, updatesY + 34);
+			check.active = !com.javahost.client.update.UpdateChecker.checking();
+		}
+		if (com.javahost.client.update.Updater.canRollBack()) {
+			add(new FlatButton(half, 18, Component.literal(confirmRollback ? "Click again to confirm" : "Previous version"),
+					confirmRollback ? FlatButton.Style.DANGER : FlatButton.Style.GHOST, Icons.BACK, b -> {
+						if (!confirmRollback) {
+							confirmRollback = true;
+							screen.refresh();
+							return;
+						}
+						try {
+							com.javahost.client.update.Updater.stageRollBack();
+							com.javahost.client.Toasts.notify("Going back to the previous version", "It's restored when Minecraft closes.");
+						} catch (java.io.IOException e) {
+							com.javahost.client.Toasts.notify("Couldn't go back", String.valueOf(e.getMessage()));
+						}
+						confirmRollback = false;
+						screen.refresh();
+					}), 10 + half + 6, updatesY + 34);
+		}
+		helpY = updatesY + 70;
+		add(new FlatButton(half, 18, Component.literal("Copy debug report"), FlatButton.Style.SECONDARY, Icons.COPY, b -> {
+			minecraft.keyboardHandler.setClipboard(com.javahost.client.DebugReport.build());
+			com.javahost.client.Toasts.show("Debug report copied", "Paste it wherever you're asking for help.");
+		}), 10, helpY + 20);
+		add(new FlatButton(half, 18, Component.literal("Welcome tour"), FlatButton.Style.SECONDARY, Icons.PLAY,
+				b -> screen.startTour()), 10 + half + 6, helpY + 20);
+		reserve(helpY + 50);
+	}
+
+	private int updatesY;
+	private int helpY;
+	private boolean checkedManually;
+	private boolean confirmRollback;
+	private String lastUpdateState = "";
+
+	private String updateState() {
+		var update = com.javahost.client.update.UpdateChecker.available();
+		return com.javahost.client.update.UpdateChecker.checking() + "|" + (update == null ? "" : update.version()) + "|"
+				+ com.javahost.client.update.Updater.staged();
+	}
+
+	@Override
+	public void tick() {
+		if (!updateState().equals(lastUpdateState)) {
+			lastUpdateState = updateState();
+			screen.refresh();
+		}
 	}
 
 	@Override
@@ -111,5 +174,26 @@ public class SettingsPage extends Page {
 			y += 20;
 		}
 		Draw.textFit(g, "Change keys in Options → Controls → Key Binds → JavaHost.", width, left, y + 12, Theme.FAINT);
+
+		sectionLabel(g, "Updates", left, top + updatesY);
+		card(g, left, top + updatesY + 12, width, 46);
+		var update = com.javahost.client.update.UpdateChecker.available();
+		String status;
+		int color = Theme.MUTED;
+		if (com.javahost.client.update.Updater.staged()) {
+			status = "JavaHost " + com.javahost.client.update.Updater.stagedVersion() + " installs when Minecraft closes";
+			color = Theme.ACCENT;
+		} else if (com.javahost.client.update.UpdateChecker.checking()) {
+			status = "Checking for updates...";
+		} else if (update != null) {
+			status = "JavaHost " + update.version() + " is available (you have " + com.javahost.JavaHost.VERSION + ")";
+			color = Theme.ACCENT;
+		} else {
+			status = "JavaHost " + com.javahost.JavaHost.VERSION + (checkedManually ? " · you're up to date" : " · checks automatically");
+		}
+		Draw.textFit(g, status, width - 20, left + 10, top + updatesY + 22, color);
+
+		sectionLabel(g, "Help", left, top + helpY);
+		card(g, left, top + helpY + 12, width, 30);
 	}
 }

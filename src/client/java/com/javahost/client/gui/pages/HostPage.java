@@ -159,6 +159,12 @@ public class HostPage extends Page {
 		}
 
 		// Advanced: folded away.
+		// World rules: their own page, visible to everyone in a world (only the host and co-hosts can change them).
+		if (minecraft.level != null) {
+			add(new FlatButton(width, 18, Component.literal("World rules"), FlatButton.Style.SECONDARY, Icons.SHIELD,
+					b -> screen.switchTo(JavaHostScreen.Tab.RULES)), 0, y + 10);
+			y += 24;
+		}
 		advancedY = y + 10;
 		add(new FlatButton(width, 18, Component.literal(showAdvanced ? "Hide advanced settings" : "Advanced settings"),
 				FlatButton.Style.GHOST, Icons.GEAR, b -> {
@@ -355,6 +361,11 @@ public class HostPage extends Page {
 					b -> HostController.ban(guest.id(), guest.name())), width - 40, y + 5);
 			y += PLAYER_ROW;
 		}
+
+		// World rules: their own page.
+		add(new FlatButton(width, 18, Component.literal("World rules"), FlatButton.Style.SECONDARY, Icons.SHIELD,
+				b -> screen.switchTo(JavaHostScreen.Tab.RULES)), 0, y + 10);
+		y += 24;
 
 		// How friends can connect: folded away (invites pick the best way automatically).
 		connectionY = y + 10;

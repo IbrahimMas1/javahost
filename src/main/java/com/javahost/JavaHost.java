@@ -11,6 +11,11 @@ import net.fabricmc.api.ModInitializer;
 public class JavaHost implements ModInitializer {
 	public static final String MOD_ID = "javahost";
 	public static final Logger LOGGER = LoggerFactory.getLogger("JavaHost");
+	/**
+	 * Network compatibility: versions with the same protocol can play together. Bump it only when a change means
+	 * older and newer JavaHost can't join each other's worlds.
+	 */
+	public static final int PROTOCOL = 2;
 	/** This JavaHost's version, e.g. "1.4.0" (shown to friends for the version check). */
 	public static final String VERSION = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer(MOD_ID)
 			.map(mod -> mod.getMetadata().getVersion().getFriendlyString()).orElse("0");
@@ -21,6 +26,7 @@ public class JavaHost implements ModInitializer {
 		VoiceRelay.register();
 		PackServer.register();
 		com.javahost.net.FastLaneRouter.register();
+		com.javahost.rules.WorldRules.register();
 
 		// Tell JavaHost players which version the host runs.
 		net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {

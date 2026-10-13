@@ -22,6 +22,10 @@ A Fabric mod for Minecraft **26.3** (Java Edition).
 - **Account page.** Your 3D skin, how friends see you, an **Appear offline** switch, and how many friend messages you've sent today.
 - Friends need a Microsoft-account login, which every normal Minecraft purchase has.
 
+- **Automatic updates.** JavaHost checks for new versions when the game starts (and every few hours). It asks before updating, never mid-game; if you'd rather wait, it tells you whether you can still play with friends who updated. Updates are signed, checked file by file, and installed when Minecraft closes. Settings has Check for updates and Go back to the previous version.
+- **World rules.** Difficulty, keep inventory, PvP, daylight and more, on their own page from the Host tab. Only the host (and friends they make co-hosts) can change them, every change is announced in chat and listed, and the host can lock the rules for a challenge run.
+- **Welcome tour, debug report, screenshot tools.** A short tour the first time; Settings → Copy debug report (no IPs or names) for asking for help; favourite, rename and delete screenshots.
+
 ## Install (recommended): the JavaHost Installer
 
 1. Open the Minecraft Launcher once if you never have, then close it.
@@ -76,3 +80,11 @@ The GitHub workflow in `.github/workflows/build.yml` builds the Windows `.exe` a
 ## Credits
 
 Icons: [Pixelarticons](https://github.com/halfmage/pixelarticons) by Gerrit Halfmann (MIT). See `src/main/resources/assets/javahost/ICONS-LICENSE.txt`. To change them, edit the list in `scripts/gen-icons.py` and run it on Pixelarticons' `svg` folder.
+
+## Releasing an update
+
+1. Bump `version=` in `gradle.properties` (and `PROTOCOL` in `JavaHost.java` only if old and new versions can't play together).
+2. Commit and push, then run `scripts/release.sh "What's new"`.
+3. GitHub builds everything and publishes a release with a signed `update.json`; players' games offer the update on their next launch.
+
+The signing key's private half is the `UPDATE_SIGNING_KEY` Actions secret (a copy is kept outside the repo). Without it, releases can't be signed and the game ignores them.

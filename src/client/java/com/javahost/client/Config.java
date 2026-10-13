@@ -56,6 +56,10 @@ public final class Config {
 	public boolean fpsOverlay = false;
 	/** Friends see you as offline (you still see them). */
 	public boolean appearOffline = false;
+	/** The first-time welcome tour has been shown (or skipped). */
+	public boolean tourDone = false;
+	/** Starred screenshots, as paths inside the game folder. */
+	public java.util.Set<String> favouriteScreenshots = new java.util.HashSet<>();
 	/** "NEARBY" (proximity) or "PARTY" (everyone in the world hears you). */
 	public String voiceMode = "NEARBY";
 	/** Back up the world when the first friend joins (at most every 30 minutes). */
@@ -120,6 +124,9 @@ public final class Config {
 					}
 					if (config.videoMenu == null) {
 						config.videoMenu = "SIMPLE";
+					}
+					if (config.favouriteScreenshots == null) {
+						config.favouriteScreenshots = new java.util.HashSet<>();
 					}
 					if (config.usageDay == null) {
 						config.usageDay = "";

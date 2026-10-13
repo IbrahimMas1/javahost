@@ -163,6 +163,7 @@ final class MultiplayerTest {
 		config.shareResourcePacks = true;
 		config.shareShaders = true;
 		config.voiceEnabled = true;
+		config.tourDone = true;
 		config.outputVolume = 0; // decode everything, play nothing
 		config.port = 25599;
 
@@ -300,6 +301,30 @@ final class MultiplayerTest {
 			waitForShared(context, "guest-party-off", ONE_MINUTE);
 			runCommand(context, "tp Guest Host");
 			context.runOnClient(mc -> HostController.setGameMode(guestPlayer, GameType.SURVIVAL));
+
+			// ---- 1.5: world rules are fair: only the host and co-hosts change them, and a lock stops everyone.
+			net.minecraft.world.Difficulty startDifficulty = context.computeOnClient(mc -> mc.getSingleplayerServer().getWorldData().getDifficulty());
+			writeShared("host-rules-ready", "ok");
+			waitForShared(context, "guest-tried-rules", ONE_MINUTE);
+			context.waitTicks(20);
+			check(context.computeOnClient(mc -> mc.getSingleplayerServer().getWorldData().getDifficulty()) == startDifficulty,
+					"a guest who isn't a co-host can't change world rules");
+			context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("__cohost:" + guestPlayer, "true"));
+			writeShared("host-made-cohost", "ok");
+			waitForShared(context, "guest-changed-rules", ONE_MINUTE);
+			context.waitFor(mc -> mc.getSingleplayerServer().getWorldData().getDifficulty() == net.minecraft.world.Difficulty.HARD, ONE_MINUTE);
+			check(true, "after the host makes Guest a co-host, Guest can change Difficulty (and everyone is told)");
+			context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("__lock", "true"));
+			context.waitFor(mc -> com.javahost.client.rules.RulesClient.state() != null && com.javahost.client.rules.RulesClient.state().locked(), ONE_MINUTE);
+			writeShared("host-locked", "ok");
+			waitForShared(context, "guest-tried-locked", ONE_MINUTE);
+			context.waitTicks(20);
+			check(context.computeOnClient(mc -> mc.getSingleplayerServer().getWorldData().getDifficulty()) == net.minecraft.world.Difficulty.HARD,
+					"locked rules can't be changed, even by a co-host");
+			context.runOnClient(mc -> {
+				com.javahost.client.rules.RulesClient.request("__lock", "false");
+				com.javahost.client.rules.RulesClient.request("__cohost:" + guestPlayer, "false");
+			});
 			writeShared("host-controls-done", "ok");
 
 			// ---- The guest leaves, sees us hosting in their friends list and joins with no invite.
@@ -468,6 +493,7 @@ final class MultiplayerTest {
 	static void guest(ClientGameTestContext context) {
 		Config config = Config.get();
 		config.voiceEnabled = true;
+		config.tourDone = true;
 		config.outputVolume = 0;
 		config.autoAcceptHostPacks = true;
 		prepareShader(context, GUEST_SHADER, null);
@@ -548,6 +574,24 @@ final class MultiplayerTest {
 		waitForShared(context, "host-party-ok", ONE_MINUTE);
 		context.runOnClient(mc -> Config.get().voiceMode = "NEARBY");
 		writeShared("guest-party-off", "ok");
+		// ---- 1.5: world rules from the guest's side.
+		waitForShared(context, "host-rules-ready", 2 * ONE_MINUTE);
+		context.waitFor(mc -> com.javahost.client.rules.RulesClient.state() != null, ONE_MINUTE);
+		check(!context.computeOnClient(mc -> com.javahost.client.rules.RulesClient.state().canEdit()), "guest sees the world rules read-only");
+		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("DIFFICULTY", "peaceful"));
+		writeShared("guest-tried-rules", "ok");
+		waitForShared(context, "host-made-cohost", ONE_MINUTE);
+		context.waitFor(mc -> com.javahost.client.rules.RulesClient.state().canEdit(), ONE_MINUTE);
+		check(true, "guest became a co-host");
+		context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.RULES));
+		context.waitTicks(10);
+		context.takeScreenshot("mp-guest-world-rules-cohost");
+		context.setScreen(() -> null);
+		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("DIFFICULTY", "hard"));
+		writeShared("guest-changed-rules", "ok");
+		waitForShared(context, "host-locked", ONE_MINUTE);
+		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("DIFFICULTY", "easy"));
+		writeShared("guest-tried-locked", "ok");
 		context.takeScreenshot("mp-guest-joined-from-invite");
 		waitForShared(context, "host-controls-done", 3 * ONE_MINUTE);
 		VoiceClient.setTestTone(false);

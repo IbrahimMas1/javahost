@@ -32,7 +32,12 @@ import net.minecraft.network.chat.Component;
 public class ScreenshotsPage extends Page {
 	/** Set by a friend's profile ("Screenshot" button): who to offer first when sending. */
 	public static UUID sendTarget;
-	private static boolean showFriends;
+	/** Which screenshots the grid shows: "MINE", "FRIENDS" or "FAVOURITES". */
+	private static String view = "MINE";
+	private boolean renaming;
+	private long confirmDeleteUntil;
+	private String actionError;
+	private com.javahost.client.gui.ui.TextField renameField;
 	/** Open the friend list straight away on the next preview (from a thumbnail's send shortcut). */
 	private static boolean openPicker;
 	private static final Map<String, String> SEND_STATUS = new HashMap<>();
@@ -105,14 +110,19 @@ public class ScreenshotsPage extends Page {
 	}
 
 	private void buildGrid() {
-		add(new Segmented<>(160, List.of(false, true), showFriends, f -> f ? "From friends" : "Mine", f -> {
-			showFriends = f;
+		add(new Segmented<>(Math.min(240, width - 110), List.of("MINE", "FRIENDS", "FAVOURITES"), view,
+				v -> switch (v) {
+					case "FRIENDS" -> "From friends";
+					case "FAVOURITES" -> "★ Favourites";
+					default -> "Mine";
+				}, v -> {
+			view = v;
 			screen.refresh();
 		}), 0, 0);
 		add(new FlatButton(width - 166, 18, Component.literal("Open folder"), FlatButton.Style.GHOST, Icons.PACKAGE,
-				b -> com.mojang.blaze3d.Blaze3D.openPath(showFriends ? Screenshots.fromFriendsDir() : Screenshots.dir())), 166, 0);
+				b -> com.mojang.blaze3d.Blaze3D.openPath(view.equals("FRIENDS") ? Screenshots.fromFriendsDir() : Screenshots.dir())), Math.min(240, width - 110) + 6, 0);
 
-		files = Screenshots.list(showFriends);
+		files = currentFiles();
 		gridY = 26 + (sendTarget != null ? 22 : 0);
 		int gap = 6;
 		int cellW = (width - gap * (COLUMNS - 1)) / COLUMNS;
@@ -150,7 +160,7 @@ public class ScreenshotsPage extends Page {
 
 	private void buildPreview() {
 		// Sized so the buttons under it (and, while picking, the first friends) are always on screen.
-		previewH = Math.max(50, Math.min(width * 9 / 16, screen.contentHeight() - (picking ? 100 : 34)));
+		previewH = Math.max(50, Math.min(width * 9 / 16, screen.contentHeight() - (picking ? 124 : 58)));
 		int actionsY = previewH + 6;
 		int half = (width - 6) / 2;
 		add(new FlatButton(half, 20, Component.literal(picking ? "Cancel" : "Send to a friend"),
@@ -160,11 +170,12 @@ public class ScreenshotsPage extends Page {
 				}), 0, actionsY);
 		add(new FlatButton(half, 20, Component.literal("Show in folder"), FlatButton.Style.SECONDARY, Icons.PACKAGE,
 				b -> Screenshots.reveal(selected)), half + 6, actionsY);
+		buildTools(actionsY + 24);
 
-		pickerY = actionsY + 30;
+		pickerY = actionsY + 54;
 		pickerFriends = List.of();
 		if (!picking) {
-			reserve(actionsY + 26);
+			reserve(actionsY + 60);
 			return;
 		}
 		List<Friend> friends = new ArrayList<>(Friends.friends());
@@ -193,6 +204,80 @@ public class ScreenshotsPage extends Page {
 		reserve(y + 12);
 	}
 
+	/** Favourite, Rename and Delete, under the preview. */
+	private void buildTools(int y) {
+		int third = (width - 12) / 3;
+		if (renaming) {
+			renameField = add(new com.javahost.client.gui.ui.TextField(width - 128, Component.literal("New name")), 0, y);
+			String name = selected.getFileName().toString();
+			renameField.setValue(name.substring(0, name.length() - 4));
+			add(new FlatButton(58, 20, Component.literal("Save"), FlatButton.Style.PRIMARY, Icons.CHECK, b -> rename()), width - 122, y);
+			add(new FlatButton(58, 20, Component.literal("Cancel"), FlatButton.Style.GHOST, null, b -> {
+				renaming = false;
+				actionError = null;
+				screen.refresh();
+			}), width - 58, y);
+			screen.focusOn(renameField);
+			return;
+		}
+		boolean favourite = Screenshots.isFavourite(selected);
+		add(new FlatButton(third, 20, Component.literal(favourite ? "Favourite" : "Add to favourites"),
+				favourite ? FlatButton.Style.PRIMARY : FlatButton.Style.SECONDARY, Icons.STAR, b -> {
+					Screenshots.setFavourite(selected, !Screenshots.isFavourite(selected));
+					screen.refresh();
+				}), 0, y);
+		add(new FlatButton(third, 20, Component.literal("Rename"), FlatButton.Style.SECONDARY, Icons.EDIT, b -> {
+			renaming = true;
+			actionError = null;
+			screen.refresh();
+		}), third + 6, y);
+		boolean confirming = System.currentTimeMillis() < confirmDeleteUntil;
+		add(new FlatButton(width - third * 2 - 12, 20, Component.literal(confirming ? "Click again" : "Delete"), FlatButton.Style.DANGER, Icons.TRASH, b -> {
+			if (System.currentTimeMillis() >= confirmDeleteUntil) {
+				confirmDeleteUntil = System.currentTimeMillis() + 3000;
+				screen.refresh();
+				return;
+			}
+			try {
+				Screenshots.delete(selected);
+				screen.selectScreenshot(null);
+			} catch (java.io.IOException e) {
+				actionError = "Couldn't delete: " + e.getMessage();
+			}
+			confirmDeleteUntil = 0;
+			screen.refresh();
+		}), third * 2 + 12, y);
+	}
+
+	private void rename() {
+		try {
+			java.nio.file.Path renamed = Screenshots.rename(selected, renameField.getValue());
+			renaming = false;
+			actionError = null;
+			screen.selectScreenshot(renamed);
+		} catch (java.io.IOException e) {
+			actionError = e.getMessage();
+		}
+		screen.refresh();
+	}
+
+	@Override
+	protected boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+		if (renaming && isEnter(event) && renameField != null && renameField.isFocused()) {
+			rename();
+			return true;
+		}
+		return false;
+	}
+
+	private List<Path> currentFiles() {
+		return switch (view) {
+			case "FRIENDS" -> Screenshots.list(true);
+			case "FAVOURITES" -> Screenshots.favourites();
+			default -> Screenshots.list(false);
+		};
+	}
+
 	private String key(Friend friend) {
 		return friend.id() + "|" + selected;
 	}
@@ -210,7 +295,7 @@ public class ScreenshotsPage extends Page {
 	}
 
 	private String signature() {
-		return String.valueOf(Screenshots.list(showFriends).size()) + SEND_STATUS.hashCode() + screen.selectedScreenshot();
+		return String.valueOf(currentFiles().size()) + SEND_STATUS.hashCode() + screen.selectedScreenshot();
 	}
 
 	@Override
@@ -221,6 +306,28 @@ public class ScreenshotsPage extends Page {
 		}
 	}
 
+	/** Stars on favourite screenshots, drawn over the thumbnails and the preview. */
+	@Override
+	protected void drawOverlay(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY) {
+		if (selected != null) {
+			if (Screenshots.isFavourite(selected)) {
+				star(g, left + 4, top + 4);
+			}
+			return;
+		}
+		for (int i = 0; i < thumbs.size() && i < files.size(); i++) {
+			if (Screenshots.isFavourite(files.get(i))) {
+				ImageButton thumb = thumbs.get(i);
+				star(g, thumb.getX() + 3, thumb.getY() + 3);
+			}
+		}
+	}
+
+	private static void star(GuiGraphicsExtractor g, int x, int y) {
+		Draw.roundRect(g, x, y, 14, 14, 4, 0xCC101419);
+		Icons.STAR.drawCentred(g, x + 7, y + 7, 10, 0xFFF2C14E);
+	}
+
 	@Override
 	protected void draw(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY) {
 		if (selected != null) {
@@ -228,6 +335,9 @@ public class ScreenshotsPage extends Page {
 			Draw.roundRect(g, left, top, width, previewH, 6, Theme.BORDER);
 			if (image != null) {
 				ImageButton.drawCover(g, image, left + 1, top + 1, width - 2, previewH - 2);
+			}
+			if (actionError != null) {
+				Draw.textFit(g, actionError, width, left, top + previewH + 53, Theme.WARNING);
 			}
 			if (!picking) {
 				return;
@@ -269,7 +379,11 @@ public class ScreenshotsPage extends Page {
 		}
 		if (files.isEmpty()) {
 			card(g, left, top + gridY, width, 40);
-			Draw.centered(g, showFriends ? "Nothing from friends yet." : "No screenshots yet.", left + width / 2, top + gridY + 16, Theme.MUTED);
+			Draw.centered(g, switch (view) {
+				case "FRIENDS" -> "Nothing from friends yet.";
+				case "FAVOURITES" -> "Star screenshots to keep them here.";
+				default -> "No screenshots yet.";
+			}, left + width / 2, top + gridY + 16, Theme.MUTED);
 		}
 	}
 }

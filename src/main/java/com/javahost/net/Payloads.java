@@ -108,6 +108,34 @@ public final class Payloads {
 		}
 	}
 
+	// ---------------------------------------------------------------- world rules
+
+	/** Server -> client: the world rules, the lock, your permission, co-hosts and recent changes (as JSON). */
+	public record RulesState(String json) implements CustomPacketPayload {
+		public static final Type<RulesState> TYPE = payloadType("rules_state");
+		public static final StreamCodec<FriendlyByteBuf, RulesState> CODEC = CustomPacketPayload.codec(
+				(p, buf) -> buf.writeUtf(p.json, 30000),
+				buf -> new RulesState(buf.readUtf(30000)));
+
+		@Override
+		public Type<RulesState> type() {
+			return TYPE;
+		}
+	}
+
+	/** Client -> server: please change a rule (or "__lock", or "__cohost:&lt;uuid&gt;"); the server checks permission. */
+	public record RulesChange(String rule, String value) implements CustomPacketPayload {
+		public static final Type<RulesChange> TYPE = payloadType("rules_change");
+		public static final StreamCodec<FriendlyByteBuf, RulesChange> CODEC = CustomPacketPayload.codec(
+				(p, buf) -> buf.writeUtf(p.rule, 64).writeUtf(p.value, 32),
+				buf -> new RulesChange(buf.readUtf(64), buf.readUtf(32)));
+
+		@Override
+		public Type<RulesChange> type() {
+			return TYPE;
+		}
+	}
+
 	// ---------------------------------------------------------------- same-world fast lane
 
 	/** Largest piece of a fast-lane transfer; serverbound custom payloads are capped at 32 KiB. */
@@ -237,6 +265,7 @@ public final class Payloads {
 		PayloadTypeRegistry.serverboundPlay().register(PackAck.TYPE, PackAck.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(VoiceUp2.TYPE, VoiceUp2.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(RelayUp.TYPE, RelayUp.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(RulesChange.TYPE, RulesChange.CODEC);
 
 		PayloadTypeRegistry.clientboundPlay().register(VoiceDown.TYPE, VoiceDown.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(VoiceConfig.TYPE, VoiceConfig.CODEC);
@@ -245,5 +274,6 @@ public final class Payloads {
 		PayloadTypeRegistry.clientboundPlay().register(VoiceDown2.TYPE, VoiceDown2.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(ServerHello.TYPE, ServerHello.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(RelayDown.TYPE, RelayDown.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(RulesState.TYPE, RulesState.CODEC);
 	}
 }

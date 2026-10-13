@@ -61,6 +61,7 @@ public class JavaHostClient implements ClientModInitializer {
 		KeyMappingHelper.registerKeyMapping(PARTY_VOICE);
 
 		VoiceClient.register();
+		com.javahost.client.rules.RulesClient.register();
 		com.javahost.client.perf.VideoMenu.register();
 		// The version check, in world: the host tells us its JavaHost version when we join.
 		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(com.javahost.net.Payloads.ServerHello.TYPE,
@@ -83,6 +84,7 @@ public class JavaHostClient implements ClientModInitializer {
 			InviteFlow.tick(minecraft);
 			Popups.tick(minecraft);
 			Toasts.tick(minecraft);
+			com.javahost.client.update.UpdateChecker.tick(minecraft);
 			Friends.tick();
 			Presence.tick(minecraft);
 			while (OPEN_MENU.consumeClick()) {
@@ -114,10 +116,14 @@ public class JavaHostClient implements ClientModInitializer {
 		// Leaving the world (or the integrated server stopping) ends hosting and closes the router port.
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> HostController.cleanup());
 		ClientLifecycleEvents.CLIENT_STOPPING.register(minecraft -> {
+			com.javahost.client.update.Updater.launchSwapIfStaged();
 			Presence.goOffline();
 			E4mcCompat.shutdownForExit();
 		});
-		ClientLifecycleEvents.CLIENT_STARTED.register(minecraft -> Popups.startFriends());
+		ClientLifecycleEvents.CLIENT_STARTED.register(minecraft -> {
+			Popups.startFriends();
+			com.javahost.client.update.UpdateChecker.start();
+		});
 
 		// Tell the host when a friend joins their world.
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {

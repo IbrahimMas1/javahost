@@ -51,6 +51,7 @@ public class JavaHostScreen extends Screen {
 		ACCOUNT("Account", Icons.USER, AccountPage::new, null),
 		// Sub-pages, reached from other pages (they highlight their parent in the sidebar).
 		JOIN("Join", Icons.JOIN, JoinPage::new, FRIENDS),
+		RULES("World rules", Icons.SHIELD, com.javahost.client.gui.pages.WorldRulesPage::new, HOST),
 		PROFILE("Profile", Icons.USER, ProfilePage::new, FRIENDS),
 		CHAT("Chat", Icons.CHAT, ChatPage::new, FRIENDS),
 		NOTIFICATIONS("Notifications", Icons.BELL, NotificationsPage::new, null);
@@ -193,6 +194,12 @@ public class JavaHostScreen extends Screen {
 	protected void init() {
 		sidebarWidgets.clear();
 		pageWidgets.clear();
+		if (tour == null && !Config.get().tourDone && !tourOffered) {
+			tourOffered = true; // first time ever: start the welcome tour
+			tour = new WelcomeTour(this);
+			tab = tour.tab();
+			page = null;
+		}
 
 		// At most 480x310, and never more than ~88% of the screen, so big GUI scales keep a margin all round.
 		winW = Math.min(480, Math.min(width - 16, Math.round(width * 0.88f)));
@@ -249,6 +256,10 @@ public class JavaHostScreen extends Screen {
 		}
 		clampScroll();
 		layoutPage();
+		if (tour != null) {
+			tour.init(winX, winY, winW, winH, contentX, contentW);
+			tour.buttons().forEach(this::addWidget); // so keyboard and tests find them; drawn on top below
+		}
 	}
 
 	void addPageWidget(AbstractWidget widget) {
@@ -358,6 +369,22 @@ public class JavaHostScreen extends Screen {
 			int barY = contentY + Math.round((contentH - barH) * (scroll / maxScroll()));
 			Draw.roundRect(g, winX + winW - 7, barY, 3, barH, 1, Theme.FAINT);
 		}
+		if (tour != null) {
+			g.nextStratum();
+			int[] highlight = tour.tab() == Tab.HOME && tour.buttons().size() == 1 ? null : sidebarBounds(tour.tab());
+			tour.draw(g, winX, winY, winW, winH, highlight);
+			if (highlight != null) {
+				// Redraw the highlighted tab on top of the dimming.
+				for (AbstractWidget widget : sidebarWidgets) {
+					if (widget instanceof SidebarTab t && t.target == tour.tab()) {
+						t.extractRenderState(g, -1, -1, a);
+					}
+				}
+			}
+			for (AbstractWidget button : tour.buttons()) {
+				button.extractRenderState(g, mouseX, mouseY, a);
+			}
+		}
 		g.pose().popMatrix();
 	}
 
@@ -419,6 +446,48 @@ public class JavaHostScreen extends Screen {
 			return;
 		}
 		close();
+	}
+
+	private WelcomeTour tour;
+	private static boolean tourOffered;
+
+	/** Starts the welcome tour (Settings, or automatically the first time). */
+	public void startTour() {
+		tour = new WelcomeTour(this);
+		switchTo(tour.tab());
+	}
+
+	void showTourStep() {
+		switchTo(tour.tab());
+	}
+
+	void endTour() {
+		tour = null;
+		rebuildWidgets();
+	}
+
+	/** The sidebar row for a tab (x, y, w, h), to highlight it during the tour. */
+	private int[] sidebarBounds(Tab target) {
+		for (AbstractWidget widget : sidebarWidgets) {
+			if (widget instanceof SidebarTab t && t.target == target) {
+				return new int[] {t.getX(), t.getY(), t.getWidth(), t.getHeight()};
+			}
+		}
+		return null;
+	}
+
+	@Override
+	public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+		if (tour != null) {
+			// During the tour only its own buttons respond.
+			for (AbstractWidget button : tour.buttons()) {
+				if (button.isMouseOver(event.x(), event.y())) {
+					return button.mouseClicked(event, doubleClick);
+				}
+			}
+			return true;
+		}
+		return super.mouseClicked(event, doubleClick);
 	}
 
 	/** Leaves the menu, back to the screen it was opened from. */

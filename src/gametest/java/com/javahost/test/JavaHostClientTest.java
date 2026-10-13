@@ -54,6 +54,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			MultiplayerTest.guest(context);
 			return;
 		}
+		Config.get().tourDone = true; // the welcome tour is tested on its own below
 		inviteCodes();
 		opusRoundTrip();
 
@@ -339,6 +340,163 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.waitTicks(4);
 	}
 
+	// ================================================================ 1.5
+
+	private static String sha256(byte[] data) throws Exception {
+		return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(data));
+	}
+
+	/** A pretend GitHub release on localhost, signed with a throwaway key the game is told to trust. */
+	private static com.sun.net.httpserver.HttpServer fakeRelease(String version, int protocol, boolean tamper) throws Exception {
+		java.security.KeyPair keys = java.security.KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+		byte[] jar = ("not really a jar " + version).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+		com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("localhost", 0), 0);
+		String base = "http://localhost:" + server.getAddress().getPort();
+		String json = "{\"version\": \"" + version + "\", \"protocol\": " + protocol + ", \"minecraft\": \"26.3\", "
+				+ "\"notes\": \"Faster joining, world rules and a welcome tour.\", \"releasePage\": \"" + base + "\", "
+				+ "\"files\": [{\"name\": \"javahost-" + version + ".jar\", \"url\": \"" + base + "/javahost-" + version + ".jar\", "
+				+ "\"sha256\": \"" + sha256(jar) + "\", \"size\": " + jar.length + ", \"replaces\": \"javahost-[0-9].*\\\\.jar\"}]}";
+		byte[] jsonBytes = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+		java.security.Signature signer = java.security.Signature.getInstance("Ed25519");
+		signer.initSign(keys.getPrivate());
+		signer.update(jsonBytes);
+		byte[] sig = java.util.Base64.getEncoder().encode(signer.sign());
+		byte[] served = tamper ? ("tampered " + version).getBytes(java.nio.charset.StandardCharsets.UTF_8) : jar;
+		server.createContext("/", exchange -> {
+			String path = exchange.getRequestURI().getPath();
+			byte[] body = path.endsWith("update.json") ? jsonBytes : path.endsWith(".sig") ? sig : path.endsWith(".jar") ? served : new byte[0];
+			exchange.sendResponseHeaders(body.length == 0 ? 404 : 200, body.length == 0 ? -1 : body.length);
+			try (var out = exchange.getResponseBody()) {
+				out.write(body);
+			}
+		});
+		server.start();
+		System.setProperty("javahost.updateUrl", base);
+		System.setProperty("javahost.updateKey", java.util.Base64.getEncoder().encodeToString(keys.getPublic().getEncoded()));
+		return server;
+	}
+
+	private static void updateFlow(ClientGameTestContext context, String version, int protocol, boolean tamper, String shot) throws Exception {
+		com.sun.net.httpserver.HttpServer server = fakeRelease(version, protocol, tamper);
+		try {
+			context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+			context.runOnClient(mc -> com.javahost.client.update.UpdateChecker.checkNow(null));
+			context.waitFor(mc -> mc.gui.screen() instanceof com.javahost.client.update.UpdateScreen, 400);
+			check(true, "update " + version + " offered on the title screen");
+			context.waitTicks(4);
+			context.takeScreenshot(shot + "-offer");
+			clickMenu(context, "Not now");
+			context.waitTicks(4);
+			context.takeScreenshot(shot + "-not-now");
+			clickMenu(context, "Update now");
+			context.waitFor(mc -> mc.gui.screen().children().stream().anyMatch(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w
+					&& (w.getMessage().getString().equals("Close Minecraft") || w.getMessage().getString().equals("Try again"))), 400);
+			context.takeScreenshot(shot + "-result");
+			boolean staged = context.computeOnClient(mc -> com.javahost.client.update.Updater.staged());
+			if (tamper) {
+				check(!staged, "a damaged or tampered download is refused (nothing staged)");
+			} else {
+				check(staged, "the update is downloaded, verified and waiting for the game to close");
+				java.nio.file.Path plan = context.computeOnClient(mc -> mc.gameDirectory.toPath().resolve("javahost/updates/plan.properties"));
+				check(java.nio.file.Files.readString(plan).contains("javahost-" + version + ".jar"), "the swap plan names the new jar");
+				java.nio.file.Files.delete(plan); // don't actually swap jars when this test game closes
+			}
+			context.setScreen(() -> null);
+		} finally {
+			server.stop(0);
+			System.clearProperty("javahost.updateUrl");
+			System.clearProperty("javahost.updateKey");
+		}
+	}
+
+	/** 1.5: updater, world rules, welcome tour, screenshot tools, debug report. */
+	private static void version15(ClientGameTestContext context) {
+		try {
+			updateFlow(context, "9.9.9", com.javahost.JavaHost.PROTOCOL, false, "update-same-protocol");
+			updateFlow(context, "9.9.10", com.javahost.JavaHost.PROTOCOL + 1, true, "update-new-protocol");
+		} catch (Exception e) {
+			throw new AssertionError(e);
+		}
+
+		// World rules: the host changes a rule; locking stops changes, even by command.
+		context.setScreen(() -> new JavaHostScreen(null, Tab.RULES));
+		context.waitFor(mc -> com.javahost.client.rules.RulesClient.state() != null, 200);
+		check(context.computeOnClient(mc -> com.javahost.client.rules.RulesClient.state().host()), "the host sees world rules and can change them");
+		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("DIFFICULTY", "easy"));
+		context.waitFor(mc -> "easy".equals(com.javahost.client.rules.RulesClient.state().values().get("DIFFICULTY")), 100);
+		check(context.computeOnClient(mc -> mc.getSingleplayerServer().getWorldData().getDifficulty() == net.minecraft.world.Difficulty.EASY),
+				"changing Difficulty on the page changes the world");
+		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("__lock", "true"));
+		context.waitFor(mc -> com.javahost.client.rules.RulesClient.state().locked(), 100);
+		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("DIFFICULTY", "hard"));
+		context.runOnClient(mc -> {
+			var server = mc.getSingleplayerServer();
+			server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "difficulty hard"));
+		});
+		context.waitTicks(50);
+		check(context.computeOnClient(mc -> mc.getSingleplayerServer().getWorldData().getDifficulty() == net.minecraft.world.Difficulty.EASY),
+				"while locked, neither the page nor /difficulty can change the rules");
+		context.setScreen(() -> new JavaHostScreen(null, Tab.RULES));
+		context.waitTicks(8);
+		context.takeScreenshot("ui-world-rules-locked");
+		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("__lock", "false"));
+		context.waitFor(mc -> !com.javahost.client.rules.RulesClient.state().locked(), 100);
+		check(context.computeOnClient(mc -> com.javahost.client.rules.RulesClient.state().history().size() >= 3), "changes are kept in the history");
+		context.setScreen(() -> new JavaHostScreen(null, Tab.RULES));
+		context.waitTicks(8);
+		context.takeScreenshot("ui-world-rules");
+
+		// Welcome tour: shown the first time, Next through it, Done.
+		Config.get().tourDone = false;
+		context.runOnClient(mc -> {
+			try {
+				java.lang.reflect.Field offered = JavaHostScreen.class.getDeclaredField("tourOffered");
+				offered.setAccessible(true);
+				offered.set(null, false);
+			} catch (ReflectiveOperationException e) {
+				throw new AssertionError(e);
+			}
+		});
+		context.setScreen(() -> new JavaHostScreen(null));
+		context.waitTicks(6);
+		for (int step = 1; step <= 5; step++) {
+			context.takeScreenshot("ui-tour-" + step);
+			clickMenu(context, step == 5 ? "Done" : "Next");
+		}
+		check(Config.get().tourDone, "the welcome tour runs through and is remembered");
+
+		// Screenshot tools: favourite, rename, delete.
+		java.nio.file.Path shot = context.computeOnClient(mc -> com.javahost.client.friends.Screenshots.list(false).getFirst());
+		context.runOnClient(mc -> com.javahost.client.friends.Screenshots.setFavourite(shot, true));
+		check(context.computeOnClient(mc -> com.javahost.client.friends.Screenshots.favourites().contains(shot)), "a starred screenshot shows in Favourites");
+		java.nio.file.Path renamed = context.computeOnClient(mc -> {
+			try {
+				return com.javahost.client.friends.Screenshots.rename(shot, "My best build");
+			} catch (IOException e) {
+				throw new AssertionError(e);
+			}
+		});
+		check(renamed.getFileName().toString().equals("My best build.png")
+				&& context.computeOnClient(mc -> com.javahost.client.friends.Screenshots.isFavourite(renamed)), "renaming keeps it starred");
+		context.setScreen(() -> new JavaHostScreen(null, Tab.SCREENSHOTS));
+		context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).openScreenshot(renamed));
+		context.waitTicks(8);
+		context.takeScreenshot("ui-screenshot-tools");
+		clickMenu(context, "Delete");
+		clickMenu(context, "Click again");
+		check(!java.nio.file.Files.exists(renamed), "Delete (clicked twice) removes the screenshot");
+
+		// Debug report.
+		String report = context.computeOnClient(mc -> com.javahost.client.DebugReport.build());
+		check(report.startsWith("JavaHost debug report") && report.contains("Minecraft 26.3")
+				&& !java.util.regex.Pattern.compile("\\b\\d{1,3}(\\.\\d{1,3}){3}\\b").matcher(report).find(), "debug report has versions and no IP addresses");
+		context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
+		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -40));
+		context.waitTicks(10);
+		context.takeScreenshot("ui-settings-updates-help");
+		context.setScreen(() -> null);
+	}
+
 	/** 1.4: big screenshots fit the relay, the video settings switch, and world backups. */
 	private static void version14(ClientGameTestContext context) {
 		// Screenshot size: ntfy.sh takes at most 2 MB per file.
@@ -575,6 +733,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.takeScreenshot("ui-screenshots-preview");
 		navigation(context, file);
 		version14(context);
+		version15(context);
 		// Sample notifications: a long JavaHost notice (wraps in full) and a friend's message.
 		context.runOnClient(mc -> {
 			com.javahost.client.Toasts.notify("Installed 4 mods", "Restart Minecraft to turn them on. Sodium, Lithium, FerriteCore and ImmediatelyFast are ready and will load next time.");

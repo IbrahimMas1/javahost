@@ -92,6 +92,63 @@ public final class Screenshots {
 		}
 	}
 
+	// ---------------------------------------------------------------- favourites, rename, delete
+
+	/** Favourites are remembered by their path inside the game folder. */
+	private static String key(Path file) {
+		Path game = Minecraft.getInstance().gameDirectory.toPath().toAbsolutePath().normalize();
+		Path abs = file.toAbsolutePath().normalize();
+		return (abs.startsWith(game) ? game.relativize(abs) : abs).toString().replace('\\', '/');
+	}
+
+	public static boolean isFavourite(Path file) {
+		return com.javahost.client.Config.get().favouriteScreenshots.contains(key(file));
+	}
+
+	public static void setFavourite(Path file, boolean favourite) {
+		var config = com.javahost.client.Config.get();
+		if (favourite) {
+			config.favouriteScreenshots.add(key(file));
+		} else {
+			config.favouriteScreenshots.remove(key(file));
+		}
+		config.save();
+	}
+
+	/** Favourites from both folders, newest first. */
+	public static List<Path> favourites() {
+		List<Path> all = new ArrayList<>(list(false));
+		all.addAll(list(true));
+		return all.stream().filter(Screenshots::isFavourite).sorted(Comparator.comparing(Screenshots::modified).reversed()).toList();
+	}
+
+	/** Renames in place (keeping .png); returns the new path. The name may not contain folder separators. */
+	public static Path rename(Path file, String newName) throws IOException {
+		String name = newName.strip();
+		if (name.toLowerCase().endsWith(".png")) {
+			name = name.substring(0, name.length() - 4).strip();
+		}
+		if (name.isEmpty() || !name.matches("[^/\\\\:*?\"<>|]{1,80}") || name.startsWith(".")) {
+			throw new IOException("Use letters, numbers, spaces, - or _ (no / \\ : * ? \" < > |).");
+		}
+		Path target = file.resolveSibling(name + ".png");
+		if (Files.exists(target)) {
+			throw new IOException("There's already a screenshot called " + name + ".");
+		}
+		boolean favourite = isFavourite(file);
+		Files.move(file, target);
+		if (favourite) {
+			setFavourite(file, false);
+			setFavourite(target, true);
+		}
+		return target;
+	}
+
+	public static void delete(Path file) throws IOException {
+		setFavourite(file, false);
+		Files.deleteIfExists(file);
+	}
+
 	private static long modified(Path path) {
 		try {
 			return Files.getLastModifiedTime(path).toMillis();
