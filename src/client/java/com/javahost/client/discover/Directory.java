@@ -23,9 +23,9 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 
 /**
- * The JavaHost public world list (a small service: directory/ in this repo). Signing in uses Minecraft's own server
- * login: the list service gives a one-time code, the game tells Mojang "I'm joining that", and the service asks
- * Mojang whether we did. So nobody can list a world or report in someone else's name.
+ * The JavaHost public world list (a small service: directory/ in this repo). Signing in: the list gives a one-time
+ * code, and the game signs it with its Mojang-certified chat key (the one Minecraft signs chat with); the list checks
+ * Mojang's certificate. So nobody can list a world or report from someone else's account.
  */
 public final class Directory {
 	/** Where the list lives (the Worker in directory/, on Cloudflare). */
@@ -42,6 +42,23 @@ public final class Directory {
 
 	/** What the list service said: ok, or why not (shown to the player). */
 	public record Result(boolean ok, String message, JsonObject body) {
+	}
+
+	/** Hosts' real names, looked up with Mojang from this computer (a listing's name is what the host's game said). */
+	private static final java.util.Map<UUID, String> REAL_NAMES = new java.util.concurrent.ConcurrentHashMap<>();
+
+	/** The host's name as Mojang knows it, once looked up; until then, the name in the listing. */
+	public static String nameOf(PublicWorld world) {
+		return REAL_NAMES.getOrDefault(world.host(), world.name());
+	}
+
+	/** Looks up the real names of hosts we haven't checked yet. */
+	public static void checkNames(List<PublicWorld> worlds) {
+		for (PublicWorld world : worlds) {
+			if (REAL_NAMES.putIfAbsent(world.host(), world.name()) == null) {
+				Identity.nameOf(world.host()).thenAccept(real -> real.ifPresent(name -> REAL_NAMES.put(world.host(), name)));
+			}
+		}
 	}
 
 	private static String token;
@@ -148,29 +165,33 @@ public final class Directory {
 				return CompletableFuture.completedFuture(challenge);
 			}
 			String serverId = challenge.body().get("serverId").getAsString();
-			Minecraft minecraft = Minecraft.getInstance();
-			try {
-				// Tell Mojang we're "joining" the list service; it then asks Mojang whether we really did.
-				minecraft.services().sessionService().joinServer(minecraft.getUser().getProfileId(), minecraft.getUser().getAccessToken(), serverId);
-			} catch (Exception e) {
-				if (!FabricLoader.getInstance().isDevelopmentEnvironment()) {
-					return CompletableFuture.completedFuture(new Result(false, "Couldn't sign in with your Minecraft account.", new JsonObject()));
-				}
-				// Test accounts can't do this; the local test service accepts them anyway.
-			}
 			JsonObject verify = new JsonObject();
 			verify.addProperty("name", Identity.name());
+			verify.addProperty("uuid", Identity.id().toString());
 			verify.addProperty("serverId", serverId);
 			verify.addProperty("expires", challenge.body().get("expires").getAsLong());
-			return send("POST", "/auth/verify", verify, false).thenApply(result -> {
-				if (result.ok()) {
-					synchronized (Directory.class) {
-						token = result.body().get("token").getAsString();
-						tokenUntil = System.currentTimeMillis() + 11 * 60 * 60 * 1000L;
-					}
+			// Sign the one-time code with our Mojang-certified chat key; the list checks Mojang's certificate.
+			byte[] payload = String.join("\n", "javahost-directory-v1", serverId, Identity.id().toString(), Identity.name())
+					.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+			return Identity.sign(verify, payload).thenCompose(signed -> {
+				if (!signed && !FabricLoader.getInstance().isDevelopmentEnvironment()) {
+					return CompletableFuture.completedFuture(new Result(false,
+							"Public worlds need you signed in to Minecraft with a Microsoft account.", new JsonObject()));
 				}
-				return result;
+				return signIn(verify);
 			});
+		});
+	}
+
+	private static CompletableFuture<Result> signIn(JsonObject verify) {
+		return send("POST", "/auth/verify", verify, false).thenApply(result -> {
+			if (result.ok()) {
+				synchronized (Directory.class) {
+					token = result.body().get("token").getAsString();
+					tokenUntil = System.currentTimeMillis() + 11 * 60 * 60 * 1000L;
+				}
+			}
+			return result;
 		});
 	}
 

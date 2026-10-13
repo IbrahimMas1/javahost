@@ -135,7 +135,7 @@ public class DiscoverPage extends Page {
 		if (here != null) {
 			hereY = listY;
 			add(new FlatButton(80, 18, Component.literal("Report"), FlatButton.Style.SECONDARY, Icons.WARNING,
-					b -> minecraft.gui.setScreen(new ReportScreen(screen, here.host(), here.name()))), width - 90, hereY + 9);
+					b -> minecraft.gui.setScreen(new ReportScreen(screen, here.host(), Directory.nameOf(here)))), width - 90, hereY + 9);
 			listY += 46;
 		} else {
 			hereY = -1;
@@ -175,7 +175,7 @@ public class DiscoverPage extends Page {
 		}
 		if (!mine) {
 			add(new FlatButton(80, 20, Component.literal("Report"), FlatButton.Style.SECONDARY, Icons.WARNING,
-					b -> minecraft.gui.setScreen(new ReportScreen(screen, world.host(), world.name()))), 106, buttonsY);
+					b -> minecraft.gui.setScreen(new ReportScreen(screen, world.host(), Directory.nameOf(world)))), 106, buttonsY);
 			FlatButton hide = add(new FlatButton(80, 20, Component.literal("Hide host"), FlatButton.Style.GHOST, Icons.CROSS, b -> {
 				Config config = Config.get();
 				config.hiddenHosts.add(world.host().toString());
@@ -183,7 +183,7 @@ public class DiscoverPage extends Page {
 				selected = null;
 				screen.refresh();
 			}), 192, buttonsY);
-			hide.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Stop showing " + world.name() + "'s worlds")));
+			hide.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Stop showing " + Directory.nameOf(world) + "'s worlds")));
 		}
 		return y + detailH + 4;
 	}
@@ -218,7 +218,7 @@ public class DiscoverPage extends Page {
 		shown = worlds.stream()
 				.filter(w -> !config.hiddenHosts.contains(w.host().toString()) && !Friends.isBlocked(w.host()))
 				.filter(w -> tagFilter.equals("all") || w.tags().contains(tagFilter))
-				.filter(w -> needle.isEmpty() || (w.title() + " " + w.name() + " " + w.description()).toLowerCase(Locale.ROOT).contains(needle))
+				.filter(w -> needle.isEmpty() || (w.title() + " " + Directory.nameOf(w) + " " + w.description()).toLowerCase(Locale.ROOT).contains(needle))
 				.sorted(order)
 				.toList();
 	}
@@ -232,6 +232,7 @@ public class DiscoverPage extends Page {
 		fetching = true;
 		Directory.list().thenAccept(found -> minecraft.execute(() -> {
 			worlds = found;
+			Directory.checkNames(found);
 			fetchedAt = System.currentTimeMillis();
 			fetching = false;
 			PINGS.keySet().removeIf(id -> found.stream().noneMatch(w -> w.host().equals(id)));
@@ -320,7 +321,7 @@ public class DiscoverPage extends Page {
 			int y = top + hereY;
 			Draw.panel(g, left, y, width, 36, 8, Theme.CARD);
 			Faces.draw(g, here.host(), left + 9, y + 9, 18);
-			Draw.textFit(g, "You're in " + here.name() + "'s public world", width - 140, left + 34, y + 7, Theme.TEXT);
+			Draw.textFit(g, "You're in " + Directory.nameOf(here) + "'s public world", width - 140, left + 34, y + 7, Theme.TEXT);
 			Draw.textFit(g, "\"" + here.title() + "\"", width - 140, left + 34, y + 19, Theme.MUTED);
 		}
 		sectionLabel(g, fetching && worlds.isEmpty() ? "Looking for public worlds..." : "Public worlds (" + shown.size() + ")", left, top + listY);
@@ -340,7 +341,7 @@ public class DiscoverPage extends Page {
 			Faces.draw(g, world.host(), left + 8, y + 7, 18);
 			int textRight = width - 120;
 			Draw.textFit(g, world.title(), textRight - 34, left + 34, y + 5, Theme.TEXT);
-			String meta = world.name() + " · " + world.region() + (world.tags().isEmpty() ? "" : " · "
+			String meta = Directory.nameOf(world) + " · " + world.region() + (world.tags().isEmpty() ? "" : " · "
 					+ String.join(", ", world.tags().stream().map(ListingText::tagLabel).toList()));
 			Draw.textFit(g, meta, textRight - 34, left + 34, y + 17, Theme.FAINT);
 			drawStatus(g, world, left + width - 112, y + 6);

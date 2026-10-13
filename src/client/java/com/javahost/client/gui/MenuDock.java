@@ -88,6 +88,11 @@ public final class MenuDock {
 			if (step < 19) {
 				separator = 0; // short window: drop the gap above Account before shrinking the buttons further
 				step = Math.max(18, Math.min(MAX_STEP, room / items.size()));
+				// Still too tall: start higher rather than run off the bottom of the window.
+				int needed = step * items.size();
+				if (needed > room) {
+					top = Math.max(4, height - 14 - needed);
+				}
 			}
 		} else {
 			step = MAX_STEP;

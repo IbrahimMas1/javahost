@@ -1,11 +1,12 @@
 // JavaHost public world list.
 //
-// Hosts sign in with Minecraft's own server login (the game calls Mojang's joinServer, we ask Mojang's hasJoined),
-// so nobody can list a world or report as someone else. Listings go away 7 minutes after the last heartbeat; three
+// Hosts sign in with their Mojang-certified chat key (checked against Mojang's public keys), so nobody can list a
+// world or report from someone else's account. Listings go away 7 minutes after the last heartbeat; three
 // reports from different players hide one until it's reviewed; banned accounts can't list. Nothing here ever holds
 // a player's IP address: listings only carry a relay address.
 
 import { validateListing, clean } from "./rules.js";
+import { PLAYER_CERTIFICATE_KEYS } from "./mojang-keys.js";
 
 const MINUTE = 60_000;
 const LISTING_TTL = 7 * MINUTE;
@@ -37,10 +38,6 @@ function sameText(a, b) {
 
 function json(body, status = 200, headers = {}) {
 	return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
-}
-
-function dashed(id) {
-	return id.replace(/^(\w{8})(\w{4})(\w{4})(\w{4})(\w{12})$/u, "$1-$2-$3-$4-$5").toLowerCase();
 }
 
 async function readJson(request) {
@@ -85,9 +82,44 @@ async function challenge(env, now) {
 	return json({ serverId, expires });
 }
 
+function fromBase64(text) {
+	const binary = atob(text.replace(/-----[^-]+-----/gu, "").replace(/\s+/gu, ""));
+	return Uint8Array.from(binary, (c) => c.charCodeAt(0));
+}
+
+async function verifyRsa(spki, hash, signature, data) {
+	try {
+		const key = await crypto.subtle.importKey("spki", spki, { name: "RSASSA-PKCS1-v1_5", hash }, false, ["verify"]);
+		return await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, signature, data);
+	} catch {
+		return false;
+	}
+}
+
+/** The bytes Mojang signs in a player certificate: account id, expiry (ms) and the player's public key. */
+function certificatePayload(uuid, expiresAt, keyDer) {
+	const out = new Uint8Array(24 + keyDer.length);
+	const hex = uuid.replace(/-/gu, "");
+	for (let i = 0; i < 16; i++) {
+		out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+	}
+	new DataView(out.buffer).setBigInt64(16, BigInt(expiresAt));
+	out.set(keyDer, 24);
+	return out;
+}
+
+/** What the game signs to sign in: our one-time code, its account and name. */
+export function signInPayload(serverId, uuid, name) {
+	return encoder.encode(["javahost-directory-v1", serverId, uuid, name].join("\n"));
+}
+
+// Signing in: the game signs our one-time code with its Mojang-certified chat key (the same key Minecraft signs
+// chat with). We check Mojang's signature on that certificate and the game's signature on the code: no call to
+// Mojang is needed (Mojang refuses requests from Cloudflare's servers).
 async function verify(env, request, now) {
 	const body = await readJson(request);
 	if (!body || typeof body.name !== "string" || !/^[A-Za-z0-9_]{1,16}$/u.test(body.name)
+		|| typeof body.uuid !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(body.uuid)
 		|| typeof body.serverId !== "string" || !Number.isInteger(body.expires) || body.expires < now) {
 		return json({ error: "bad request" }, 400);
 	}
@@ -95,17 +127,34 @@ async function verify(env, request, now) {
 	if (!sameText(expected, body.serverId)) {
 		return json({ error: "bad challenge" }, 400);
 	}
-	const mojang = env.MOJANG_URL ?? "https://sessionserver.mojang.com";
-	const answer = await fetch(`${mojang}/session/minecraft/hasJoined?username=${encodeURIComponent(body.name)}&serverId=${body.serverId}`);
-	if (answer.status !== 200) {
-		return json({ error: "Minecraft couldn't confirm your account" }, 401);
+	const uuid = body.uuid;
+	if (!env.DEV_ACCEPT_ANY) {
+		const cert = body.key;
+		if (!cert || typeof cert.key !== "string" || typeof cert.signature_v2 !== "string" || typeof body.sig !== "string") {
+			return json({ error: "Sign in to Minecraft with a Microsoft account to use public worlds" }, 401);
+		}
+		const expiresAt = Date.parse(cert.expires_at);
+		if (!Number.isFinite(expiresAt) || expiresAt < now) {
+			return json({ error: "Your Minecraft sign-in has expired. Restart the game and try again" }, 401);
+		}
+		const keyDer = fromBase64(cert.key);
+		const payload = certificatePayload(uuid, expiresAt, keyDer);
+		const certSig = fromBase64(cert.signature_v2);
+		let certified = false;
+		for (const mojangKey of env.MOJANG_KEYS ?? PLAYER_CERTIFICATE_KEYS) {
+			if (await verifyRsa(fromBase64(mojangKey), "SHA-1", certSig, payload)) {
+				certified = true;
+				break;
+			}
+		}
+		if (!certified || !await verifyRsa(keyDer, "SHA-256", fromBase64(body.sig), signInPayload(body.serverId, uuid, body.name))) {
+			return json({ error: "Minecraft couldn't confirm your account" }, 401);
+		}
 	}
-	const profile = await answer.json();
-	const uuid = dashed(profile.id);
 	if (await env.DB.prepare("SELECT 1 FROM bans WHERE uuid = ?").bind(uuid).first()) {
 		return json({ error: "this account can't use public worlds" }, 403);
 	}
-	return json({ token: await makeToken(env, uuid, profile.name, now), uuid, name: profile.name });
+	return json({ token: await makeToken(env, uuid, body.name, now), uuid, name: body.name });
 }
 
 async function publish(env, request, who, now) {

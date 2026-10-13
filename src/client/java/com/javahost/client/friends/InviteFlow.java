@@ -231,8 +231,9 @@ public final class InviteFlow {
 		currentPublic = world;
 		JavaHost.LOGGER.info("[Public] joining {}'s public world \"{}\" via {}", world.name(), world.title(), world.relay());
 		publicJoin = true;
-		startJoin(world.host(), world.name(), world.signKey(), List.of(world.relay()));
-		Toasts.player(world.host(), "Joining " + world.name() + "'s world...", world.title());
+		String name = com.javahost.client.discover.Directory.nameOf(world);
+		startJoin(world.host(), name, world.signKey(), List.of(world.relay()));
+		Toasts.player(world.host(), "Joining " + name + "'s world...", world.title());
 		next();
 	}
 

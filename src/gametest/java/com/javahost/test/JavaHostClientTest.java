@@ -746,6 +746,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		var challenge = call(base, "POST", "/auth/challenge", new com.google.gson.JsonObject(), null);
 		var verify = new com.google.gson.JsonObject();
 		verify.addProperty("name", name);
+		verify.addProperty("uuid", net.minecraft.core.UUIDUtil.createOfflinePlayerUUID(name).toString());
 		verify.addProperty("serverId", challenge.get("serverId").getAsString());
 		verify.addProperty("expires", challenge.get("expires").getAsLong());
 		String token = call(base, "POST", "/auth/verify", verify, null).get("token").getAsString();
@@ -814,12 +815,22 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			throw new AssertionError(e);
 		}
 		try {
-			for (int[] size : new int[][] {{1710, 1070, 4}, {1280, 800, 3}, {2000, 1250, 4}}) {
+			// The last size is as short as the user's own window (about 247 GUI pixels tall).
+			for (int[] size : new int[][] {{1710, 1070, 4}, {1280, 800, 3}, {2000, 1250, 4}, {1320, 988, 4}}) {
 				context.getInput().resizeWindow(size[0], size[1]);
 				context.runOnClient(mc -> {
 					mc.options.guiScale().set(size[2]);
 					mc.resizeGui();
 				});
+				// The title screen dock: every button inside the window, above the copyright line.
+				context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+				context.waitTicks(4);
+				boolean dockFits = context.computeOnClient(mc -> mc.gui.screen().children().stream()
+						.filter(c -> c.getClass().getSimpleName().equals("DockButton"))
+						.map(c -> (net.minecraft.client.gui.components.AbstractWidget) c)
+						.allMatch(w -> w.getBottom() <= mc.getWindow().getGuiScaledHeight() - 12));
+				check(dockFits, "the title screen dock fits at " + size[0] + "x" + size[1] + " scale " + size[2]);
+				context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-title-dock");
 				setDiscoverSelection(context, null);
 				context.setScreen(() -> new JavaHostScreen(null, Tab.DISCOVER));
 				context.waitTicks(60);
