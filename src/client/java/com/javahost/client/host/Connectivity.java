@@ -69,8 +69,11 @@ public final class Connectivity {
 		relayNote = "";
 		relayState = relayAlreadyOn ? State.CHECKING : State.OFF;
 		Config config = Config.get();
-		relayMode = RelayMode.valueOf(config.relayMode);
-		CompletableFuture.runAsync(() -> probe(config.useUpnp, config.useIpv6, relayMode), com.javahost.util.IoExecutor.NET);
+		// A public world is reached through the relay only: no router port or IPv6 opening, so strangers never get
+		// a direct path to the host's home.
+		boolean direct = !com.javahost.HostState.publicWorld();
+		relayMode = direct ? RelayMode.valueOf(config.relayMode) : RelayMode.ALWAYS;
+		CompletableFuture.runAsync(() -> probe(direct && config.useUpnp, direct && config.useIpv6, relayMode), com.javahost.util.IoExecutor.NET);
 	}
 
 	static void stop() {

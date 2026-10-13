@@ -103,7 +103,8 @@ public final class PackReceiver {
 			return;
 		}
 		PackOffer offer = new PackOffer(usable, received.shaderSettings());
-		if (Config.get().autoAcceptHostPacks) {
+		// A stranger's public world is always asked about, whatever "Always use the host's packs" says.
+		if (Config.get().autoAcceptHostPacks && !com.javahost.client.friends.InviteFlow.inPublicWorld()) {
 			accept(offer);
 		} else {
 			pendingPrompt = offer;

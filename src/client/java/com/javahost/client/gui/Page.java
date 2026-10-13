@@ -37,6 +37,10 @@ public abstract class Page {
 	/** Draws everything that isn't a widget. {@code left}/{@code top} are the content origin, already scrolled. */
 	protected abstract void draw(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY);
 
+	/** The page is going away (another tab, or the menu closed): stop anything it started. */
+	public void removed() {
+	}
+
 	public void tick() {
 	}
 

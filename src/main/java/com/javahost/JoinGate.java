@@ -22,7 +22,9 @@ public final class JoinGate {
 		// Blocked players get the same answer as strangers, so they can't tell they were blocked.
 		// Friends-only applies to worlds hosted from a player's game, not to dedicated servers running JavaHost.
 		boolean hosted = !server.isDedicatedServer();
-		if (hosted && (HostState.isBlocked(player.id()) || (HostState.friendsOnly() && !HostState.isAllowed(player.id())))) {
+		// A public world lets strangers in (as visitors); otherwise friends-only applies.
+		boolean strangersWelcome = HostState.publicWorld();
+		if (hosted && (HostState.isBlocked(player.id()) || (HostState.friendsOnly() && !strangersWelcome && !HostState.isAllowed(player.id())))) {
 			return "This world is just for the host's friends. Ask them to add you in JavaHost.";
 		}
 		long others = server.getPlayerList().getPlayers().stream().filter(p -> !p.getUUID().equals(player.id())).count();

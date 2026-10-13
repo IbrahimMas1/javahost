@@ -73,6 +73,9 @@ dependencies {
 	gametestRuntimeOnly "maven.modrinth:iris:${project.test_iris_version}"
 }
 
+// The in-game tests run the public world list on this computer (Node), from directory/dev/server.js.
+loom.runs.getByName("clientGameTest").vmArg("-Djavahost.directoryServer=" + file("directory/dev/server.js").absolutePath)
+
 // Optional: test alongside other mods, e.g. ./gradlew runClientGameTest -PextraMods=/path/to/folder
 if (project.hasProperty("extraMods")) {
 	loom.runs.getByName("clientGameTest").vmArg("-Dfabric.addMods=" + project.property("extraMods"))
@@ -93,6 +96,8 @@ def mpShared = file("build/run/mp-shared").absolutePath
 		// Test accounts are offline, so friend requests can't carry Mojang signatures in this test.
 		vmArg "-Djavahost.insecureFriends=true"
 		vmArg "-Djavahost.friendsNamespace=${project.findProperty("mpns") ?: "local"}"
+		// The shared local public world list, started by scripts/multiplayer-test.sh.
+		vmArg "-Djavahost.directoryUrl=http://127.0.0.1:8795"
 		programArgs "--username", user
 	}
 }

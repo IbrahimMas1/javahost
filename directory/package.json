@@ -1,0 +1,10 @@
+{
+  "name": "javahost-directory",
+  "private": true,
+  "type": "module",
+  "description": "The public world list for JavaHost: a tiny Cloudflare Worker with a D1 database.",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "deploy": "wrangler deploy"
+  }
+}

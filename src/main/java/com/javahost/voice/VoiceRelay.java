@@ -44,8 +44,14 @@ public final class VoiceRelay {
 		double rangeSq = range * range;
 		VoiceDown2 frame = new VoiceDown2(speaker.getUUID(), sequence, party, opus);
 		VoiceDown oldFrame = new VoiceDown(speaker.getUUID(), sequence, opus);
-		for (ServerPlayer listener : speaker.level().getServer().getPlayerList().getPlayers()) {
-			if (listener == speaker) {
+		var server = speaker.level().getServer();
+		// In a public world with voice for visitors off, visitors neither speak to nor hear anyone.
+		boolean quietVisitors = HostState.publicWorld() && !HostState.voiceForVisitors();
+		if (quietVisitors && com.javahost.rules.Trust.isVisitor(server, speaker)) {
+			return;
+		}
+		for (ServerPlayer listener : server.getPlayerList().getPlayers()) {
+			if (listener == speaker || (quietVisitors && com.javahost.rules.Trust.isVisitor(server, listener))) {
 				continue;
 			}
 			boolean near = listener.level() == speaker.level() && listener.distanceToSqr(speaker) <= rangeSq;

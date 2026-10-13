@@ -727,6 +727,147 @@ public class JavaHostClientTest implements FabricClientGameTest {
 	}
 
 	/** Clicks a visible button in the current screen with the real mouse. */
+	// ================================================================ 1.8: public worlds
+
+	private static com.google.gson.JsonObject call(String base, String method, String path, com.google.gson.JsonObject body, String token)
+			throws Exception {
+		var request = java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + path)).header("content-type", "application/json")
+				.method(method, body == null ? java.net.http.HttpRequest.BodyPublishers.noBody() : java.net.http.HttpRequest.BodyPublishers.ofString(body.toString()));
+		if (token != null) {
+			request.header("authorization", "Bearer " + token);
+		}
+		String text = java.net.http.HttpClient.newHttpClient().send(request.build(), java.net.http.HttpResponse.BodyHandlers.ofString()).body();
+		return com.google.gson.JsonParser.parseString(text).getAsJsonObject();
+	}
+
+	/** Lists a made-up public world on the local list service, as account {@code name}. */
+	private static void seed(String base, String name, String title, String description, String relay, List<String> tags, int max,
+			int players, boolean voice) throws Exception {
+		var challenge = call(base, "POST", "/auth/challenge", new com.google.gson.JsonObject(), null);
+		var verify = new com.google.gson.JsonObject();
+		verify.addProperty("name", name);
+		verify.addProperty("serverId", challenge.get("serverId").getAsString());
+		verify.addProperty("expires", challenge.get("expires").getAsLong());
+		String token = call(base, "POST", "/auth/verify", verify, null).get("token").getAsString();
+		var listing = new com.google.gson.JsonObject();
+		listing.addProperty("title", title);
+		listing.addProperty("description", description);
+		var tagArray = new com.google.gson.JsonArray();
+		tags.forEach(tagArray::add);
+		listing.add("tags", tagArray);
+		listing.addProperty("mode", "survival");
+		listing.addProperty("difficulty", "normal");
+		listing.addProperty("max", max);
+		listing.addProperty("relay", relay);
+		listing.addProperty("mc", net.minecraft.SharedConstants.getCurrentVersion().name());
+		listing.addProperty("jv", JavaHost.VERSION);
+		listing.addProperty("voice", voice);
+		listing.addProperty("signkey", com.javahost.util.FriendCrypto.encodePublic(com.javahost.util.FriendCrypto.newSigningKeyPair().getPublic()));
+		check(call(base, "PUT", "/listing", listing, token).has("ok"), "listed \"" + title + "\"");
+		var beat = new com.google.gson.JsonObject();
+		beat.addProperty("players", players);
+		call(base, "POST", "/listing/heartbeat", beat, token);
+	}
+
+	/** Discover with a few public worlds, an opened row, the Open-to-the-public form and Report, at real sizes. */
+	private static void publicWorldScreens(ClientGameTestContext context) {
+		String serverJs = System.getProperty("javahost.directoryServer");
+		if (serverJs == null) {
+			JavaHost.LOGGER.info("[JavaHost test] skipping public worlds (no local list service)");
+			return;
+		}
+		int port = 8796;
+		String base = "http://127.0.0.1:" + port;
+		Process node = null;
+		try {
+			node = new ProcessBuilder("node", serverJs, String.valueOf(port)).redirectErrorStream(true)
+					.redirectOutput(java.nio.file.Path.of(System.getProperty("java.io.tmpdir"), "javahost-directory-test.log").toFile()).start();
+			long deadline = System.currentTimeMillis() + 15_000;
+			while (true) {
+				try {
+					call(base, "GET", "/listings", null, null);
+					break;
+				} catch (Exception notYet) {
+					if (System.currentTimeMillis() > deadline) {
+						throw new AssertionError("the local list service didn't start");
+					}
+					Thread.sleep(200);
+				}
+			}
+			System.setProperty("javahost.directoryUrl", base);
+			seed(base, "Alex_TheBuilder", "Help me build a giant castle", "Bring stone and good vibes. Starting the north tower tonight.",
+					"brave-otter.eu.e4mc.link", List.of("help", "building"), 8, 3, false);
+			seed(base, "Sam", "Hardcore-ish survival", "Normal difficulty, no griefing please.", "calm-heron.us.e4mc.link",
+					List.of("survival"), 4, 4, true);
+			seed(base, "Kim_Crafts", "Chill creative flatland", "", "quiet-maple.as.e4mc.link", List.of("creative", "chill"), 16, 1, false);
+			seed(base, "Lee", "Mining trip to the deep dark", "Need two people with good armour.", "swift-lynx.eu.e4mc.link",
+					List.of("help", "survival"), 4, 2, false);
+			var found = com.javahost.client.discover.Directory.list().get(10, java.util.concurrent.TimeUnit.SECONDS);
+			check(found.size() == 4, "the public list shows the 4 worlds (" + found.size() + ")");
+			check(found.stream().allMatch(w -> com.javahost.util.ListingText.isRelayAddress(w.relay())), "public worlds only carry relay addresses");
+			check(context.computeOnClient(mc -> com.javahost.client.discover.PublicHosting.cannotOpen()).contains("relay"),
+					"opening to the public needs the relay");
+		} catch (Exception e) {
+			if (node != null) {
+				node.destroy();
+			}
+			throw new AssertionError(e);
+		}
+		try {
+			for (int[] size : new int[][] {{1710, 1070, 4}, {1280, 800, 3}, {2000, 1250, 4}}) {
+				context.getInput().resizeWindow(size[0], size[1]);
+				context.runOnClient(mc -> {
+					mc.options.guiScale().set(size[2]);
+					mc.resizeGui();
+				});
+				setDiscoverSelection(context, null);
+				context.setScreen(() -> new JavaHostScreen(null, Tab.DISCOVER));
+				context.waitTicks(60);
+				boolean fits = context.computeOnClient(mc -> mc.gui.screen().children().stream()
+						.filter(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w && w.visible)
+						.map(c -> (net.minecraft.client.gui.components.AbstractWidget) c)
+						.allMatch(w -> w.getRight() <= mc.getWindow().getGuiScaledWidth() - 8));
+				check(fits, "Discover fits at " + size[0] + "x" + size[1] + " scale " + size[2]);
+				context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-discover");
+				java.util.UUID first = context.computeOnClient(mc -> {
+					try {
+						return com.javahost.client.discover.Directory.list().get(5, java.util.concurrent.TimeUnit.SECONDS).stream()
+								.filter(w -> w.title().startsWith("Help me build")).findFirst().orElseThrow().host();
+					} catch (Exception e) {
+						throw new AssertionError(e);
+					}
+				});
+				setDiscoverSelection(context, first);
+				context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).refresh());
+				context.waitTicks(4);
+				context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-discover-open");
+				context.setScreen(() -> new com.javahost.client.gui.PublicWorldScreen(null));
+				context.waitTicks(4);
+				context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-public-form");
+				context.setScreen(() -> new com.javahost.client.gui.ReportScreen(null, first, "Alex_TheBuilder"));
+				context.waitTicks(4);
+				context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-report");
+			}
+		} finally {
+			setDiscoverSelection(context, null);
+			context.setScreen(() -> null);
+			System.clearProperty("javahost.directoryUrl");
+			node.destroy();
+		}
+	}
+
+	private static void setDiscoverSelection(ClientGameTestContext context, java.util.UUID host) {
+		context.runOnClient(mc -> {
+			try {
+				var field = com.javahost.client.gui.pages.DiscoverPage.class.getDeclaredField("selected");
+				field.setAccessible(true);
+				field.set(null, host);
+			} catch (ReflectiveOperationException e) {
+				throw new AssertionError(e);
+			}
+		});
+	}
+
 	// ================================================================ 1.6
 
 	/** A transfer in a given state, for screenshots (the real flow is covered by the two-game test). */
@@ -969,6 +1110,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			// Rest the mouse on a cut-off label for over a second: the full text appears.
 		}
 		worldShareScreens(context, alexId);
+		publicWorldScreens(context);
 		context.runOnClient(mc -> {
 			try {
 				java.lang.reflect.Field dataField = com.javahost.client.friends.Friends.class.getDeclaredField("data");

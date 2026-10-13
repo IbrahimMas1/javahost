@@ -110,6 +110,23 @@ public final class HostState {
 		maxPlayers = value;
 	}
 
+	private static volatile boolean publicWorld;
+	private static volatile boolean voiceForVisitors;
+
+	/** The world is listed for strangers: anyone (not banned or blocked) may join, as a visitor until trusted. */
+	public static boolean publicWorld() {
+		return publicWorld;
+	}
+
+	public static boolean voiceForVisitors() {
+		return voiceForVisitors;
+	}
+
+	public static void setPublic(boolean open, boolean voice) {
+		publicWorld = open;
+		voiceForVisitors = voice;
+	}
+
 	/** How the host's game vouches for its own world (set by the host's client; null on a dedicated server). */
 	public interface Prover {
 		java.util.UUID host();

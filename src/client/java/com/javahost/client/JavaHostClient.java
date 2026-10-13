@@ -88,6 +88,7 @@ public class JavaHostClient implements ClientModInitializer {
 			Friends.tick();
 			Presence.tick(minecraft);
 			com.javahost.client.share.WorldShare.tick(minecraft);
+			com.javahost.client.discover.PublicHosting.tick();
 			while (OPEN_MENU.consumeClick()) {
 				minecraft.gui.setScreen(new JavaHostScreen(null));
 			}
@@ -118,6 +119,7 @@ public class JavaHostClient implements ClientModInitializer {
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> HostController.cleanup());
 		ClientLifecycleEvents.CLIENT_STOPPING.register(minecraft -> {
 			com.javahost.client.friends.Friends.flushNow();
+			com.javahost.client.discover.PublicHosting.shutdown();
 			com.javahost.client.update.Updater.launchSwapIfStaged();
 			Presence.goOffline();
 			E4mcCompat.shutdownForExit();

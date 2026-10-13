@@ -162,6 +162,7 @@ public class HostPage extends Page {
 		}
 
 		// Advanced: folded away.
+		y = buildPublic(y);
 		// World rules: their own page, visible to everyone in a world (only the host and co-hosts can change them).
 		if (minecraft.level != null) {
 			add(new FlatButton(width, 18, Component.literal("World rules"), FlatButton.Style.SECONDARY, Icons.SHIELD,
@@ -212,6 +213,46 @@ public class HostPage extends Page {
 		}
 
 		buildBackups(y + 10);
+	}
+
+	// ================================================================ public world (beta)
+
+	private int publicY = -1;
+
+	/** "Open to the public", or, when it's open, its listing and Stop listing. Returns the y below it. */
+	private int buildPublic(int y) {
+		if (minecraft.level == null || minecraft.getSingleplayerServer() == null) {
+			publicY = -1;
+			return y;
+		}
+		if (com.javahost.client.discover.PublicHosting.isPublic()) {
+			publicY = y + 10;
+			add(new FlatButton(90, 18, Component.literal("Stop listing"), FlatButton.Style.DANGER, Icons.STOP, b -> {
+				com.javahost.client.discover.PublicHosting.close();
+				screen.refresh();
+			}), width - 100, publicY + 11);
+			return y + 10 + 40;
+		}
+		publicY = -1;
+		String problem = com.javahost.client.discover.PublicHosting.cannotOpen();
+		FlatButton open = add(new FlatButton(width, 18, Component.literal("Open to the public (Beta)"), FlatButton.Style.SECONDARY, Icons.GLOBE,
+				b -> minecraft.gui.setScreen(new com.javahost.client.gui.PublicWorldScreen(screen))), 0, y + 10);
+		open.active = problem == null;
+		open.setTooltip(Tooltip.create(Component.literal(problem != null ? problem
+				: "List your world so anyone with JavaHost can find it in Discover. Strangers visit until you trust them.")));
+		return y + 24;
+	}
+
+	private void drawPublic(GuiGraphicsExtractor g, int left, int top) {
+		if (publicY < 0) {
+			return;
+		}
+		int y = top + publicY;
+		Draw.panel(g, left, y, width, 40, 8, Theme.CARD);
+		Draw.roundRect(g, left, y, 3, 40, 1, com.javahost.client.discover.PublicHosting.listed() ? Theme.ACCENT : Theme.INFO);
+		Icons.GLOBE.draw(g, left + 12, y + 8, Theme.ACCENT);
+		Draw.textFit(g, "Public: \"" + Config.get().publicTitle + "\"", width - 140, left + 28, y + 9, Theme.TEXT);
+		Draw.textFit(g, com.javahost.client.discover.PublicHosting.status(), width - 140, left + 28, y + 22, Theme.MUTED);
 	}
 
 	private void start() {
@@ -367,6 +408,13 @@ public class HostPage extends Page {
 						case SPECTATOR -> "Sp";
 						default -> "S";
 					}, m -> HostController.setGameMode(guest.id(), m)), width - 200, y + 5);
+			if (guest.visitor() || guest.trusted()) {
+				FlatButton trust = add(new FlatButton(56, 18, Component.literal(guest.visitor() ? "Trust" : "Untrust"),
+						guest.visitor() ? FlatButton.Style.PRIMARY : FlatButton.Style.SECONDARY, null,
+						b -> HostController.trust(guest.id(), guest.name(), guest.visitor())), width - 262, y + 5);
+				trust.setTooltip(Tooltip.create(Component.literal(guest.visitor() ? "Let " + guest.name() + " build in this world"
+						: "Back to visiting: " + guest.name() + " can look around but not build")));
+			}
 			if (com.javahost.client.friends.Friends.friend(guest.id()).isPresent()) {
 				String problem = WorldShare.cannotSendTo(guest.id());
 				FlatButton send = add(new FlatButton(18, 18, Component.literal("Send a world"), FlatButton.Style.GHOST, Icons.UPLOAD,
@@ -381,6 +429,7 @@ public class HostPage extends Page {
 			y += PLAYER_ROW;
 		}
 
+		y = buildPublic(y);
 		// World rules: their own page.
 		add(new FlatButton(width, 18, Component.literal("World rules"), FlatButton.Style.SECONDARY, Icons.SHIELD,
 				b -> screen.switchTo(JavaHostScreen.Tab.RULES)), 0, y + 10);
@@ -430,8 +479,9 @@ public class HostPage extends Page {
 			s.append(r.name()).append(r.state()).append(r.invite());
 		}
 		for (Guest guest : HostController.guests()) {
-			s.append(guest.id()).append(WorldShare.cannotSendTo(guest.id()));
+			s.append(guest.id()).append(WorldShare.cannotSendTo(guest.id())).append(guest.visitor()).append(guest.trusted());
 		}
+		s.append(com.javahost.client.discover.PublicHosting.isPublic()).append(com.javahost.client.discover.PublicHosting.listed());
 		s.append(copiedValue != null && System.currentTimeMillis() - copiedAt < 2000);
 		return s.toString();
 	}
@@ -493,6 +543,7 @@ public class HostPage extends Page {
 			}
 		}
 
+		drawPublic(g, left, top);
 		if (showAdvanced) {
 			int y = top + advancedY + 22;
 			card(g, left, y, width, 156);
@@ -566,11 +617,17 @@ public class HostPage extends Page {
 			Faces.draw(g, guest.id(), left + 8, rowY + 5, 18);
 			Draw.textFit(g, guest.name(), width - 264, left + 32, rowY + 5, Theme.TEXT);
 			int ping = guest.pingMs();
-			Draw.text(g, ping <= 0 ? "ping —" : ping + " ms", left + 32, rowY + 15,
+			String pingText = ping <= 0 ? "ping —" : ping + " ms";
+			Draw.text(g, pingText, left + 32, rowY + 15,
 					ping <= 0 ? Theme.FAINT : ping < 80 ? Theme.ACCENT : ping < 200 ? Theme.WARNING : Theme.DANGER);
+			if (guest.visitor() || guest.trusted()) {
+				Draw.text(g, guest.visitor() ? "· visitor" : "· trusted", left + 36 + Draw.font().width(pingText), rowY + 15,
+						guest.visitor() ? Theme.WARNING : Theme.MUTED);
+			}
 			rowY += PLAYER_ROW;
 		}
 
+		drawPublic(g, left, top);
 		// Connection details (folded).
 		if (showConnection) {
 			rowY = top + connectionY + 22;

@@ -203,17 +203,49 @@ public final class InviteFlow {
 			}
 			List<String> order = joinOrder(invite, myIp);
 			JavaHost.LOGGER.info("[Friends] joining {}'s world via {}", invite.name(), order);
-			joinQueue = order;
-			joinIndex = -1;
-			joiningHost = invite.name();
-			expectedHost = invite.from();
-			expectedSignKey = signKey;
-			challengeSent = 0;
-			lastProblem = null;
+			publicJoin = false;
+			startJoin(invite.from(), invite.name(), signKey, order);
 			Toasts.player(invite.from(), "Joining " + invite.name() + "'s world...", invite.world());
 			next();
 		}));
 	}
+
+	/** True after joining a stranger's public world (until we leave): e.g. their packs are always asked about. */
+	private static boolean publicJoin;
+
+	public static boolean inPublicWorld() {
+		Minecraft minecraft = Minecraft.getInstance();
+		return publicJoin && minecraft.level != null && minecraft.getSingleplayerServer() == null;
+	}
+
+	/** Joins a public world through its relay address, checking the host's proof against the listed key. */
+	private static com.javahost.client.discover.Directory.PublicWorld currentPublic;
+
+	/** The public world we're in (or last joined), for reporting it from inside. */
+	public static com.javahost.client.discover.Directory.PublicWorld currentPublic() {
+		return inPublicWorld() ? currentPublic : null;
+	}
+
+	public static void joinPublic(com.javahost.client.discover.Directory.PublicWorld world) {
+		++joinToken;
+		currentPublic = world;
+		JavaHost.LOGGER.info("[Public] joining {}'s public world \"{}\" via {}", world.name(), world.title(), world.relay());
+		publicJoin = true;
+		startJoin(world.host(), world.name(), world.signKey(), List.of(world.relay()));
+		Toasts.player(world.host(), "Joining " + world.name() + "'s world...", world.title());
+		next();
+	}
+
+	private static void startJoin(UUID host, String name, String signKey, List<String> order) {
+		joinQueue = order;
+		joinIndex = -1;
+		joiningHost = name;
+		expectedHost = host;
+		expectedSignKey = signKey;
+		challengeSent = 0;
+		lastProblem = null;
+	}
+
 
 	/** Same home network first (fastest), then direct internet, then the relay, then the maybes. */
 	static List<String> joinOrder(Invite invite, String myPublicIp) {

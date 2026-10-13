@@ -1,0 +1,13 @@
+# JavaHost public world list. Deploy with: npx wrangler deploy (after npx wrangler login).
+# Secrets (set once): npx wrangler secret put TOKEN_SECRET / ADMIN_SECRET
+name = "javahost-directory"
+main = "src/worker.js"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "javahost-directory"
+database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
+
+[triggers]
+crons = ["17 * * * *"]

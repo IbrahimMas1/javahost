@@ -37,6 +37,14 @@ public final class Config {
 	public Map<String, String> bannedPlayers = new HashMap<>();
 	/** Players you've blocked (id -> name): their messages are dropped and they can't join your worlds. */
 	public Map<String, String> blockedPlayers = new HashMap<>();
+	// The last public world settings, so reopening is one click.
+	public String publicTitle = "";
+	public String publicDescription = "";
+	public java.util.List<String> publicTags = new java.util.ArrayList<>();
+	public int publicMax = 8;
+	public boolean publicVoice = false;
+	/** Public world hosts you've hidden from Discover. */
+	public java.util.Set<String> hiddenHosts = new java.util.HashSet<>();
 	public int voiceRange = 48;
 
 	// Joining
@@ -114,6 +122,18 @@ public final class Config {
 					}
 					if (config.blockedPlayers == null) {
 						config.blockedPlayers = new HashMap<>();
+					}
+					if (config.publicTitle == null) {
+						config.publicTitle = "";
+					}
+					if (config.publicDescription == null) {
+						config.publicDescription = "";
+					}
+					if (config.publicTags == null) {
+						config.publicTags = new java.util.ArrayList<>();
+					}
+					if (config.hiddenHosts == null) {
+						config.hiddenHosts = new java.util.HashSet<>();
 					}
 					if (config.playerVolumes == null) {
 						config.playerVolumes = new HashMap<>();

@@ -372,7 +372,14 @@ final class MultiplayerTest {
 			int heardBefore = 0;
 			while (readShared("guest-done") == null) {
 				context.waitFor(mc -> readShared("guest-done") != null || pendingRoute() != null || unfriendedNotAcked()
-						|| waiting("guest-wants-ban", "host-banned") || waiting("guest-saw-ban", "host-full") || waiting("guest-saw-full", "host-open"), 15 * ONE_MINUTE);
+						|| waiting("guest-wants-ban", "host-banned") || waiting("guest-saw-ban", "host-full") || waiting("guest-saw-full", "host-open") || waiting("guest-wants-public", "host-public-done"), 15 * ONE_MINUTE);
+				if (waiting("guest-wants-public", "host-public-done")) {
+					// Checked before the public world opens, where the (now stranger) guest is welcome as a visitor.
+					check(joinsBeforeRefusal >= 0 && guestJoins.get() == joinsBeforeRefusal,
+							"a non-friend is refused at login: they never joined the world (no 'joined' message, nothing sent to them)");
+					hostPublicWorld(context);
+					continue;
+				}
 				if (waiting("guest-wants-ban", "host-banned")) {
 					context.runOnClient(mc -> HostController.ban(guestPlayer, "Guest"));
 					writeShared("host-banned", "ok");
@@ -427,10 +434,115 @@ final class MultiplayerTest {
 			context.runOnClient(mc -> HostController.stop());
 			context.runOnClient(mc -> check(!mc.getSingleplayerServer().isPublished(), "host stopped hosting"));
 		}
-		check(joinsBeforeRefusal >= 0 && guestJoins.get() == joinsBeforeRefusal,
-				"a non-friend is refused at login: they never joined the world (no 'joined' message, nothing sent to them)");
 		JavaHost.LOGGER.info("[JavaHost MP] HOST DONE: {}", readShared("guest-done"));
 		check(readShared("guest-done").startsWith("PASS"), "guest reported success");
+	}
+
+	// ================================================================ 1.8: public worlds
+
+	private static final String DIRECTORY = "http://127.0.0.1:8795";
+
+	/** Host side: open to the public, see the stranger arrive as a visitor, trust them, then close again. */
+	private static void hostPublicWorld(ClientGameTestContext context) {
+		String problem = context.computeOnClient(mc -> com.javahost.client.discover.PublicHosting.open(new com.javahost.client.discover.PublicHosting.Settings(
+				"Help me build a test castle", "Bring stone. Be nice.", List.of("help", "building"), 8, false)));
+		check(problem == null, "the host opened the world to the public" + (problem == null ? "" : " (" + problem + ")"));
+		context.waitFor(mc -> com.javahost.client.discover.PublicHosting.listed(), 3 * ONE_MINUTE);
+		check(true, "the world is on the public list");
+		boolean noDirect = context.computeOnClient(mc -> Connectivity.routes().stream()
+				.filter(r -> r.name().equals("Internet") || r.name().equals("IPv6")).noneMatch(r -> r.state() == Connectivity.State.WORKING));
+		check(noDirect, "a public world opens no direct way in (no router port, no IPv6): strangers only reach it through the relay");
+		writeShared("host-public", "ok");
+
+		context.waitFor(mc -> HostController.guests().stream().anyMatch(g -> g.name().equals("Guest")), 3 * ONE_MINUTE);
+		context.waitTicks(20);
+		HostController.Guest visitor = context.computeOnClient(mc -> HostController.guests().stream().filter(g -> g.name().equals("Guest")).findFirst().orElseThrow());
+		check(visitor.visitor() && visitor.gameMode() == GameType.ADVENTURE, "a stranger joins as a visitor, in Adventure (can't break or place)");
+		int heard = VoiceClient.audibleFramesFrom(visitor.id());
+		context.waitTicks(60);
+		check(VoiceClient.audibleFramesFrom(visitor.id()) == heard, "with voice for visitors off, nobody hears the visitor");
+		context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.HOST));
+		context.waitTicks(10);
+		context.takeScreenshot("mp-host-public-visitor");
+		context.setScreen(() -> null);
+
+		context.runOnClient(mc -> HostController.trust(visitor.id(), visitor.name(), true));
+		context.waitFor(mc -> HostController.guests().stream().anyMatch(g -> g.name().equals("Guest") && g.trusted() && g.gameMode() == GameType.SURVIVAL),
+				ONE_MINUTE);
+		check(true, "after Trust, the visitor can build (Survival)");
+		writeShared("host-trusted", "ok");
+
+		waitForShared(context, "guest-reported", 2 * ONE_MINUTE);
+		try {
+			var request = java.net.http.HttpRequest.newBuilder(java.net.URI.create(DIRECTORY + "/admin/reports"))
+					.header("authorization", "Bearer dev-admin").build();
+			String reports = java.net.http.HttpClient.newHttpClient().send(request, java.net.http.HttpResponse.BodyHandlers.ofString()).body();
+			check(reports.contains("\"reports\":1"), "the guest's report reached the list's moderators (" + reports + ")");
+		} catch (Exception e) {
+			throw new AssertionError(e);
+		}
+
+		context.runOnClient(mc -> com.javahost.client.discover.PublicHosting.close());
+		context.waitFor(mc -> HostController.guests().isEmpty(), ONE_MINUTE);
+		check(true, "closing the world to the public sends strangers away again (friends only)");
+		boolean gone = false;
+		for (int i = 0; i < 20 && !gone; i++) {
+			context.waitTicks(10);
+			gone = context.computeOnClient(mc -> {
+				try {
+					return com.javahost.client.discover.Directory.list().get(5, java.util.concurrent.TimeUnit.SECONDS).stream().noneMatch(w -> w.name().equals("Host"));
+				} catch (Exception e) {
+					return false;
+				}
+			});
+		}
+		check(gone, "and it's off the public list");
+		writeShared("host-public-done", "ok");
+	}
+
+	/** Guest side: a stranger now (we unfriended), finds the public world, visits, gets trusted, reports. */
+	private static void visitPublicWorld(ClientGameTestContext context, UUID hostId) {
+		writeShared("guest-wants-public", "ok");
+		waitForShared(context, "host-public", 4 * ONE_MINUTE);
+		com.javahost.client.discover.Directory.PublicWorld world = null;
+		for (int i = 0; i < 30 && world == null; i++) {
+			context.waitTicks(20);
+			world = context.computeOnClient(mc -> {
+				try {
+					return com.javahost.client.discover.Directory.list().get(5, java.util.concurrent.TimeUnit.SECONDS).stream()
+							.filter(w -> w.host().equals(hostId)).findFirst().orElse(null);
+				} catch (Exception e) {
+					return null;
+				}
+			});
+		}
+		check(world != null && world.title().equals("Help me build a test castle"), "the stranger finds the host's world on the public list");
+		check(com.javahost.util.ListingText.isRelayAddress(world.relay()), "the listing gives only a relay address, never the host's home address (" + world.relay() + ")");
+		context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.DISCOVER));
+		context.waitTicks(200); // pings go through the relay
+		context.takeScreenshot("mp-guest-discover");
+		com.javahost.client.discover.Directory.PublicWorld found = world;
+		context.runOnClient(mc -> InviteFlow.joinPublic(found));
+		context.waitFor(mc -> (mc.player != null && mc.level != null) || mc.gui.screen() instanceof DisconnectedScreen, 3 * ONE_MINUTE);
+		context.waitFor(mc -> !InviteFlow.verifying(), ONE_MINUTE);
+		check(context.computeOnClient(mc -> mc.level != null), "joined the public world, and the host proved it's theirs (with the listed key)");
+		// "Always use the host's packs" is on in this test, but a stranger's packs are always asked about.
+		context.waitFor(mc -> mc.gui.screen() instanceof com.javahost.client.gui.PackOfferScreen, ONE_MINUTE);
+		check(true, "a stranger's packs are asked about, never applied automatically");
+		context.setScreen(() -> null);
+		context.waitFor(mc -> mc.gameMode != null && mc.gameMode.getPlayerMode() == GameType.ADVENTURE, ONE_MINUTE);
+		check(true, "the stranger is a visitor: Adventure until trusted");
+		context.takeScreenshot("mp-guest-visiting");
+		waitForShared(context, "host-trusted", 2 * ONE_MINUTE);
+		context.waitFor(mc -> mc.gameMode.getPlayerMode() == GameType.SURVIVAL, ONE_MINUTE);
+		check(true, "the host trusted the visitor: now they can build");
+		var reported = await(context, com.javahost.client.discover.Directory.report(hostId, "other"));
+		check(reported.ok(), "reporting a public world works (" + reported.message() + ")");
+		writeShared("guest-reported", "ok");
+		context.waitFor(mc -> mc.gui.screen() instanceof DisconnectedScreen, 2 * ONE_MINUTE);
+		String reason = context.computeOnClient(mc -> ((DisconnectedScreen) mc.gui.screen()).getNarrationMessage().getString());
+		check(reason.contains("just for the host's friends"), "when the host closes it to the public, strangers are sent away (" + reason + ")");
+		context.runOnClient(mc -> mc.gui.setScreen(new TitleScreen()));
 	}
 
 	// ================================================================ 1.7: safety
@@ -918,6 +1030,7 @@ final class MultiplayerTest {
 			check(turnedAway.contains("just for the host's friends"), "a non-friend is turned away from a friends-only world");
 			context.takeScreenshot("mp-guest-turned-away");
 			context.runOnClient(mc -> mc.gui.setScreen(new TitleScreen()));
+			visitPublicWorld(context, hostFriend.id());
 			writeShared("guest-done", "PASS " + String.join(",", routes.keySet()));
 		} catch (Throwable t) {
 			writeShared("guest-done", "FAIL " + t.getMessage());

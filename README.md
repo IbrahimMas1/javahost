@@ -57,6 +57,16 @@ Friends need JavaHost too to get voice and your packs. The easiest way is to sen
 - **Offline friends:** messages are kept for 12 hours, so a friend who's offline gets your request when they next play. Screenshots are kept for 3 hours.
 - ntfy.sh is free, so it limits each internet connection to about 250 *sent* messages a day (receiving is free). Normal play uses far fewer: your online status sends one every 30 minutes or when it changes. The Account page shows today's count, and JavaHost tells you if you hit the limit.
 
+## Public worlds (1.8, beta)
+
+- **Discover** lists worlds people have opened to everyone. Each shows who's hosting, the title, tags, players and limit, ping (measured the same way as Minecraft's server list) and the region. Search, filter by tag, and sort by busiest or closest.
+- **Open to the public** from the Host tab or Discover. Give it a title, a description, tags, a player limit, and choose whether visitors can use voice (off by default). JavaHost makes a backup first.
+- **Visitors can't wreck anything.** Strangers join in Adventure mode: they can look around, fight and use doors, but can't break or place blocks until you click **Trust**. Your friends play normally. Kick, ban, block and backups all still work.
+- **Your address stays private.** Public worlds are reached only through the relay; no router port or IPv6 opening is made. Joining checks the world really belongs to the listed host.
+- **Reports and moderation.** Report a world from Discover or from inside it. Three reports from different players hide it until it's reviewed. Listings are checked for links, addresses and offensive words. Hosts sign in with their real Minecraft account, so nobody can list in someone else's name.
+- Accounts with online play turned off (parental controls, or banned by Mojang) can't see or open public worlds.
+- The list itself is a small service in `directory/` (a Cloudflare Worker with a D1 database). Moderate it with `scripts/moderate.sh`.
+
 ## Safety (1.7)
 
 - **Joining checks it's really your friend's world.** Each player has a signing key that only their own game holds. When you join a friend, their game must prove the world is theirs. A fake server, or some other PC on your network, is left at once and the next way in is tried. Friends on older versions need to update before you can join them.

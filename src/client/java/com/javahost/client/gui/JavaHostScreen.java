@@ -44,6 +44,7 @@ public class JavaHostScreen extends Screen {
 		HOME("Home", Icons.HOME, HomePage::new, null),
 		FRIENDS("Friends", Icons.USERS, FriendsPage::new, null),
 		HOST("Host", Icons.HOST, HostPage::new, null),
+		DISCOVER("Discover", Icons.GLOBE, com.javahost.client.gui.pages.DiscoverPage::new, null),
 		VOICE("Voice", Icons.MIC, VoicePage::new, null),
 		SCREENSHOTS("Screenshots", Icons.CAMERA, ScreenshotsPage::new, null),
 		PERFORMANCE("Performance", Icons.BOLT, PerformancePage::new, null),
@@ -153,6 +154,9 @@ public class JavaHostScreen extends Screen {
 		tab = next;
 		if (next.inSidebar()) {
 			lastTab = next;
+		}
+		if (page != null) {
+			page.removed();
 		}
 		page = null;
 		scroll = scrollTarget = 0;
@@ -420,6 +424,9 @@ public class JavaHostScreen extends Screen {
 		// The Voice tab keeps the mic open for its level meter; release it when the menu closes.
 		com.javahost.client.voice.VoiceClient.setTestingMic(false);
 		Screenshots.releaseThumbnails();
+		if (page != null) {
+			page.removed();
+		}
 		Config.get().save();
 	}
 

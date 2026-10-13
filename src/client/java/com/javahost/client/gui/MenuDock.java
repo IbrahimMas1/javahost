@@ -53,6 +53,7 @@ public final class MenuDock {
 		return List.of(
 				new Item("Home", () -> Icons.HOME, () -> Tab.HOME, () -> 0, () -> false, false),
 				new Item("Host", () -> Icons.HOST, () -> Tab.HOST, () -> 0, HostController::isHosting, false),
+				new Item("Discover", () -> Icons.GLOBE, () -> Tab.DISCOVER, () -> 0, () -> false, false),
 				// Notifications live under Friends: the badge counts them, and a click opens them while any are unread.
 				new Item("Friends", () -> Icons.USERS, () -> Notifications.unread() > 0 ? Tab.NOTIFICATIONS : Tab.FRIENDS,
 						() -> Notifications.unread() + Friends.incoming().size() + Chats.unreadTotal(), MenuDock::joinable, false),

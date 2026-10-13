@@ -32,7 +32,8 @@ import net.minecraft.server.packs.repository.Pack;
  */
 public final class HostController {
 	/** A connected friend, for the host's player list. */
-	public record Guest(UUID id, String name, int pingMs, net.minecraft.world.level.GameType gameMode) {
+	/** {@code visitor}: a stranger in a public world who can't build yet; {@code trusted}: a stranger the host trusted. */
+	public record Guest(UUID id, String name, int pingMs, net.minecraft.world.level.GameType gameMode, boolean visitor, boolean trusted) {
 	}
 
 	private static boolean hosting;
@@ -67,7 +68,7 @@ public final class HostController {
 		applyHostRules(config);
 		// Guests never get commands through JavaHost, even if Minecraft's own "Open to LAN" allowed them earlier.
 		server.setGuestCommandAccess(false);
-		boolean relayNow = Connectivity.RelayMode.valueOf(config.relayMode) == Connectivity.RelayMode.ALWAYS
+		boolean relayNow = (com.javahost.HostState.publicWorld() || Connectivity.RelayMode.valueOf(config.relayMode) == Connectivity.RelayMode.ALWAYS)
 				&& E4mcCompat.isInstalled();
 		// e4mc would otherwise start its relay on every publish; we decide when it's needed.
 		E4mcCompat.setRelayEnabled(relayNow);
@@ -134,7 +135,9 @@ public final class HostController {
 			List<Guest> snapshot = new ArrayList<>();
 			for (ServerPlayer player : server.getPlayerList().getPlayers()) {
 				if (!server.isSingleplayerOwner(player.nameAndId())) {
-					snapshot.add(new Guest(player.getUUID(), player.getPlainTextName(), player.connection.latency(), player.gameMode()));
+					boolean friend = com.javahost.HostState.isAllowed(player.getUUID());
+					snapshot.add(new Guest(player.getUUID(), player.getPlainTextName(), player.connection.latency(), player.gameMode(),
+							com.javahost.rules.Trust.isVisitor(server, player), !friend && com.javahost.rules.Trust.isTrusted(player.getUUID())));
 				}
 			}
 			guests = List.copyOf(snapshot);
@@ -185,6 +188,20 @@ public final class HostController {
 				}
 			}
 		});
+	}
+
+	/** Lets a visitor in a public world build (or takes that back). */
+	public static void trust(UUID id, String name, boolean trusted) {
+		IntegratedServer server = Minecraft.getInstance().getSingleplayerServer();
+		if (server != null) {
+			server.execute(() -> {
+				if (trusted) {
+					com.javahost.rules.Trust.trust(id, name);
+				} else {
+					com.javahost.rules.Trust.untrust(id);
+				}
+			});
+		}
 	}
 
 	/** Changes a guest's game mode (survival, creative, adventure, spectator). */
