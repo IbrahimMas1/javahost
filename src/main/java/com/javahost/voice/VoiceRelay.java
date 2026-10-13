@@ -37,7 +37,7 @@ public final class VoiceRelay {
 	 * Players on JavaHost 1.3 only get nearby frames, in the old format.
 	 */
 	private static void relay(ServerPlayer speaker, int sequence, boolean party, byte[] opus) {
-		if (!HostState.voiceEnabled()) {
+		if (!HostState.voiceEnabled() || !com.javahost.net.Guard.allow(speaker, com.javahost.net.Guard.VOICE, 1)) {
 			return;
 		}
 		double range = HostState.voiceRange();

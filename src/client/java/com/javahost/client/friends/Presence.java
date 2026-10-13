@@ -66,8 +66,9 @@ public final class Presence {
 	}
 
 	public static void start() {
-		stream = new Mailbox("status", topics(), "30m");
-		stream.start("30m", message -> Minecraft.getInstance().execute(() -> receive(message)), status -> {
+		// A bit longer than the heartbeat, so a friend's last status is always there after we reconnect.
+		stream = new Mailbox("status", topics(), "45m");
+		stream.start("45m", message -> Minecraft.getInstance().execute(() -> receive(message)), status -> {
 		});
 	}
 
@@ -104,8 +105,13 @@ public final class Presence {
 	 */
 	public static String versionNote(UUID friend) {
 		String theirs = VERSIONS.get(friend);
+		boolean noSigningKey = Friends.friend(friend).map(f -> f.signKey() == null).orElse(false);
 		if (theirs == null) {
-			return null;
+			// Friends on 1.6 or older can't prove their status or worlds, so they can't be joined until they update.
+			return noSigningKey ? "Needs update" : null;
+		}
+		if (noSigningKey) {
+			return "Needs update (" + theirs + ")";
 		}
 		int diff = com.javahost.util.Versions.compare(theirs, JavaHost.VERSION);
 		return diff < 0 ? "Needs update (" + theirs + ")" : diff > 0 ? "You need to update (they have " + theirs + ")" : null;
@@ -121,6 +127,9 @@ public final class Presence {
 	public static void tick(Minecraft minecraft) {
 		if (Friends.status() == Mailbox.Status.CONNECTING && lastPublishTime == 0) {
 			return;
+		}
+		if (lastPublishTime != 0 && System.currentTimeMillis() - lastPublishTime <= MIN_GAP_MS) {
+			return; // nothing can go out yet, so don't even work out the state
 		}
 		JsonObject now = currentState(minecraft);
 		String key = now.toString();
@@ -198,7 +207,10 @@ public final class Presence {
 			message.addProperty("type", "status");
 			message.addProperty("from", Identity.id().toString());
 			message.addProperty("ts", ts);
-			message.addProperty("data", FriendCrypto.seal(Friends.myStatusKey(), state.toString(), "status|" + Identity.id() + "|" + ts));
+			String data = FriendCrypto.seal(Friends.myStatusKey(), state.toString(), "status|" + Identity.id() + "|" + ts);
+			message.addProperty("data", data);
+			// Signed with our own key: every friend can read our status, but none of them can fake it.
+			message.addProperty("sig", Base64.getEncoder().encodeToString(Identity.signWithIdentity(FriendCrypto.statusBytes(Identity.id(), ts, data))));
 			String summary = state.get("state").getAsString();
 			return Mailbox.post(topicFor(Identity.id()), message.toString()).thenApply(sent -> {
 				JavaHost.LOGGER.info("[Friends] published status {}: HTTP {}", summary, sent.status());
@@ -218,17 +230,23 @@ public final class Presence {
 			UUID from = UUID.fromString(message.get("from").getAsString());
 			long ts = message.get("ts").getAsLong();
 			Optional<Friend> friend = Friends.friend(from);
-			if (friend.isEmpty() || friend.get().statusKey() == null || !envelope.topic().equals(topicFor(from))) {
-				return;
+			if (friend.isEmpty() || friend.get().statusKey() == null || !envelope.topic().equals(topicFor(from))
+					|| ts > System.currentTimeMillis() + 2 * 60 * 1000L) {
+				return; // not a friend, or dated in the future (which would pin a fake status in place)
+			}
+			String data = message.get("data").getAsString();
+			if (!message.has("sig") || !FriendCrypto.verifySigned(friend.get().signKey(), FriendCrypto.statusBytes(from, ts, data),
+					Base64.getDecoder().decode(message.get("sig").getAsString()))) {
+				return; // not signed by this friend (only they can sign their status)
 			}
 			Status previous = LATEST.get(from);
 			if (previous != null && previous.time() >= ts) {
 				return; // older than what we have
 			}
 			byte[] key = Base64.getDecoder().decode(friend.get().statusKey());
-			JsonObject body = JsonParser.parseString(FriendCrypto.open(key, message.get("data").getAsString(), "status|" + from + "|" + ts)).getAsJsonObject();
+			JsonObject body = JsonParser.parseString(FriendCrypto.open(key, data, "status|" + from + "|" + ts)).getAsJsonObject();
 			State state = State.valueOf(body.get("state").getAsString());
-			Status status = new Status(from, state, Friends.str(body, "world"),
+			Status status = new Status(from, state, com.javahost.util.Text.clean(Friends.str(body, "world"), 64),
 					body.has("players") ? body.get("players").getAsInt() : 0, body.has("max") ? body.get("max").getAsInt() : 0,
 					body.has("routes") ? Friends.routesFrom(body.getAsJsonArray("routes")) : List.of(), Friends.str(body, "hostIp"), ts);
 			LATEST.put(from, status);

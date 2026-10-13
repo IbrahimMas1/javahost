@@ -50,6 +50,7 @@ public final class Popups {
 				Toasts.player(invite.from(), invite.name() + " invited you!", "Join their world: " + invite.world());
 			}
 			case Event.RequestReceived(Request request) -> {
+				REQUESTS.removeIf(old -> old.id().equals(request.id()));
 				REQUESTS.add(request);
 				Notifications.add(Notifications.Kind.REQUEST, request.id(), request.name(), request.name() + " wants to be friends", request);
 				Toasts.player(request.id(), request.name() + " wants to be friends", "Answer in the JavaHost menu (J)");
@@ -110,9 +111,11 @@ public final class Popups {
 		}
 		if (!REQUESTS.isEmpty() && calm(screen, false)) {
 			Request request = REQUESTS.poll();
+			boolean warn = request.note() != null && !request.note().isEmpty();
 			minecraft.gui.setScreen(new FriendPopup(screen, request.id(), request.name() + " wants to be friends",
-					"Friends can invite each other into their worlds with one click.",
-					"Accept", "Decline", () -> Friends.accept(request), () -> Friends.decline(request)));
+					warn ? request.note() + "." : "Friends can invite each other into their worlds with one click.",
+					"Accept", "Decline", () -> Friends.accept(request), () -> Friends.decline(request))
+					.withExtra("Block", () -> Friends.block(request.id(), request.name())));
 			return;
 		}
 

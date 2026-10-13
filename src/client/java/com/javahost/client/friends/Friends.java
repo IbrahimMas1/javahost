@@ -42,13 +42,22 @@ import net.minecraft.client.Minecraft;
  * Every message sent or received is logged, so problems can be diagnosed from the game log.
  */
 public final class Friends {
-	public record Friend(UUID id, String name, String box, long since, String statusKey) {
+	/**
+	 * {@code signKey}: their Ed25519 public key, which proves their online status and that a world is theirs. Null
+	 * for friends still on JavaHost 1.6 or older (they can't be joined until they update).
+	 */
+	public record Friend(UUID id, String name, String box, long since, String statusKey, String signKey) {
 		Friend withStatusKey(String key) {
-			return new Friend(id, name, box, since, key);
+			return new Friend(id, name, box, since, key, signKey);
+		}
+
+		Friend withSignKey(String key) {
+			return new Friend(id, name, box, since, statusKey, key);
 		}
 	}
 
-	public record Request(UUID id, String name, String box, long time) {
+	/** {@code note}: a warning to show with it (e.g. their name matches a friend's old name), or empty. */
+	public record Request(UUID id, String name, String box, long time, String signKey, String note) {
 	}
 
 	public record Outgoing(UUID id, String name, long time) {
@@ -96,6 +105,12 @@ public final class Friends {
 		String myStatusKey = "";
 		/** Friends we've already sent the current status key to. */
 		Set<String> statusKeySentTo = new HashSet<>();
+		/** Friends we've already sent our signing key to. */
+		Set<String> signKeySentTo = new HashSet<>();
+		/** When we last asked each friend to resend their keys (so we don't keep asking). */
+		Map<String, Long> askedForKeys = new HashMap<>();
+		/** Message ids already handled, with when they were sent: a replayed message is ignored, even after a restart. */
+		Map<String, Long> seen = new HashMap<>();
 	}
 
 	private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("javahost-friends.json");
@@ -106,7 +121,10 @@ public final class Friends {
 
 	private static Data data = new Data();
 	private static Mailbox mailbox;
-	private static final Set<String> SEEN = new HashSet<>();
+	private static final int MAX_SEEN = 5000;
+	private static boolean dirty;
+	private static long lastSaved;
+	private static long lastRetry;
 	private static final List<Runnable> LISTENERS = new ArrayList<>();
 	private static final Map<UUID, InviteStatus> INVITES_SENT = new HashMap<>();
 	private static Consumer<Event> events = event -> {
@@ -135,10 +153,35 @@ public final class Friends {
 			JavaHost.LOGGER.info("[Friends] mailbox {}", status);
 			changed();
 		}));
-		// Friends added before 1.1 (or while we were away) may not have our status key yet.
-		for (Friend friend : data.friends) {
-			if (!data.statusKeySentTo.contains(friend.id().toString())) {
+		lastRetry = System.currentTimeMillis();
+		sendMissingKeys(Integer.MAX_VALUE);
+	}
+
+	/**
+	 * Friends who don't have our status or signing key yet get them; friends whose keys we're missing are asked
+	 * to resend (once a day). Covers friends added on older versions and messages lost while someone was away.
+	 */
+	private static void sendMissingKeys(int limit) {
+		int sent = 0;
+		long now = System.currentTimeMillis();
+		for (Friend friend : List.copyOf(data.friends)) {
+			if (sent >= limit) {
+				return;
+			}
+			String id = friend.id().toString();
+			if (!data.statusKeySentTo.contains(id)) {
 				sendStatusKey(friend);
+				sent++;
+			}
+			if (!data.signKeySentTo.contains(id)) {
+				sendSignKey(friend);
+				sent++;
+			}
+			if ((friend.statusKey() == null || friend.signKey() == null) && now - data.askedForKeys.getOrDefault(id, 0L) > 24 * 60 * 60 * 1000L) {
+				data.askedForKeys.put(id, now);
+				sendSealed(friend, "keys-please", new JsonObject());
+				sent++;
+				save();
 			}
 		}
 	}
@@ -193,7 +236,11 @@ public final class Friends {
 	private static void pushAllowedPlayers() {
 		Set<UUID> allowed = new HashSet<>();
 		data.friends.forEach(f -> allowed.add(f.id()));
+		boolean removed = !allowed.containsAll(HostState.allowedPlayers());
 		HostState.setAllowedPlayers(allowed);
+		if (removed && net.minecraft.client.Minecraft.getInstance().getSingleplayerServer() != null) {
+			com.javahost.client.host.HostController.enforce(); // someone you unfriended leaves a friends-only world
+		}
 	}
 
 	public static List<Friend> friends() {
@@ -221,9 +268,16 @@ public final class Friends {
 		return Base64.getDecoder().decode(data.myStatusKey);
 	}
 
-	/** Gives up on invites that were sent but never acknowledged. */
+	/** Gives up on invites that were sent but never acknowledged; saves changes; retries key exchanges. */
 	public static void tick() {
 		long now = System.currentTimeMillis();
+		if (dirty && now - lastSaved > 1000) {
+			flush();
+		}
+		if (mailbox != null && now - lastRetry > 10 * 60 * 1000L) {
+			lastRetry = now;
+			sendMissingKeys(5);
+		}
 		INVITES_SENT.replaceAll((id, status) -> status.state() == InviteState.SENT && now - status.time() > DELIVERY_TIMEOUT_MS
 				? new InviteStatus(InviteState.FAILED, status.messageId(), now, "Not delivered (they may be offline)")
 				: status);
@@ -290,12 +344,13 @@ public final class Friends {
 		return sendSigned("accept", request.id(), request.name()).thenApply(sent -> {
 			if (sent.ok()) {
 				Minecraft.getInstance().execute(() -> {
-					Friend friend = becomeFriends(request.id(), request.name(), request.box());
+					Friend friend = becomeFriends(request.id(), request.name(), request.box(), request.signKey());
 					data.incoming.removeIf(r -> r.id().equals(request.id()));
 					save();
 					changed();
 					if (friend != null) {
 						sendStatusKey(friend);
+						sendSignKey(friend);
 					}
 				});
 			}
@@ -313,6 +368,32 @@ public final class Friends {
 		data.outgoing.removeIf(o -> o.id().equals(outgoing.id()));
 		save();
 		changed();
+	}
+
+	/** Blocks a player: their messages are dropped unread, they can't join your worlds, and they stop being a friend. */
+	public static void block(UUID id, String name) {
+		com.javahost.client.Config config = com.javahost.client.Config.get();
+		config.blockedPlayers.put(id.toString(), name);
+		config.save();
+		data.incoming.removeIf(r -> r.id().equals(id));
+		data.outgoing.removeIf(o -> o.id().equals(id));
+		friend(id).ifPresent(Friends::remove);
+		com.javahost.client.host.HostController.applyHostRules(config);
+		save();
+		changed();
+		JavaHost.LOGGER.info("[Friends] blocked {}", name);
+	}
+
+	public static void unblock(UUID id) {
+		com.javahost.client.Config config = com.javahost.client.Config.get();
+		config.blockedPlayers.remove(id.toString());
+		config.save();
+		com.javahost.client.host.HostController.applyHostRules(config);
+		changed();
+	}
+
+	public static boolean isBlocked(UUID id) {
+		return com.javahost.client.Config.get().blockedPlayers.containsKey(id.toString());
 	}
 
 	public static void remove(Friend friend) {
@@ -462,6 +543,19 @@ public final class Friends {
 		});
 	}
 
+	private static void sendSignKey(Friend friend) {
+		JsonObject body = new JsonObject();
+		body.addProperty("key", Identity.signPublicKey());
+		sendSealed(friend, "keys", body).thenAccept(sent -> {
+			if (sent.ok()) {
+				Minecraft.getInstance().execute(() -> {
+					data.signKeySentTo.add(friend.id().toString());
+					save();
+				});
+			}
+		});
+	}
+
 	// ================================================================ sending
 
 	private static <T> CompletableFuture<T> onGameThread(java.util.function.Supplier<CompletableFuture<T>> work) {
@@ -490,8 +584,10 @@ public final class Friends {
 
 	/** The exact bytes a request/accept signature covers. */
 	private static byte[] signedPayload(JsonObject m) {
-		return String.join("\n", "javahost-v1", str(m, "type"), str(m, "id"), str(m, "from"), str(m, "name"), str(m, "to"),
-				String.valueOf(m.get("ts").getAsLong()), str(m, "box")).getBytes(StandardCharsets.UTF_8);
+		String base = String.join("\n", "javahost-v1", str(m, "type"), str(m, "id"), str(m, "from"), str(m, "name"), str(m, "to"),
+				String.valueOf(m.get("ts").getAsLong()), str(m, "box"));
+		// 1.7+: the signing key is covered by the Mojang signature too (older requests don't carry one).
+		return (m.has("signkey") ? base + "\n" + str(m, "signkey") : base).getBytes(StandardCharsets.UTF_8);
 	}
 
 	private static String context(JsonObject m) {
@@ -501,6 +597,7 @@ public final class Friends {
 	private static CompletableFuture<Sent> sendSigned(String type, UUID to, String toName) {
 		JsonObject message = header(type, to);
 		message.addProperty("box", Identity.boxPublicKey());
+		message.addProperty("signkey", Identity.signPublicKey());
 		return Identity.sign(message, signedPayload(message)).thenCompose(signed -> {
 			if (!signed) {
 				Identity.checkCertificate();
@@ -551,10 +648,13 @@ public final class Friends {
 		try {
 			JsonObject m = JsonParser.parseString(text).getAsJsonObject();
 			type = str(m, "type");
-			if (m.get("v").getAsInt() != 1 || !SEEN.add(str(m, "id"))) {
+			if (m.get("v").getAsInt() != 1 || data.seen.containsKey(str(m, "id"))) {
 				return;
 			}
 			UUID from = UUID.fromString(str(m, "from"));
+			if (isBlocked(from)) {
+				return; // dropped unread
+			}
 			UUID to = UUID.fromString(str(m, "to"));
 			if (sender != null && !sender.equals(from)) {
 				return; // the fast lane says someone else sent it
@@ -565,26 +665,28 @@ public final class Friends {
 				return;
 			}
 			String name = str(m, "name");
-			if (!name.matches("[A-Za-z0-9_]{1,16}")) {
+			String id = str(m, "id");
+			if (!name.matches("[A-Za-z0-9_]{1,16}") || !id.matches("[A-Za-z0-9_-]{1,64}")) {
 				return;
 			}
+			remember(id, ts);
 			JavaHost.LOGGER.info("[Friends] received {} from {}{}", type, name, sender != null ? " via game" : "");
 			switch (type) {
 				case "request" -> {
 					if (Identity.verify(from, m, signedPayload(m))) {
-						onRequest(from, name, str(m, "box"));
+						onRequest(from, name, str(m, "box"), str(m, "signkey"));
 					} else {
 						JavaHost.LOGGER.warn("[Friends] rejected request from {}: bad signature", name);
 					}
 				}
 				case "accept" -> {
 					if (Identity.verify(from, m, signedPayload(m))) {
-						onAccept(from, name, str(m, "box"));
+						onAccept(from, name, str(m, "box"), str(m, "signkey"));
 					} else {
 						JavaHost.LOGGER.warn("[Friends] rejected accept from {}: bad signature", name);
 					}
 				}
-				case "invite", "invite-seen", "remove", "statuskey", "chat", "screenshot" -> {
+				case "invite", "invite-seen", "remove", "statuskey", "keys", "keys-please", "chat", "screenshot" -> {
 					Optional<Friend> friend = friend(from);
 					if (friend.isEmpty()) {
 						JavaHost.LOGGER.info("[Friends] ignored {} from {}: not a friend", type, name);
@@ -615,6 +717,27 @@ public final class Friends {
 				Presence.friendsChanged();
 				changed();
 			}
+			case "keys" -> {
+				String key = str(body, "key");
+				if (!FriendCrypto.isSigningKey(key)) {
+					return; // not a key
+				}
+				data.friends.replaceAll(f -> f.id().equals(friend.id()) ? f.withSignKey(key) : f);
+				save();
+				Presence.friendsChanged();
+				changed();
+			}
+			case "keys-please" -> {
+				// They lost (or never got) our keys: send them again, at most once an hour each.
+				String id = friend.id().toString();
+				long last = data.askedForKeys.getOrDefault("answered:" + id, 0L);
+				if (System.currentTimeMillis() - last > 60 * 60 * 1000L) {
+					data.askedForKeys.put("answered:" + id, System.currentTimeMillis());
+					sendStatusKey(friend);
+					sendSignKey(friend);
+					save();
+				}
+			}
 			case "invite-seen" -> {
 				InviteStatus status = INVITES_SENT.get(friend.id());
 				if (status != null && status.messageId().equals(str(body, "ref"))) {
@@ -623,8 +746,10 @@ public final class Friends {
 				}
 			}
 			case "invite" -> {
-				Invite invite = new Invite(friend.id(), friend.name(), str(body, "world"), routesFrom(body.getAsJsonArray("routes")),
-						str(body, "hostIp"), body.get("expires").getAsLong());
+				// However long the sender says, an invite is good for 15 minutes from when it was sent.
+				long expires = Math.min(body.get("expires").getAsLong(), message.get("ts").getAsLong() + 15 * 60 * 1000L);
+				Invite invite = new Invite(friend.id(), friend.name(), com.javahost.util.Text.clean(str(body, "world"), 64),
+						routesFrom(body.getAsJsonArray("routes")), str(body, "hostIp"), expires);
 				// Let the host know it arrived, even if we don't join.
 				JsonObject seen = new JsonObject();
 				seen.addProperty("ref", str(message, "id"));
@@ -634,9 +759,9 @@ public final class Friends {
 				}
 			}
 			case "chat" -> {
-				String text = str(body, "text");
-				if (text.length() > Chats.MAX_LENGTH) {
-					text = text.substring(0, Chats.MAX_LENGTH);
+				String text = com.javahost.util.Text.clean(str(body, "text"), Chats.MAX_LENGTH);
+				if (text.isEmpty()) {
+					return;
 				}
 				Chats.add(friend.id(), new Chats.Line(false, text, System.currentTimeMillis()));
 				events.accept(new Event.ChatReceived(friend, text));
@@ -652,7 +777,7 @@ public final class Friends {
 		if (attachment == null) {
 			return;
 		}
-		String caption = str(meta, "caption");
+		String caption = com.javahost.util.Text.clean(str(meta, "caption"), 128);
 		String context = context(message) + "|file";
 		attachment.fetch().thenAccept(sealed -> {
 			try {
@@ -669,61 +794,109 @@ public final class Friends {
 		});
 	}
 
-	private static void onRequest(UUID from, String name, String box) {
-		if (friend(from).isPresent()) {
-			// They probably reinstalled; confirm again with our key.
-			Friend friend = becomeFriends(from, name, box);
-			sendSigned("accept", from, name);
-			if (friend != null) {
-				sendStatusKey(friend);
+	/**
+	 * Gets the sender's real name from Mojang before showing anything: the name in a request is whatever the sender
+	 * typed, so without this check someone could pose as one of your friends. Falls back to the claimed name only
+	 * when Mojang can't be reached (and in offline test mode).
+	 */
+	private static void withRealName(UUID from, String claimed, java.util.function.Consumer<String> then) {
+		Identity.nameOf(from).thenAccept(real -> Minecraft.getInstance().execute(() -> {
+			if (real.isPresent() && !real.get().equals(claimed)) {
+				JavaHost.LOGGER.warn("[Friends] {} claimed to be called {}; using their real name", real.get(), claimed);
 			}
-			return;
-		}
-		if (data.outgoing.stream().anyMatch(o -> o.id().equals(from))) {
-			// We both asked: that's a yes.
-			accept(new Request(from, name, box, System.currentTimeMillis()));
-			return;
-		}
-		data.incoming.removeIf(r -> r.id().equals(from));
-		Request request = new Request(from, name, box, System.currentTimeMillis());
-		data.incoming.add(request);
-		changed();
-		events.accept(new Event.RequestReceived(request));
+			then.accept(real.orElse(claimed));
+		}));
 	}
 
-	private static void onAccept(UUID from, String name, String box) {
+	private static void onRequest(UUID from, String claimedName, String box, String signKey) {
+		withRealName(from, claimedName, name -> {
+			if (isBlocked(from)) {
+				return;
+			}
+			if (friend(from).isPresent()) {
+				// They probably reinstalled; confirm again with our key.
+				Friend friend = becomeFriends(from, name, box, signKey);
+				sendSigned("accept", from, name);
+				if (friend != null) {
+					sendStatusKey(friend);
+					sendSignKey(friend);
+				}
+				return;
+			}
+			if (data.outgoing.stream().anyMatch(o -> o.id().equals(from))) {
+				// We both asked: that's a yes.
+				accept(new Request(from, name, box, System.currentTimeMillis(), signKey, ""));
+				return;
+			}
+			// A different account using a name one of your friends had (names can change hands): say so.
+			String note = data.friends.stream().anyMatch(f -> !f.id().equals(from) && f.name().equalsIgnoreCase(name))
+					? "Not your friend " + name + ": a different account with the same name" : "";
+			boolean known = data.incoming.removeIf(r -> r.id().equals(from));
+			Request request = new Request(from, name, box, System.currentTimeMillis(), signKey, note);
+			data.incoming.add(request);
+			while (data.incoming.size() > 50) {
+				data.incoming.removeFirst(); // a flood of requests can't grow the list forever
+			}
+			save();
+			changed();
+			if (!known) {
+				events.accept(new Event.RequestReceived(request));
+			}
+		});
+	}
+
+	private static void onAccept(UUID from, String claimedName, String box, String signKey) {
 		boolean wanted = data.outgoing.stream().anyMatch(o -> o.id().equals(from)) || friend(from).isPresent();
 		if (!wanted) {
 			return;
 		}
-		boolean isNew = friend(from).isEmpty();
-		Friend friend = becomeFriends(from, name, box);
-		data.outgoing.removeIf(o -> o.id().equals(from));
-		changed();
-		if (friend != null) {
-			sendStatusKey(friend);
-			if (isNew) {
-				events.accept(new Event.Accepted(friend));
+		withRealName(from, claimedName, name -> {
+			boolean isNew = friend(from).isEmpty();
+			Friend friend = becomeFriends(from, name, box, signKey);
+			data.outgoing.removeIf(o -> o.id().equals(from));
+			changed();
+			if (friend != null) {
+				sendStatusKey(friend);
+				sendSignKey(friend);
+				if (isNew) {
+					events.accept(new Event.Accepted(friend));
+				}
 			}
-		}
+		});
 	}
 
-	private static Friend becomeFriends(UUID id, String name, String box) {
+	private static Friend becomeFriends(UUID id, String name, String box, String signKey) {
 		try {
 			FriendCrypto.decodePublic(box); // reject garbage keys up front
 		} catch (Exception e) {
 			return null;
 		}
 		Optional<Friend> existing = friend(id);
+		String sign = signKey != null && !signKey.isEmpty() ? signKey : existing.map(Friend::signKey).orElse(null);
 		Friend friend = new Friend(id, name, box, existing.map(Friend::since).orElse(System.currentTimeMillis()),
-				existing.map(Friend::statusKey).orElse(null));
+				existing.map(Friend::statusKey).orElse(null), sign);
 		data.friends.removeIf(f -> f.id().equals(id));
 		data.friends.add(friend);
 		data.friends.sort((a, b) -> a.name().compareToIgnoreCase(b.name()));
 		data.statusKeySentTo.remove(id.toString());
+		data.signKeySentTo.remove(id.toString());
 		save();
 		Presence.friendsChanged();
 		return friend;
+	}
+
+	/** Marks a message as handled, forgetting the oldest once there are too many (and any older than 12 hours). */
+	private static void remember(String id, long ts) {
+		data.seen.put(id, ts);
+		if (data.seen.size() > MAX_SEEN) {
+			long cutoff = System.currentTimeMillis() - MAX_AGE_MS;
+			data.seen.values().removeIf(t -> t < cutoff);
+			while (data.seen.size() > MAX_SEEN) {
+				String oldest = data.seen.entrySet().stream().min(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElseThrow();
+				data.seen.remove(oldest);
+			}
+		}
+		save();
 	}
 
 	static String str(JsonObject object, String key) {
@@ -759,18 +932,53 @@ public final class Friends {
 				if (data.statusKeySentTo == null) {
 					data.statusKeySentTo = new HashSet<>();
 				}
+				if (data.signKeySentTo == null) {
+					data.signKeySentTo = new HashSet<>();
+				}
+				if (data.askedForKeys == null) {
+					data.askedForKeys = new HashMap<>();
+				}
+				if (data.seen == null) {
+					data.seen = new HashMap<>();
+				}
+				// Requests saved by 1.6 have no signing key or note.
+				data.incoming.replaceAll(r -> r.note() == null ? new Request(r.id(), r.name(), r.box(), r.time(), r.signKey(), "") : r);
 			}
 		} catch (Exception e) {
 			JavaHost.LOGGER.warn("Could not read friends list", e);
 		}
 	}
 
+	/** Saves soon (at most once a second, in the background), so a burst of messages doesn't write the file each time. */
 	static void save() {
+		dirty = true;
+	}
+
+	/** Writes the friends file now. The JSON is made here (game thread); the file is written in the background. */
+	public static void flush() {
+		if (!dirty) {
+			return;
+		}
+		dirty = false;
+		lastSaved = System.currentTimeMillis();
+		String json = GSON.toJson(data);
+		com.javahost.util.IoExecutor.run(() -> write(json));
+	}
+
+	/** Writes any unsaved changes before the game closes. */
+	public static void flushNow() {
+		if (dirty) {
+			dirty = false;
+			write(GSON.toJson(data));
+		}
+	}
+
+	private static synchronized void write(String json) {
 		try {
 			Files.createDirectories(FILE.getParent());
-			try (Writer writer = Files.newBufferedWriter(FILE)) {
-				GSON.toJson(data, writer);
-			}
+			Path temp = FILE.resolveSibling(FILE.getFileName() + ".tmp");
+			Files.writeString(temp, json);
+			Files.move(temp, FILE, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
 		} catch (Exception e) {
 			JavaHost.LOGGER.warn("Could not save friends list", e);
 		}

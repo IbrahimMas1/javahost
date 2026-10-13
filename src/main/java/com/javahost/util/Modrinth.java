@@ -77,7 +77,7 @@ public final class Modrinth {
 			throw new IOException(project + " has no files");
 		}
 		String fileName = file.get("filename").getAsString();
-		if (!fileName.endsWith(".jar") || fileName.contains("/") || fileName.contains("\\") || fileName.startsWith(".")) {
+		if (!fileName.matches("[A-Za-z0-9][A-Za-z0-9._+-]*\\.jar")) {
 			throw new IOException("Unexpected file name " + fileName);
 		}
 		List<String> requires = new ArrayList<>();
@@ -128,7 +128,7 @@ public final class Modrinth {
 			return;
 		}
 		URI uri = URI.create(file.url());
-		if (!"https".equals(uri.getScheme()) || uri.getHost() == null || !uri.getHost().endsWith("modrinth.com")) {
+		if (!"https".equals(uri.getScheme()) || uri.getHost() == null || !uri.getHost().equals("cdn.modrinth.com")) {
 			throw new IOException("Refusing to download from " + uri.getHost());
 		}
 		Files.createDirectories(target.getParent());

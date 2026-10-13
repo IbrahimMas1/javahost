@@ -142,11 +142,34 @@ public abstract class Page {
 		Draw.text(g, text, x + 10, y, textColor);
 	}
 
+	/** Wrapped lines of plain text, remembered (pages draw the same messages every frame). */
+	private static final java.util.Map<String, java.util.List<net.minecraft.util.FormattedCharSequence>> WRAPPED =
+			new java.util.LinkedHashMap<>(64, 0.75f, true) {
+				@Override
+				protected boolean removeEldestEntry(java.util.Map.Entry<String, java.util.List<net.minecraft.util.FormattedCharSequence>> eldest) {
+					return size() > 256;
+				}
+			};
+
+	/** Forgets wrapped text (the menu calls this when it opens, in case fonts or resource packs changed). */
+	public static void clearTextCache() {
+		WRAPPED.clear();
+	}
+
+	private static java.util.List<net.minecraft.util.FormattedCharSequence> lines(String text, int width) {
+		return WRAPPED.computeIfAbsent(width + "|" + text, k -> Draw.font().split(Component.literal(text), width));
+	}
+
 	protected static int wrappedHeight(String text, int width) {
-		return Draw.wrappedHeight(Component.literal(text), width);
+		return lines(text, width).size() * 10;
 	}
 
 	protected static int wrap(GuiGraphicsExtractor g, String text, int x, int y, int width, int color) {
-		return Draw.wrapped(g, Component.literal(text), x, y, width, color);
+		int lineY = y;
+		for (net.minecraft.util.FormattedCharSequence line : lines(text, width)) {
+			g.text(Draw.font(), line, x, lineY, color, false);
+			lineY += 10;
+		}
+		return lineY - y;
 	}
 }

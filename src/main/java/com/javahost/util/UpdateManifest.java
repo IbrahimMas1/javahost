@@ -54,10 +54,15 @@ public record UpdateManifest(String version, int protocol, String minecraft, Str
 			files.add(new FileEntry(name, f.get("url").getAsString(), f.get("sha256").getAsString().toLowerCase(),
 					f.get("size").getAsLong(), f.get("replaces").getAsString()));
 		}
-		return new UpdateManifest(root.get("version").getAsString(), root.get("protocol").getAsInt(),
+		String version = root.get("version").getAsString();
+		String minimum = root.has("minimum") ? root.get("minimum").getAsString() : "0";
+		if (!version.matches("[0-9A-Za-z.+-]{1,32}") || !minimum.matches("[0-9A-Za-z.+-]{1,32}")) {
+			throw new IllegalArgumentException("Bad version in update: " + version);
+		}
+		return new UpdateManifest(version, root.get("protocol").getAsInt(),
 				root.get("minecraft").getAsString(), root.has("notes") ? root.get("notes").getAsString() : "",
 				root.has("releasePage") ? root.get("releasePage").getAsString() : "",
-				root.has("minimum") ? root.get("minimum").getAsString() : "0", List.copyOf(files));
+				minimum, List.copyOf(files));
 	}
 
 	/**

@@ -44,6 +44,17 @@ public final class InviteFlow {
 	private static String joiningHost;
 	private static long attemptStarted;
 	private static boolean sawConnecting;
+	/** Bumped by every join, so an older join that's still starting up gives way to the newest. */
+	private static int joinToken;
+	// Checking the world really is the friend's: who we expect, their signing key, and the challenge we sent.
+	private static UUID expectedHost;
+	private static String expectedSignKey;
+	private static byte[] challenge;
+	private static long challengeSent;
+	/** Why the last route didn't work out, for the message if none do. */
+	private static String lastProblem;
+	private static final long PROOF_TIMEOUT_MS = 8000;
+	private static final java.security.SecureRandom RANDOM = new java.security.SecureRandom();
 
 	private InviteFlow() {
 	}
@@ -115,13 +126,8 @@ public final class InviteFlow {
 		JavaHost.LOGGER.info("[Friends] inviting {}", friend.name());
 		setLocal(friend.id(), "Opening your world...");
 		String world = server.getWorldData().getLevelName();
-		CompletableFuture.runAsync(() -> {
-			// Give the connection checks (and the relay, if needed) up to ~25 s to settle.
-			long deadline = System.currentTimeMillis() + 25_000;
-			while (System.currentTimeMillis() < deadline && !ready()) {
-				sleep(250);
-			}
-		}).thenRun(() -> minecraft.execute(() -> {
+		// Give the connection checks (and the relay, if needed) up to ~25 s to settle, checking every quarter second.
+		whenReady(System.currentTimeMillis() + 25_000).thenRun(() -> minecraft.execute(() -> {
 			List<RouteInfo> routes = shareableRoutes();
 			if (routes.isEmpty()) {
 				setLocal(friend.id(), "No way in yet. Check the Host tab");
@@ -135,6 +141,21 @@ public final class InviteFlow {
 				}
 			}));
 		}));
+	}
+
+	/** Completes once the connection checks have settled or the deadline passes, without tying up a thread. */
+	private static CompletableFuture<Void> whenReady(long deadline) {
+		CompletableFuture<Void> done = new CompletableFuture<>();
+		Runnable[] check = new Runnable[1];
+		check[0] = () -> Minecraft.getInstance().execute(() -> {
+			if (ready() || System.currentTimeMillis() >= deadline) {
+				done.complete(null);
+			} else {
+				CompletableFuture.delayedExecutor(250, java.util.concurrent.TimeUnit.MILLISECONDS).execute(check[0]);
+			}
+		});
+		check[0].run();
+		return done;
 	}
 
 	private static boolean ready() {
@@ -168,12 +189,27 @@ public final class InviteFlow {
 
 	/** Joins the host's world, trying each way in until one connects. */
 	public static void join(Invite invite) {
-		CompletableFuture.supplyAsync(InviteFlow::myPublicIpv4).thenAccept(myIp -> Minecraft.getInstance().execute(() -> {
+		java.util.Optional<Friend> friend = Friends.friend(invite.from());
+		if (friend.isEmpty() || friend.get().signKey() == null) {
+			// Without their signing key we can't check the world is really theirs, so we don't go.
+			Toasts.notify("Couldn't join " + invite.name(), invite.name() + " needs to update JavaHost first (1.7 or newer).");
+			return;
+		}
+		int token = ++joinToken;
+		String signKey = friend.get().signKey();
+		CompletableFuture.supplyAsync(InviteFlow::myPublicIpv4, com.javahost.util.IoExecutor.NET).thenAccept(myIp -> Minecraft.getInstance().execute(() -> {
+			if (token != joinToken) {
+				return; // a newer Join replaced this one
+			}
 			List<String> order = joinOrder(invite, myIp);
 			JavaHost.LOGGER.info("[Friends] joining {}'s world via {}", invite.name(), order);
 			joinQueue = order;
 			joinIndex = -1;
 			joiningHost = invite.name();
+			expectedHost = invite.from();
+			expectedSignKey = signKey;
+			challengeSent = 0;
+			lastProblem = null;
 			Toasts.player(invite.from(), "Joining " + invite.name() + "'s world...", invite.world());
 			next();
 		}));
@@ -182,7 +218,10 @@ public final class InviteFlow {
 	/** Same home network first (fastest), then direct internet, then the relay, then the maybes. */
 	static List<String> joinOrder(Invite invite, String myPublicIp) {
 		List<String> order = new ArrayList<>();
-		boolean sameHome = myPublicIp != null && !invite.hostIp().isEmpty() && myPublicIp.equals(invite.hostIp());
+		// Same public address isn't enough (whole campuses and phone networks share one): the host's LAN address must
+		// also be on one of our own networks, or "Same Wi-Fi" could reach some other PC that happens to be there.
+		boolean sameHome = myPublicIp != null && !invite.hostIp().isEmpty() && myPublicIp.equals(invite.hostIp())
+				&& invite.routes().stream().anyMatch(r -> r.name().equals("Same Wi-Fi") && onMyNetwork(r.address()));
 		String forced = System.getProperty("javahost.test.preferRoute");
 		List<String> preference = forced != null
 				? List.of(forced)
@@ -213,11 +252,20 @@ public final class InviteFlow {
 		Minecraft minecraft = Minecraft.getInstance();
 		joinIndex++;
 		if (joinIndex >= joinQueue.size()) {
-			JavaHost.LOGGER.info("Couldn't reach {}'s world by any route", joiningHost);
+			JavaHost.LOGGER.info("Couldn't reach {}'s world by any route ({})", joiningHost, lastProblem);
+			boolean unconfirmed = expectedHost != null && minecraft.level != null;
 			joinQueue = List.of();
-			Toasts.notify("Couldn't join " + joiningHost, "Their world may have closed. Ask them to invite you again.");
+			expectedHost = null;
+			if (unconfirmed) {
+				// We're still in the last world tried, and it never proved it's theirs: don't stay.
+				minecraft.disconnectFromWorld(Component.literal("Couldn't confirm this world"));
+				minecraft.gui.setScreen(new TitleScreen());
+			}
+			Toasts.notify("Couldn't join " + joiningHost, lastProblem != null ? lastProblem
+					: "Their world may have closed. Ask them to invite you again.");
 			return;
 		}
+		challengeSent = 0;
 		String address = joinQueue.get(joinIndex);
 		if (minecraft.level != null) {
 			// Leave (and save) whatever world we're in first.
@@ -238,8 +286,24 @@ public final class InviteFlow {
 			sawConnecting = true;
 		}
 		if (minecraft.level != null && minecraft.player != null) {
-			JavaHost.LOGGER.info("Joined {}'s world via {}", joiningHost, joinQueue.get(joinIndex));
-			joinQueue = List.of();
+			if (expectedHost == null) {
+				JavaHost.LOGGER.info("Joined {}'s world via {}", joiningHost, joinQueue.get(joinIndex));
+				joinQueue = List.of();
+				return;
+			}
+			// In, but is it really their world? Ask the host's game to prove it with their signing key.
+			if (challengeSent == 0) {
+				if (!net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.canSend(com.javahost.net.Payloads.HostProofRequest.TYPE)) {
+					wrongWorld("doesn't run JavaHost 1.7");
+					return;
+				}
+				challenge = new byte[32];
+				RANDOM.nextBytes(challenge);
+				challengeSent = System.currentTimeMillis();
+				net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new com.javahost.net.Payloads.HostProofRequest(challenge));
+			} else if (System.currentTimeMillis() - challengeSent > PROOF_TIMEOUT_MS) {
+				wrongWorld("didn't prove it's theirs in time");
+			}
 			return;
 		}
 		if (sawConnecting && minecraft.gui.screen() instanceof TitleScreen && System.currentTimeMillis() - attemptStarted > 500) {
@@ -249,14 +313,71 @@ public final class InviteFlow {
 		}
 		if (minecraft.gui.screen() instanceof DisconnectedScreen screen) {
 			String reason = screen.getNarrationMessage().getString();
-			// Turned away on purpose (e.g. not friends): retrying another route won't help.
-			if (reason.contains("just for the host's friends")) {
-				joinQueue = List.of();
-				return;
+			// Turned away (e.g. "just for friends"). That may be some other world on this address, so keep trying
+			// the other ways in, and say why only if none work.
+			if (reason.contains("just for the host's friends") || reason.contains("banned") || reason.contains("full")) {
+				lastProblem = reason;
 			}
 			JavaHost.LOGGER.info("Route {} failed ({}), trying the next", joinQueue.get(joinIndex), reason);
 			next();
 		}
+	}
+
+	/** True while we're in a world but haven't yet confirmed it's the friend's (packs etc. wait until then). */
+	public static boolean verifying() {
+		return expectedHost != null && !joinQueue.isEmpty();
+	}
+
+	/** The host's answer to our challenge. */
+	public static void onProof(com.javahost.net.Payloads.HostProof proof) {
+		if (expectedHost == null || challengeSent == 0 || joinQueue.isEmpty()) {
+			return;
+		}
+		boolean valid = proof.host().equals(expectedHost) && com.javahost.util.FriendCrypto.verifySigned(expectedSignKey,
+				com.javahost.util.FriendCrypto.hostProofBytes(challenge, expectedHost, Identity.id()), proof.signature());
+		if (!valid) {
+			wrongWorld("isn't theirs");
+			return;
+		}
+		JavaHost.LOGGER.info("Joined {}'s world via {} (confirmed it's theirs)", joiningHost, joinQueue.get(joinIndex));
+		joinQueue = List.of();
+		expectedHost = null;
+		challengeSent = 0;
+	}
+
+	/** The world we reached isn't (provably) the friend's: leave at once and try the next way in. */
+	private static void wrongWorld(String why) {
+		JavaHost.LOGGER.warn("The world at {} {}: leaving", joinQueue.get(joinIndex), why);
+		lastProblem = "Couldn't confirm this is " + joiningHost + "'s world. " + joiningHost + " may need to update JavaHost.";
+		challengeSent = 0;
+		next();
+	}
+
+	/** True if {@code hostPort}'s IPv4 address is on the same local network as one of ours. */
+	static boolean onMyNetwork(String hostPort) {
+		try {
+			String host = hostPort.contains(":") ? hostPort.substring(0, hostPort.lastIndexOf(':')) : hostPort;
+			if (!host.matches("[0-9.]+")) {
+				return false;
+			}
+			byte[] target = java.net.InetAddress.getByName(host).getAddress();
+			var interfaces = java.net.NetworkInterface.getNetworkInterfaces();
+			while (interfaces != null && interfaces.hasMoreElements()) {
+				java.net.NetworkInterface nic = interfaces.nextElement();
+				if (!nic.isUp() || nic.isLoopback()) {
+					continue;
+				}
+				for (java.net.InterfaceAddress address : nic.getInterfaceAddresses()) {
+					byte[] mine = address.getAddress().getAddress();
+					if (mine.length == 4 && com.javahost.util.Subnets.same(mine, target, address.getNetworkPrefixLength())) {
+						return true;
+					}
+				}
+			}
+		} catch (Exception e) {
+			JavaHost.LOGGER.debug("Couldn't check the local network", e);
+		}
+		return false;
 	}
 
 	private static String cachedIp;
@@ -278,14 +399,6 @@ public final class InviteFlow {
 			}
 		} catch (Exception e) {
 			return null;
-		}
-	}
-
-	private static void sleep(long ms) {
-		try {
-			Thread.sleep(ms);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
 		}
 	}
 }

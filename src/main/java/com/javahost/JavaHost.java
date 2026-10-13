@@ -15,7 +15,7 @@ public class JavaHost implements ModInitializer {
 	 * Network compatibility: versions with the same protocol can play together. Bump it only when a change means
 	 * older and newer JavaHost can't join each other's worlds.
 	 */
-	public static final int PROTOCOL = 2;
+	public static final int PROTOCOL = 3;
 	/** This JavaHost's version, e.g. "1.4.0" (shown to friends for the version check). */
 	public static final String VERSION = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer(MOD_ID)
 			.map(mod -> mod.getMetadata().getVersion().getFriendlyString()).orElse("0");
@@ -23,6 +23,7 @@ public class JavaHost implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		Payloads.register();
+		com.javahost.net.Guard.register();
 		VoiceRelay.register();
 		PackServer.register();
 		com.javahost.net.FastLaneRouter.register();
@@ -36,22 +37,21 @@ public class JavaHost implements ModInitializer {
 			}
 		});
 
-		// Who may join a hosted world: not banned, room left, and (by default) on the host's friends list.
-		net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-			if (server.isSingleplayerOwner(handler.player.nameAndId())) {
+		// "Is this really your world?": the host's game signs the guest's challenge with its own key.
+		net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(Payloads.HostProofRequest.TYPE, (request, context) -> {
+			HostState.Prover prover = HostState.prover();
+			if (prover == null || request.nonce().length < 16 || !com.javahost.net.Guard.allow(context.player(), com.javahost.net.Guard.PROOF, 1)) {
 				return;
 			}
-			String refusal = null;
-			if (HostState.isBanned(handler.player.getUUID())) {
-				refusal = "The host has banned you from this world.";
-			} else if (server.getPlayerList().getPlayers().stream().filter(p -> p != handler.player).count() >= HostState.maxPlayers()) {
-				// The joining player may or may not be in the list yet, so count everyone else.
-				refusal = "This world is full (" + HostState.maxPlayers() + (HostState.maxPlayers() == 1 ? " player)." : " players).");
-			} else if (HostState.friendsOnly() && !HostState.isAllowed(handler.player.getUUID())) {
-				refusal = "This world is just for the host's friends. Ask them to add you in JavaHost.";
-			}
+			byte[] data = com.javahost.util.FriendCrypto.hostProofBytes(request.nonce(), prover.host(), context.player().getUUID());
+			context.responseSender().sendPacket(new Payloads.HostProof(prover.host(), prover.sign(data)));
+		});
+
+		// Backstop for the login check in PlayerListMixin (e.g. if the friends list changed in between).
+		net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+			String refusal = JoinGate.refusal(server, handler.player.nameAndId());
 			if (refusal != null) {
-				LOGGER.info("Turned away {}: {}", handler.player.getPlainTextName(), refusal);
+				JoinGate.log(handler.player.getPlainTextName(), refusal);
 				handler.disconnect(net.minecraft.network.chat.Component.literal(refusal));
 			}
 		});

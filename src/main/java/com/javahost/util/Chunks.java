@@ -57,7 +57,11 @@ public final class Chunks {
 		private int received;
 		private int bytes;
 
-		public Assembly(int total, int maxBytes) {
+		/** Throws if {@code total} is impossible for a transfer of at most {@code maxBytes} in {@code pieceSize} pieces. */
+		public Assembly(int total, int maxBytes, int pieceSize) {
+			if (total < 1 || total > maxBytes / pieceSize + 1) {
+				throw new IllegalArgumentException("Bad piece count " + total);
+			}
 			this.pieces = new byte[total][];
 			this.maxBytes = maxBytes;
 		}
@@ -80,6 +84,10 @@ public final class Chunks {
 				out.writeBytes(piece);
 			}
 			return out.toByteArray();
+		}
+
+		public int bytes() {
+			return bytes;
 		}
 
 		public boolean olderThan(long ms) {

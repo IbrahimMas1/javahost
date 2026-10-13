@@ -31,7 +31,8 @@ import net.minecraft.world.entity.player.ProfilePublicKey;
  */
 public final class Identity {
 	/** Development/test clients have no Microsoft account; this switch (tests only) accepts unsigned requests. */
-	public static final boolean INSECURE_TEST_MODE = Boolean.getBoolean("javahost.insecureFriends");
+	public static final boolean INSECURE_TEST_MODE = Boolean.getBoolean("javahost.insecureFriends")
+			&& FabricLoader.getInstance().isDevelopmentEnvironment(); // never in a real player's game
 	private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("javahost-identity.json");
 	private static KeyPair boxKeys;
 
@@ -73,6 +74,39 @@ public final class Identity {
 		return boxKeys;
 	}
 
+	private static KeyPair signKeys;
+
+	/** This player's Ed25519 signing key, created on first use and kept in the same file as the box key. */
+	public static synchronized KeyPair signKeys() {
+		if (signKeys != null) {
+			return signKeys;
+		}
+		boxKeys(); // makes sure the file exists
+		try {
+			JsonObject json = JsonParser.parseString(Files.readString(FILE)).getAsJsonObject();
+			if (json.has("signPublic") && json.has("signPrivate")) {
+				signKeys = FriendCrypto.decodeSigningKeyPair(json.get("signPublic").getAsString(), json.get("signPrivate").getAsString());
+				return signKeys;
+			}
+			signKeys = FriendCrypto.newSigningKeyPair();
+			json.addProperty("signPublic", FriendCrypto.encodePublic(signKeys.getPublic()));
+			json.addProperty("signPrivate", FriendCrypto.encodePrivate(signKeys.getPrivate()));
+			Files.writeString(FILE, json.toString());
+		} catch (Exception e) {
+			JavaHost.LOGGER.warn("Signing key unreadable, using a temporary one", e);
+			signKeys = FriendCrypto.newSigningKeyPair();
+		}
+		return signKeys;
+	}
+
+	public static String signPublicKey() {
+		return FriendCrypto.encodePublic(signKeys().getPublic());
+	}
+
+	public static byte[] signWithIdentity(byte[] data) {
+		return FriendCrypto.sign(signKeys().getPrivate(), data);
+	}
+
 	public static String boxPublicKey() {
 		return FriendCrypto.encodePublic(boxKeys().getPublic());
 	}
@@ -91,7 +125,27 @@ public final class Identity {
 			} catch (Exception e) {
 				return Optional.empty();
 			}
-		});
+		}, com.javahost.util.IoExecutor.NET);
+	}
+
+	/**
+	 * The current name of an account, straight from Mojang (empty if it can't be checked, or in test mode). Used so
+	 * a friend request can't claim to come from "YourBestFriend" when it's really someone else.
+	 */
+	public static CompletableFuture<Optional<String>> nameOf(UUID account) {
+		if (INSECURE_TEST_MODE) {
+			return CompletableFuture.completedFuture(Optional.empty());
+		}
+		return CompletableFuture.supplyAsync(() -> {
+			try {
+				JsonElement json = com.javahost.util.Modrinth.getJson("https://sessionserver.mojang.com/session/minecraft/profile/"
+						+ account.toString().replace("-", ""));
+				String name = json.getAsJsonObject().get("name").getAsString();
+				return name.matches("[A-Za-z0-9_]{1,16}") ? Optional.of(name) : Optional.<String>empty();
+			} catch (Exception e) {
+				return Optional.<String>empty();
+			}
+		}, com.javahost.util.IoExecutor.NET);
 	}
 
 	/** Null until checked; then whether Mojang issued this login a chat certificate. */

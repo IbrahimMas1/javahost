@@ -19,9 +19,11 @@ public final class HostState {
 	private static volatile String shaderSettings = "";
 	private static volatile int voiceRange = 48;
 	private static volatile boolean voiceEnabled = true;
-	private static volatile boolean friendsOnly = false;
+	/** On by default, so even a world opened with Minecraft's own "Open to LAN" only lets friends in. */
+	private static volatile boolean friendsOnly = true;
 	private static volatile java.util.Set<java.util.UUID> allowedPlayers = java.util.Set.of();
 	private static volatile java.util.Set<java.util.UUID> bannedPlayers = java.util.Set.of();
+	private static volatile java.util.Set<java.util.UUID> blockedPlayers = java.util.Set.of();
 	private static volatile int maxPlayers = Integer.MAX_VALUE;
 
 	private HostState() {
@@ -75,6 +77,10 @@ public final class HostState {
 		return allowedPlayers.contains(player);
 	}
 
+	public static java.util.Set<java.util.UUID> allowedPlayers() {
+		return allowedPlayers;
+	}
+
 	public static void setAllowedPlayers(java.util.Set<java.util.UUID> players) {
 		allowedPlayers = java.util.Set.copyOf(players);
 	}
@@ -87,6 +93,14 @@ public final class HostState {
 		bannedPlayers = java.util.Set.copyOf(players);
 	}
 
+	public static boolean isBlocked(java.util.UUID player) {
+		return blockedPlayers.contains(player);
+	}
+
+	public static void setBlockedPlayers(java.util.Set<java.util.UUID> players) {
+		blockedPlayers = java.util.Set.copyOf(players);
+	}
+
 	/** Most players allowed in the hosted world, counting the host. */
 	public static int maxPlayers() {
 		return maxPlayers;
@@ -94,6 +108,23 @@ public final class HostState {
 
 	public static void setMaxPlayers(int value) {
 		maxPlayers = value;
+	}
+
+	/** How the host's game vouches for its own world (set by the host's client; null on a dedicated server). */
+	public interface Prover {
+		java.util.UUID host();
+
+		byte[] sign(byte[] data);
+	}
+
+	private static volatile Prover prover;
+
+	public static Prover prover() {
+		return prover;
+	}
+
+	public static void setProver(Prover value) {
+		prover = value;
 	}
 
 	public static void clear() {

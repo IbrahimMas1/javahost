@@ -192,6 +192,7 @@ public class JavaHostScreen extends Screen {
 
 	@Override
 	protected void init() {
+		Page.clearTextCache();
 		sidebarWidgets.clear();
 		pageWidgets.clear();
 		if (tour == null && !Config.get().tourDone && !tourOffered) {

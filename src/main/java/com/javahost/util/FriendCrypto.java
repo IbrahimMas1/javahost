@@ -129,6 +129,79 @@ public final class FriendCrypto {
 		return cipher.doFinal(sealed, NONCE_BYTES, sealed.length - NONCE_BYTES);
 	}
 
+	// ---------------------------------------------------------------- signing (Ed25519)
+	// Each player also has an Ed25519 key. Friends learn its public half from a Mojang-signed request or a sealed
+	// message, and it proves things only that player could say: their online status, and "this world is mine".
+
+	public static KeyPair newSigningKeyPair() {
+		try {
+			return KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+		} catch (GeneralSecurityException e) {
+			throw new IllegalStateException("Ed25519 unavailable", e);
+		}
+	}
+
+	public static KeyPair decodeSigningKeyPair(String publicB64, String privateB64) throws GeneralSecurityException {
+		KeyFactory factory = KeyFactory.getInstance("Ed25519");
+		return new KeyPair(
+				factory.generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(publicB64))),
+				factory.generatePrivate(new PKCS8EncodedKeySpec(Base64.getDecoder().decode(privateB64))));
+	}
+
+	public static byte[] sign(PrivateKey key, byte[] data) {
+		try {
+			java.security.Signature signer = java.security.Signature.getInstance("Ed25519");
+			signer.initSign(key);
+			signer.update(data);
+			return signer.sign();
+		} catch (GeneralSecurityException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
+	/** True only if {@code signature} is {@code data} signed by the key {@code publicB64}; false for anything odd. */
+	public static boolean verifySigned(String publicB64, byte[] data, byte[] signature) {
+		if (publicB64 == null || publicB64.isEmpty() || signature == null) {
+			return false;
+		}
+		try {
+			PublicKey key = KeyFactory.getInstance("Ed25519").generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(publicB64)));
+			java.security.Signature verifier = java.security.Signature.getInstance("Ed25519");
+			verifier.initVerify(key);
+			verifier.update(data);
+			return verifier.verify(signature);
+		} catch (GeneralSecurityException | IllegalArgumentException e) {
+			return false;
+		}
+	}
+
+	/** True if this is an Ed25519 public key (base64 X.509), as friends send in "keys" messages. */
+	public static boolean isSigningKey(String publicB64) {
+		if (publicB64 == null || publicB64.length() > 200) {
+			return false;
+		}
+		try {
+			KeyFactory.getInstance("Ed25519").generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(publicB64)));
+			return true;
+		} catch (GeneralSecurityException | IllegalArgumentException e) {
+			return false;
+		}
+	}
+
+	/** What a player signs to vouch for their online status. */
+	public static byte[] statusBytes(UUID from, long ts, String sealedData) {
+		return ("javahost-status-v1|" + from + "|" + ts + "|" + sealedData).getBytes(StandardCharsets.UTF_8);
+	}
+
+	/**
+	 * What a host signs to prove a world is theirs. The guest's own id is in it, so a fake server can't pass on a
+	 * proof the real host gave to someone else.
+	 */
+	public static byte[] hostProofBytes(byte[] nonce, UUID host, UUID guest) {
+		return ("javahost-host-proof-v1|" + java.util.HexFormat.of().formatHex(nonce) + "|" + host + "|" + guest)
+				.getBytes(StandardCharsets.UTF_8);
+	}
+
 	/** A fresh random 256-bit key (used for each player's status key). */
 	public static byte[] randomKey() {
 		byte[] key = new byte[32];

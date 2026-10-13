@@ -22,6 +22,9 @@ public final class FastLaneRouter {
 				return;
 			}
 			ServerPlayer from = context.player();
+			if (!Guard.allow(from, Guard.FAST_LANE, payload.data().length)) {
+				return;
+			}
 			ServerPlayer to = context.server().getPlayerList().getPlayer(payload.to());
 			if (to == null || to == from || !ServerPlayNetworking.canSend(to, RelayDown.TYPE)) {
 				return;

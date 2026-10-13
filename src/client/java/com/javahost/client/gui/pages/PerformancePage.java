@@ -124,7 +124,7 @@ public class PerformancePage extends Page {
 				com.javahost.client.Toasts.notify("Installed " + Draw.count(count, "mod"), "Restart Minecraft to turn them on.");
 			}
 			installing = false;
-		});
+		}, com.javahost.util.IoExecutor.NET);
 		screen.refresh();
 	}
 

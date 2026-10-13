@@ -37,6 +37,8 @@ class WorldOwnerTest {
 		NbtIo.writeCompressed(root, world.resolve("level.dat"));
 		Files.writeString(world.resolve("level.dat_old"), "old");
 		Files.writeString(world.resolve("players/data/" + sender + ".dat"), "sender");
+		Files.createDirectories(world.resolve("javahost"));
+		Files.writeString(world.resolve("javahost/rules.json"), "{\"coHosts\":{\"" + sender + "\":\"Alex\"}}");
 
 		WorldOwner.adopt(world, receiver, "Survival (from Alex)");
 
@@ -47,6 +49,7 @@ class WorldOwnerTest {
 		assertEquals(1234, after.getLongOr("Time", 0), "everything else is untouched");
 		assertFalse(Files.exists(world.resolve("level.dat_old")));
 		assertTrue(Files.exists(world.resolve("players/data/" + sender + ".dat")), "the sender's player is kept");
+		assertFalse(Files.exists(world.resolve("javahost/rules.json")), "the sender can't bring co-host rights along");
 	}
 
 	@Test

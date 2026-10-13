@@ -29,8 +29,12 @@ public final class BoostMods {
 	private BoostMods() {
 	}
 
+	/** Remembered answers (menus ask every frame); cleared after an install. */
+	private static final java.util.Map<String, Boolean> INSTALLED = new java.util.concurrent.ConcurrentHashMap<>();
+
 	public static boolean isInstalled(BoostMod mod) {
-		return FabricLoader.getInstance().isModLoaded(mod.modId()) || pendingJar(mod.slug()) != null;
+		return INSTALLED.computeIfAbsent(mod.slug(),
+				slug -> FabricLoader.getInstance().isModLoaded(mod.modId()) || pendingJar(slug) != null);
 	}
 
 	/** A jar downloaded earlier, waiting for a restart to load. Marker files are written by us and the installer. */
@@ -78,6 +82,8 @@ public final class BoostMods {
 			JavaHost.LOGGER.warn("Could not install mods", e);
 			progress.accept("Download failed: " + e.getMessage());
 			return 0;
+		} finally {
+			INSTALLED.clear();
 		}
 	}
 }

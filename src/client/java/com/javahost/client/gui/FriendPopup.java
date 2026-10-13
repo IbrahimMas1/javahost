@@ -21,6 +21,8 @@ public class FriendPopup extends Screen {
 	private final String noLabel;
 	private final Runnable onYes;
 	private final Runnable onNo;
+	private String extraLabel;
+	private Runnable extraAction;
 	private int boxX;
 	private int boxY;
 	private int boxW;
@@ -38,17 +40,29 @@ public class FriendPopup extends Screen {
 		this.onNo = onNo;
 	}
 
+	/** A small third choice under the two buttons (e.g. "Block" on a friend request). */
+	public FriendPopup withExtra(String label, Runnable action) {
+		this.extraLabel = label;
+		this.extraAction = action;
+		return this;
+	}
+
 	@Override
 	protected void init() {
 		boxW = Math.min(width - 20, 280);
-		boxH = 104;
+		boxH = extraAction != null ? 122 : 104;
 		boxX = (width - boxW) / 2;
 		boxY = (height - boxH) / 2;
 		int buttonW = (boxW - 40) / 2;
-		addRenderableWidget(new FlatButton(boxX + 16, boxY + boxH - 32, buttonW, 22, Component.literal(noLabel),
+		int buttonsY = boxY + 72;
+		addRenderableWidget(new FlatButton(boxX + 16, buttonsY, buttonW, 22, Component.literal(noLabel),
 				FlatButton.Style.SECONDARY, null, b -> close(onNo)));
-		addRenderableWidget(new FlatButton(boxX + boxW - 16 - buttonW, boxY + boxH - 32, buttonW, 22, Component.literal(yesLabel),
+		addRenderableWidget(new FlatButton(boxX + boxW - 16 - buttonW, buttonsY, buttonW, 22, Component.literal(yesLabel),
 				FlatButton.Style.PRIMARY, Icons.CHECK, b -> close(onYes)));
+		if (extraAction != null) {
+			addRenderableWidget(new FlatButton(boxX + (boxW - 64) / 2, buttonsY + 26, 64, 14, Component.literal(extraLabel),
+					FlatButton.Style.GHOST, null, b -> close(extraAction)));
+		}
 	}
 
 	private void close(Runnable action) {

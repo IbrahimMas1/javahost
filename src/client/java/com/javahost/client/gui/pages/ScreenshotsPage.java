@@ -123,6 +123,9 @@ public class ScreenshotsPage extends Page {
 				b -> com.mojang.blaze3d.Blaze3D.openPath(view.equals("FRIENDS") ? Screenshots.fromFriendsDir() : Screenshots.dir())), Math.min(240, width - 110) + 6, 0);
 
 		files = currentFiles();
+		// Worked out once here rather than for every thumbnail on every frame.
+		favouriteFlags = files.stream().map(Screenshots::isFavourite).toList();
+		selectedFavourite = selected != null && Screenshots.isFavourite(selected);
 		gridY = 26 + (sendTarget != null ? 22 : 0);
 		int gap = 6;
 		int cellW = (width - gap * (COLUMNS - 1)) / COLUMNS;
@@ -287,15 +290,19 @@ public class ScreenshotsPage extends Page {
 		String key = key(friend);
 		SEND_STATUS.put(key, "Sending...");
 		screen.refresh();
-		CompletableFuture.supplyAsync(() -> null).thenCompose(ignored -> Friends.sendScreenshotFile(friend, file))
+		CompletableFuture.supplyAsync(() -> null, com.javahost.util.IoExecutor.POOL).thenCompose(ignored -> Friends.sendScreenshotFile(friend, file))
 				.whenComplete((sent, error) -> minecraft.execute(() -> {
 					SEND_STATUS.put(key, error == null && sent.ok() ? "Sent" : error == null ? Friends.describeFailure(sent) : "Couldn't send");
 					screen.refresh();
 				}));
 	}
 
+	private List<Boolean> favouriteFlags = List.of();
+	private boolean selectedFavourite;
+
 	private String signature() {
-		return String.valueOf(currentFiles().size()) + SEND_STATUS.hashCode() + screen.selectedScreenshot();
+		return Screenshots.count(false) + "|" + Screenshots.count(true) + "|" + com.javahost.client.Config.get().favouriteScreenshots.size()
+				+ SEND_STATUS.hashCode() + screen.selectedScreenshot();
 	}
 
 	@Override
@@ -310,13 +317,13 @@ public class ScreenshotsPage extends Page {
 	@Override
 	protected void drawOverlay(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY) {
 		if (selected != null) {
-			if (Screenshots.isFavourite(selected)) {
+			if (selectedFavourite) {
 				star(g, left + 4, top + 4);
 			}
 			return;
 		}
-		for (int i = 0; i < thumbs.size() && i < files.size(); i++) {
-			if (Screenshots.isFavourite(files.get(i))) {
+		for (int i = 0; i < thumbs.size() && i < favouriteFlags.size(); i++) {
+			if (favouriteFlags.get(i)) {
 				ImageButton thumb = thumbs.get(i);
 				star(g, thumb.getX() + 3, thumb.getY() + 3);
 			}

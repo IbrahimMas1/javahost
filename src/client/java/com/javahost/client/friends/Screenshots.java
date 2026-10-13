@@ -37,6 +37,9 @@ public final class Screenshots {
 
 	private static final Map<String, Thumb> THUMBS = new HashMap<>();
 	private static int thumbCounter;
+	/** Bumped when thumbnails are released, so a decode that finishes afterwards is thrown away. */
+	private static int thumbGeneration;
+	private static final Thumb LOADING = new Thumb(null, -1, -1);
 
 	private Screenshots() {
 	}
@@ -83,9 +86,14 @@ public final class Screenshots {
 			return List.of();
 		}
 		try (Stream<Path> files = Files.list(folder)) {
-			return files.filter(p -> p.getFileName().toString().toLowerCase().endsWith(".png") && Files.isRegularFile(p))
-					.sorted(Comparator.comparing(Screenshots::modified).reversed())
+			// Each file's date is read once (sorting would otherwise read it on every comparison).
+			record Dated(Path path, long modified) {
+			}
+			return files.filter(p -> p.getFileName().toString().toLowerCase().endsWith(".png"))
+					.map(p -> new Dated(p, modified(p)))
+					.sorted(Comparator.comparingLong(Dated::modified).reversed())
 					.limit(60)
+					.map(Dated::path)
 					.toList();
 		} catch (IOException e) {
 			return List.of();
@@ -119,7 +127,20 @@ public final class Screenshots {
 	public static List<Path> favourites() {
 		List<Path> all = new ArrayList<>(list(false));
 		all.addAll(list(true));
-		return all.stream().filter(Screenshots::isFavourite).sorted(Comparator.comparing(Screenshots::modified).reversed()).toList();
+		return all.stream().filter(Screenshots::isFavourite).toList(); // each list is newest first already
+	}
+
+	/** How many screenshots a folder holds (to notice new ones cheaply). */
+	public static long count(boolean fromFriends) {
+		Path folder = fromFriends ? fromFriendsDir() : dir();
+		if (!Files.isDirectory(folder)) {
+			return 0;
+		}
+		try (Stream<Path> files = Files.list(folder)) {
+			return files.filter(p -> p.getFileName().toString().toLowerCase().endsWith(".png")).count();
+		} catch (IOException e) {
+			return 0;
+		}
 	}
 
 	/** Renames in place (keeping .png); returns the new path. The name may not contain folder separators. */
@@ -206,14 +227,19 @@ public final class Screenshots {
 
 	/** Saves a screenshot a friend sent (only real PNG images are accepted). */
 	static Path saveFromFriend(String friendName, byte[] png) throws IOException {
-		if (!isPng(png)) {
-			throw new IOException("Not a PNG image");
+		// Checked from the header first: a tiny file claiming to be huge would otherwise eat gigabytes to decode.
+		if (!isPng(png) || !com.javahost.util.PngInfo.safe(com.javahost.util.PngInfo.size(png))) {
+			throw new IOException("Not a PNG image of a sensible size");
 		}
 		try (NativeImage check = NativeImage.read(png)) {
 			// Parses fully, so a corrupt image is rejected before it's written.
 		}
 		Files.createDirectories(fromFriendsDir());
-		Path file = fromFriendsDir().resolve(friendName + "_" + LocalDateTime.now().format(STAMP) + ".png");
+		String base = friendName + "_" + LocalDateTime.now().format(STAMP);
+		Path file = fromFriendsDir().resolve(base + ".png");
+		for (int i = 2; Files.exists(file); i++) {
+			file = fromFriendsDir().resolve(base + "_" + i + ".png"); // two in the same second
+		}
 		Files.write(file, png);
 		return file;
 	}
@@ -246,18 +272,40 @@ public final class Screenshots {
 		String key = targetWidth + "|" + file;
 		Thumb thumb = THUMBS.get(key);
 		if (thumb == null) {
-			try (NativeImage image = NativeImage.read(Files.readAllBytes(file))) {
-				int width = Math.min(targetWidth, image.getWidth());
-				int height = Math.max(1, image.getHeight() * width / Math.max(1, image.getWidth()));
-				NativeImage small = new NativeImage(width, height, false);
-				image.resizeSubRectTo(0, 0, image.getWidth(), image.getHeight(), small);
+			// Decoding a big PNG takes tens of milliseconds: do it in the background and draw it when ready.
+			THUMBS.put(key, LOADING);
+			int generation = thumbGeneration;
+			com.javahost.util.IoExecutor.supply(() -> {
+				try {
+					if (!com.javahost.util.PngInfo.safe(com.javahost.util.PngInfo.size(file))) {
+						return null;
+					}
+					try (NativeImage image = NativeImage.read(Files.readAllBytes(file))) {
+						int width = Math.min(targetWidth, image.getWidth());
+						int height = Math.max(1, image.getHeight() * width / Math.max(1, image.getWidth()));
+						NativeImage small = new NativeImage(width, height, false);
+						image.resizeSubRectTo(0, 0, image.getWidth(), image.getHeight(), small);
+						return small;
+					}
+				} catch (Exception e) {
+					return null;
+				}
+			}).thenAccept(small -> Minecraft.getInstance().execute(() -> {
+				if (generation != thumbGeneration || THUMBS.get(key) != LOADING) {
+					if (small != null) {
+						small.close(); // the gallery closed meanwhile
+					}
+					return;
+				}
+				if (small == null) {
+					THUMBS.put(key, new Thumb(null, 0, 0));
+					return;
+				}
 				Identifier id = Identifier.fromNamespaceAndPath(JavaHost.MOD_ID, "thumb/" + (thumbCounter++));
 				Minecraft.getInstance().getTextureManager().register(id, new DynamicTexture(() -> "JavaHost thumbnail", small));
-				thumb = new Thumb(id, width, height);
-			} catch (Exception e) {
-				thumb = new Thumb(null, 0, 0);
-			}
-			THUMBS.put(key, thumb);
+				THUMBS.put(key, new Thumb(id, small.getWidth(), small.getHeight()));
+			}));
+			return null;
 		}
 		return thumb.id() == null ? null : new Thumbnail(thumb.id(), thumb.width(), thumb.height());
 	}
@@ -273,5 +321,6 @@ public final class Screenshots {
 			}
 		}
 		THUMBS.clear();
+		thumbGeneration++;
 	}
 }

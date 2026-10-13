@@ -35,6 +35,8 @@ public final class Config {
 	public int maxPlayers = 8;
 	/** Players the host has banned from their worlds: id -> name. */
 	public Map<String, String> bannedPlayers = new HashMap<>();
+	/** Players you've blocked (id -> name): their messages are dropped and they can't join your worlds. */
+	public Map<String, String> blockedPlayers = new HashMap<>();
 	public int voiceRange = 48;
 
 	// Joining
@@ -109,6 +111,9 @@ public final class Config {
 					}
 					if (config.bannedPlayers == null) {
 						config.bannedPlayers = new HashMap<>();
+					}
+					if (config.blockedPlayers == null) {
+						config.blockedPlayers = new HashMap<>();
 					}
 					if (config.playerVolumes == null) {
 						config.playerVolumes = new HashMap<>();

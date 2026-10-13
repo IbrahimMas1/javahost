@@ -94,7 +94,8 @@ public final class Draw {
 			return text;
 		}
 		String ellipsis = "…";
-		int keep = text.length();
+		// Measure once to the right length (this runs for many labels every frame), then make sure it fits.
+		int keep = font.plainSubstrByWidth(text, Math.max(0, maxWidth - font.width(ellipsis))).length();
 		while (keep > 0 && font.width(text.substring(0, keep) + ellipsis) > maxWidth) {
 			keep--;
 		}

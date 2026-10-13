@@ -24,6 +24,20 @@ public final class Payloads {
 	private Payloads() {
 	}
 
+	/** Cuts text to what the reader accepts, so one long name can't make the packet unreadable for everyone. */
+	static String clip(String text, int max) {
+		return text == null ? "" : text.length() <= max ? text : text.substring(0, max);
+	}
+
+	/** Reads a list length and refuses nonsense (negative, or more than we'd ever send). */
+	static int readCount(FriendlyByteBuf buf, int max) {
+		int count = buf.readVarInt();
+		if (count < 0 || count > max) {
+			throw new io.netty.handler.codec.DecoderException("Bad list size " + count);
+		}
+		return count;
+	}
+
 	private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> payloadType(String path) {
 		return new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(JavaHost.MOD_ID, path));
 	}
@@ -99,11 +113,37 @@ public final class Payloads {
 	public record ServerHello(String version) implements CustomPacketPayload {
 		public static final Type<ServerHello> TYPE = payloadType("server_hello");
 		public static final StreamCodec<FriendlyByteBuf, ServerHello> CODEC = CustomPacketPayload.codec(
-				(p, buf) -> buf.writeUtf(p.version, 32),
+				(p, buf) -> buf.writeUtf(clip(p.version, 32), 32),
 				buf -> new ServerHello(buf.readUtf(32)));
 
 		@Override
 		public Type<ServerHello> type() {
+			return TYPE;
+		}
+	}
+
+	// ---------------------------------------------------------------- proving whose world this is
+
+	/** Client -> server: "prove this is your world": a fresh random challenge. */
+	public record HostProofRequest(byte[] nonce) implements CustomPacketPayload {
+		public static final Type<HostProofRequest> TYPE = payloadType("host_proof_request");
+		public static final StreamCodec<FriendlyByteBuf, HostProofRequest> CODEC = CustomPacketPayload.codec(
+				(p, buf) -> buf.writeByteArray(p.nonce), buf -> new HostProofRequest(buf.readByteArray(64)));
+
+		@Override
+		public Type<HostProofRequest> type() {
+			return TYPE;
+		}
+	}
+
+	/** Server -> client: the host's account and its Ed25519 signature over the challenge and both players' ids. */
+	public record HostProof(UUID host, byte[] signature) implements CustomPacketPayload {
+		public static final Type<HostProof> TYPE = payloadType("host_proof");
+		public static final StreamCodec<FriendlyByteBuf, HostProof> CODEC = CustomPacketPayload.codec(
+				(p, buf) -> buf.writeUUID(p.host).writeByteArray(p.signature), buf -> new HostProof(buf.readUUID(), buf.readByteArray(256)));
+
+		@Override
+		public Type<HostProof> type() {
 			return TYPE;
 		}
 	}
@@ -206,11 +246,16 @@ public final class Payloads {
 
 	public record PackInfo(String sha1, PackKind kind, String name, long size) {
 		static void write(FriendlyByteBuf buf, PackInfo info) {
-			buf.writeUtf(info.sha1, 40).writeVarInt(info.kind.ordinal()).writeUtf(info.name, 256).writeVarLong(info.size);
+			buf.writeUtf(info.sha1, 40).writeVarInt(info.kind.ordinal()).writeUtf(clip(info.name, 256), 256).writeVarLong(info.size);
 		}
 
 		static PackInfo read(FriendlyByteBuf buf) {
-			return new PackInfo(buf.readUtf(40), PackKind.values()[buf.readVarInt()], buf.readUtf(256), buf.readVarLong());
+			String sha1 = buf.readUtf(40);
+			int kind = buf.readVarInt();
+			if (kind < 0 || kind >= PackKind.values().length) {
+				throw new io.netty.handler.codec.DecoderException("Bad pack kind " + kind);
+			}
+			return new PackInfo(sha1, PackKind.values()[kind], buf.readUtf(256), buf.readVarLong());
 		}
 	}
 
@@ -222,12 +267,13 @@ public final class Payloads {
 		public static final Type<PackOffer> TYPE = payloadType("pack_offer");
 		public static final StreamCodec<FriendlyByteBuf, PackOffer> CODEC = CustomPacketPayload.codec(
 				(p, buf) -> {
-					buf.writeVarInt(p.packs.size());
-					p.packs.forEach(info -> PackInfo.write(buf, info));
-					buf.writeUtf(p.shaderSettings, 65536);
+					List<PackInfo> packs = p.packs.subList(0, Math.min(p.packs.size(), 64));
+					buf.writeVarInt(packs.size());
+					packs.forEach(info -> PackInfo.write(buf, info));
+					buf.writeUtf(clip(p.shaderSettings, 65536), 65536);
 				},
 				buf -> {
-					int count = Math.min(buf.readVarInt(), 64);
+					int count = readCount(buf, 64);
 					List<PackInfo> packs = new ArrayList<>(count);
 					for (int i = 0; i < count; i++) {
 						packs.add(PackInfo.read(buf));
@@ -246,11 +292,12 @@ public final class Payloads {
 		public static final Type<PackRequest> TYPE = payloadType("pack_request");
 		public static final StreamCodec<FriendlyByteBuf, PackRequest> CODEC = CustomPacketPayload.codec(
 				(p, buf) -> {
-					buf.writeVarInt(p.sha1s.size());
-					p.sha1s.forEach(s -> buf.writeUtf(s, 40));
+					List<String> sha1s = p.sha1s.subList(0, Math.min(p.sha1s.size(), 64));
+					buf.writeVarInt(sha1s.size());
+					sha1s.forEach(s -> buf.writeUtf(s, 40));
 				},
 				buf -> {
-					int count = Math.min(buf.readVarInt(), 64);
+					int count = readCount(buf, 64);
 					List<String> sha1s = new ArrayList<>(count);
 					for (int i = 0; i < count; i++) {
 						sha1s.add(buf.readUtf(40));
@@ -298,6 +345,7 @@ public final class Payloads {
 		PayloadTypeRegistry.serverboundPlay().register(RelayUp.TYPE, RelayUp.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(RulesChange.TYPE, RulesChange.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(ShareUp.TYPE, ShareUp.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(HostProofRequest.TYPE, HostProofRequest.CODEC);
 
 		PayloadTypeRegistry.clientboundPlay().register(VoiceDown.TYPE, VoiceDown.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(VoiceConfig.TYPE, VoiceConfig.CODEC);
@@ -308,5 +356,6 @@ public final class Payloads {
 		PayloadTypeRegistry.clientboundPlay().register(RelayDown.TYPE, RelayDown.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(RulesState.TYPE, RulesState.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(ShareDown.TYPE, ShareDown.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(HostProof.TYPE, HostProof.CODEC);
 	}
 }

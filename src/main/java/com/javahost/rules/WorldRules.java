@@ -86,7 +86,11 @@ public final class WorldRules {
 			saved = new Saved();
 		});
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, s) -> sendState(handler.player));
-		ServerPlayNetworking.registerGlobalReceiver(RulesChange.TYPE, (change, context) -> handle(context.player(), change.rule(), change.value()));
+		ServerPlayNetworking.registerGlobalReceiver(RulesChange.TYPE, (change, context) -> {
+			if (com.javahost.net.Guard.allow(context.player(), com.javahost.net.Guard.RULES, 1)) {
+				handle(context.player(), change.rule(), change.value());
+			}
+		});
 		ServerTickEvents.END_SERVER_TICK.register(s -> {
 			if (saved.locked && s.getTickCount() % 20 == 0) {
 				holdLockedValues(s);

@@ -32,10 +32,11 @@ import net.minecraft.server.packs.repository.Pack;
  */
 public final class HostController {
 	/** A connected friend, for the host's player list. */
-	public record Guest(UUID id, String name, int pingMs) {
+	public record Guest(UUID id, String name, int pingMs, net.minecraft.world.level.GameType gameMode) {
 	}
 
 	private static boolean hosting;
+	private static int snapshotTicks;
 	private static int port;
 	private static volatile String packStatus = "";
 	private static volatile List<Guest> guests = List.of();
@@ -63,8 +64,9 @@ public final class HostController {
 			server.unpublishServer();
 		}
 		HostState.setVoice(config.voiceEnabledWhenHosting, config.voiceRange);
-		HostState.setFriendsOnly(config.friendsOnly);
 		applyHostRules(config);
+		// Guests never get commands through JavaHost, even if Minecraft's own "Open to LAN" allowed them earlier.
+		server.setGuestCommandAccess(false);
 		boolean relayNow = Connectivity.RelayMode.valueOf(config.relayMode) == Connectivity.RelayMode.ALWAYS
 				&& E4mcCompat.isInstalled();
 		// e4mc would otherwise start its relay on every publish; we decide when it's needed.
@@ -90,6 +92,7 @@ public final class HostController {
 		}
 		E4mcCompat.setRelayEnabled(true);
 		server.unpublishServer();
+		server.setGuestCommandAccess(false);
 		if (!server.publishServer(MultiplayerScope.LAN, port)) {
 			JavaHost.LOGGER.warn("Could not reopen the world for the relay");
 		}
@@ -110,9 +113,8 @@ public final class HostController {
 		}
 		hosting = false;
 		HostState.clear();
-		HostState.setFriendsOnly(false);
-		HostState.setMaxPlayers(Integer.MAX_VALUE);
-		HostState.setBannedPlayers(java.util.Set.of());
+		// Keep the join rules in force: a world opened later with Minecraft's own "Open to LAN" stays protected.
+		applyHostRules(Config.get());
 		packStatus = "";
 	}
 
@@ -123,12 +125,16 @@ public final class HostController {
 			return;
 		}
 		Connectivity.tick();
-		// The player list belongs to the server thread, so snapshot it there.
+		// The player list belongs to the server thread, so snapshot it there; twice a second is plenty (pings
+		// only update every few seconds anyway).
+		if (snapshotTicks++ % 10 != 0) {
+			return;
+		}
 		server.execute(() -> {
 			List<Guest> snapshot = new ArrayList<>();
 			for (ServerPlayer player : server.getPlayerList().getPlayers()) {
 				if (!server.isSingleplayerOwner(player.nameAndId())) {
-					snapshot.add(new Guest(player.getUUID(), player.getPlainTextName(), player.connection.latency()));
+					snapshot.add(new Guest(player.getUUID(), player.getPlainTextName(), player.connection.latency(), player.gameMode()));
 				}
 			}
 			guests = List.copyOf(snapshot);
@@ -140,12 +146,45 @@ public final class HostController {
 		return guests;
 	}
 
-	/** Pushes the ban list and player limit to the server checks. */
+	/**
+	 * Pushes friends-only, bans, blocks and the player limit to the server's join checks, and removes anyone already
+	 * in the world who no longer passes them (e.g. right after you ban, block or unfriend them).
+	 */
 	public static void applyHostRules(Config config) {
-		java.util.Set<UUID> banned = new java.util.HashSet<>();
-		config.bannedPlayers.keySet().forEach(id -> banned.add(UUID.fromString(id)));
-		HostState.setBannedPlayers(banned);
+		HostState.setFriendsOnly(config.friendsOnly);
+		HostState.setBannedPlayers(uuids(config.bannedPlayers.keySet()));
+		HostState.setBlockedPlayers(uuids(config.blockedPlayers.keySet()));
 		HostState.setMaxPlayers(config.maxPlayers);
+		enforce();
+	}
+
+	private static java.util.Set<UUID> uuids(java.util.Collection<String> ids) {
+		java.util.Set<UUID> set = new java.util.HashSet<>();
+		for (String id : ids) {
+			try {
+				set.add(UUID.fromString(id));
+			} catch (IllegalArgumentException ignored) {
+				// A hand-edited config; skip the bad entry.
+			}
+		}
+		return set;
+	}
+
+	/** Disconnects players in the open world who wouldn't be let in now. */
+	public static void enforce() {
+		IntegratedServer server = Minecraft.getInstance().getSingleplayerServer();
+		if (server == null || !server.isPublished()) {
+			return;
+		}
+		server.execute(() -> {
+			for (ServerPlayer player : List.copyOf(server.getPlayerList().getPlayers())) {
+				String refusal = com.javahost.JoinGate.refusal(server, player.nameAndId());
+				// The full-world rule only applies to new arrivals.
+				if (refusal != null && !refusal.startsWith("This world is full")) {
+					player.connection.disconnect(Component.literal(refusal));
+				}
+			}
+		});
 	}
 
 	/** Changes a guest's game mode (survival, creative, adventure, spectator). */
@@ -188,9 +227,8 @@ public final class HostController {
 
 	/** A guest's current game mode, from the server (null if not found). */
 	public static net.minecraft.world.level.GameType gameModeOf(UUID id) {
-		IntegratedServer server = Minecraft.getInstance().getSingleplayerServer();
-		ServerPlayer player = server == null ? null : server.getPlayerList().getPlayer(id);
-		return player == null ? null : player.gameMode();
+		// From the snapshot: the player list belongs to the server thread.
+		return guests.stream().filter(g -> g.id().equals(id)).findFirst().map(Guest::gameMode).orElse(null);
 	}
 
 	public static void kick(UUID id) {
@@ -256,7 +294,7 @@ public final class HostController {
 
 		packStatus = "Preparing " + com.javahost.client.gui.ui.Draw.count(sources.size(), "pack") + " to share...";
 		String settings = shaderSettings;
-		CompletableFuture.supplyAsync(() -> buildSharedPacks(sources)).whenComplete((packs, error) -> {
+		CompletableFuture.supplyAsync(() -> buildSharedPacks(sources), com.javahost.util.IoExecutor.POOL).whenComplete((packs, error) -> {
 			if (error != null || packs == null) {
 				JavaHost.LOGGER.warn("Could not prepare packs for sharing", error);
 				packStatus = "Could not prepare packs to share.";

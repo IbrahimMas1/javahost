@@ -141,8 +141,24 @@ public class SettingsPage extends Page {
 		}), 10, helpY + 20);
 		add(new FlatButton(half, 18, Component.literal("Welcome tour"), FlatButton.Style.SECONDARY, Icons.PLAY,
 				b -> screen.startTour()), 10 + half + 6, helpY + 20);
-		reserve(helpY + 50);
+
+		// Blocked players: each with Unblock.
+		blockedY = helpY + 52;
+		blocked = new java.util.ArrayList<>(config.blockedPlayers.entrySet());
+		blocked.sort(Map.Entry.comparingByValue(String.CASE_INSENSITIVE_ORDER));
+		int rowY = blockedY + 14;
+		for (Map.Entry<String, String> entry : blocked) {
+			add(new FlatButton(64, 16, Component.literal("Unblock"), FlatButton.Style.SECONDARY, null, b -> {
+				com.javahost.client.friends.Friends.unblock(java.util.UUID.fromString(entry.getKey()));
+				screen.refresh();
+			}), width - 74, rowY + 3);
+			rowY += 22;
+		}
+		reserve(blockedY + 14 + Math.max(1, blocked.size()) * 22 + 10);
 	}
+
+	private int blockedY;
+	private List<Map.Entry<String, String>> blocked = List.of();
 
 	private int updatesY;
 	private int helpY;
@@ -216,5 +232,21 @@ public class SettingsPage extends Page {
 
 		sectionLabel(g, "Help", left, top + helpY);
 		card(g, left, top + helpY + 12, width, 30);
+
+		sectionLabel(g, "Blocked players", left, top + blockedY);
+		int y2 = top + blockedY + 12;
+		card(g, left, y2, width, Math.max(1, blocked.size()) * 22 + 4);
+		if (blocked.isEmpty()) {
+			Draw.textFit(g, "Nobody blocked.", width - 20, left + 10, y2 + 8, Theme.FAINT);
+		}
+		for (Map.Entry<String, String> entry : blocked) {
+			try {
+				com.javahost.client.gui.ui.Faces.draw(g, java.util.UUID.fromString(entry.getKey()), left + 8, y2 + 5, 14);
+			} catch (IllegalArgumentException ignored) {
+				// A hand-edited entry; just show the name.
+			}
+			Draw.textFit(g, entry.getValue(), width - 120, left + 28, y2 + 8, Theme.TEXT);
+			y2 += 22;
+		}
 	}
 }

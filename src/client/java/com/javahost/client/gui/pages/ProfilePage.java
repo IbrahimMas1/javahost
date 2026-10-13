@@ -32,6 +32,7 @@ public class ProfilePage extends Page {
 	private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("d MMM yyyy").withZone(ZoneId.systemDefault());
 	private Friend friend;
 	private long confirmRemoveUntil;
+	private long confirmBlockUntil;
 	private String lastSignature = "";
 
 	@Override
@@ -107,7 +108,21 @@ public class ProfilePage extends Page {
 		}), right + 10, 122 + shift);
 
 		boolean confirming = System.currentTimeMillis() < confirmRemoveUntil;
-		add(new FlatButton(rightW, 18, Component.literal(confirming ? "Click again to remove " + friend.name() : "Remove friend"),
+		boolean confirmingBlock = System.currentTimeMillis() < confirmBlockUntil;
+		int blockW = confirmingBlock ? Math.min(rightW / 2, 110) : 56;
+		FlatButton block = add(new FlatButton(blockW, 18, Component.literal(confirmingBlock ? "Click to block" : "Block"),
+				FlatButton.Style.DANGER, null, b -> {
+					if (System.currentTimeMillis() < confirmBlockUntil) {
+						Friends.block(friend.id(), friend.name());
+						screen.switchTo(JavaHostScreen.Tab.FRIENDS);
+					} else {
+						confirmBlockUntil = System.currentTimeMillis() + 4000;
+						screen.refresh();
+					}
+				}), right + rightW - blockW, 152 + shift);
+		block.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+				"Removes them and stops their messages, requests and joins. Undo in Settings.")));
+		add(new FlatButton(rightW - blockW - 6, 18, Component.literal(confirming ? "Click again to remove " + friend.name() : "Remove friend"),
 				FlatButton.Style.DANGER, Icons.CROSS, b -> {
 					if (System.currentTimeMillis() < confirmRemoveUntil) {
 						Friends.remove(friend);
@@ -122,7 +137,7 @@ public class ProfilePage extends Page {
 
 	private String signature() {
 		return friend == null ? "" : FriendsPage.statusLine(friend) + InviteFlow.status(friend.id()) + InviteFlow.canInvite()
-				+ (System.currentTimeMillis() < confirmRemoveUntil) + WorldShare.cannotSendTo(friend.id());
+				+ (System.currentTimeMillis() < confirmRemoveUntil) + (System.currentTimeMillis() < confirmBlockUntil) + WorldShare.cannotSendTo(friend.id());
 	}
 
 	@Override

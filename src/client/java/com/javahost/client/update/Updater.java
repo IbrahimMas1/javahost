@@ -61,11 +61,24 @@ public final class Updater {
 
 	// ---------------------------------------------------------------- checking
 
+	/**
+	 * A test-only setting (a local release server or key). Ignored outside the development environment, so a
+	 * launcher argument can never point a real player's updates somewhere else.
+	 */
+	static String testProperty(String name) {
+		String value = System.getProperty(name);
+		if (value != null && !net.fabricmc.loader.api.FabricLoader.getInstance().isDevelopmentEnvironment()) {
+			JavaHost.LOGGER.warn("[Update] ignoring {}: test settings only work in development", name);
+			return null;
+		}
+		return value;
+	}
+
 	/** Finds the newest release (verified), newer than us or not; null if there isn't one or it can't be checked. */
 	static CompletableFuture<UpdateManifest> fetchLatest() {
 		return CompletableFuture.supplyAsync(() -> {
 			try {
-				String override = System.getProperty("javahost.updateUrl"); // tests: a folder with update.json(.sig)
+				String override = testProperty("javahost.updateUrl"); // tests: a folder with update.json(.sig)
 				String jsonUrl;
 				String sigUrl;
 				if (override != null) {
@@ -81,7 +94,8 @@ public final class Updater {
 				}
 				byte[] json = getBytes(jsonUrl);
 				String sig = new String(getBytes(sigUrl));
-				String key = System.getProperty("javahost.updateKey", UpdateManifest.PUBLIC_KEY);
+				String testKey = testProperty("javahost.updateKey");
+				String key = testKey != null ? testKey : UpdateManifest.PUBLIC_KEY;
 				UpdateManifest manifest = UpdateManifest.verifyAndParse(json, sig, key);
 				boolean newer = Versions.compare(manifest.version(), JavaHost.VERSION) > 0;
 				JavaHost.LOGGER.info("[Update] latest is {} (we have {}){}{}", manifest.version(), JavaHost.VERSION,
@@ -91,7 +105,7 @@ public final class Updater {
 				JavaHost.LOGGER.warn("[Update] couldn't check for updates: {}", e.toString());
 				return null;
 			}
-		});
+		}, com.javahost.util.IoExecutor.NET);
 	}
 
 	/** browser_download_url of the asset with this exact name, from a GitHub release JSON. */
@@ -132,7 +146,7 @@ public final class Updater {
 	// ---------------------------------------------------------------- downloading
 
 	private static boolean trusted(URI uri) {
-		if (System.getProperty("javahost.updateUrl") != null && "localhost".equals(uri.getHost())) {
+		if (testProperty("javahost.updateUrl") != null && "localhost".equals(uri.getHost())) {
 			return true; // automated tests
 		}
 		return "https".equals(uri.getScheme()) && TRUSTED_HOSTS.contains(uri.getHost());
@@ -197,7 +211,7 @@ public final class Updater {
 			} catch (Exception e) {
 				throw new RuntimeException(e.getMessage() == null ? e.toString() : e.getMessage(), e);
 			}
-		});
+		}, com.javahost.util.IoExecutor.NET);
 	}
 
 	private static void writePlan(UpdateManifest manifest, Path target, List<FileEntry> files) throws IOException {
@@ -221,6 +235,7 @@ public final class Updater {
 		try (OutputStream out = Files.newOutputStream(planFile())) {
 			plan.store(out, "JavaHost update waiting for the game to close");
 		}
+		planChanged();
 	}
 
 	/** A copy of the running JavaHost jar outside mods/, to run the swap helper from. */
@@ -243,26 +258,51 @@ public final class Updater {
 		return HexFormat.of().formatHex(digest.digest());
 	}
 
+	/** The waiting plan, read once and kept in memory (Settings asks every frame); null if there isn't one. */
+	private static volatile Properties cachedPlan;
+	private static volatile boolean planLoaded;
+	private static volatile long planLoadedAt;
+
+	private static Properties plan() {
+		// Re-read at most once a second, so a change made outside JavaHost is still noticed.
+		if (!planLoaded || System.currentTimeMillis() - planLoadedAt > 1000) {
+			Properties plan = null;
+			if (Files.exists(planFile())) {
+				try (InputStream in = Files.newInputStream(planFile())) {
+					plan = new Properties();
+					plan.load(in);
+				} catch (IOException e) {
+					plan = null;
+				}
+			}
+			cachedPlan = plan;
+			planLoaded = true;
+			planLoadedAt = System.currentTimeMillis();
+		}
+		return cachedPlan;
+	}
+
+	/** The plan file changed: read it again next time. */
+	private static void planChanged() {
+		planLoaded = false;
+	}
+
 	/** An update is downloaded and will be installed when the game closes. */
 	public static boolean staged() {
-		return Files.exists(planFile());
+		return plan() != null;
 	}
 
 	/** "update" or "rollback" for what's waiting to happen when the game closes (null if nothing). */
 	public static String stagedKind() {
-		try (InputStream in = Files.newInputStream(planFile())) {
-			Properties plan = new Properties();
-			plan.load(in);
-			return plan.getProperty("kind", "update");
-		} catch (IOException e) {
-			return null;
-		}
+		Properties plan = plan();
+		return plan == null ? null : plan.getProperty("kind", "update");
 	}
 
 	/** Changes your mind: nothing happens when the game closes. */
 	public static void cancelStaged() {
 		try {
 			Files.deleteIfExists(planFile());
+			planChanged();
 			JavaHost.LOGGER.info("[Update] the waiting update/rollback was cancelled");
 		} catch (IOException e) {
 			JavaHost.LOGGER.warn("[Update] couldn't cancel", e);
@@ -270,13 +310,8 @@ public final class Updater {
 	}
 
 	public static String stagedVersion() {
-		try (InputStream in = Files.newInputStream(planFile())) {
-			Properties plan = new Properties();
-			plan.load(in);
-			return plan.getProperty("version");
-		} catch (IOException e) {
-			return null;
-		}
+		Properties plan = plan();
+		return plan == null ? null : plan.getProperty("version");
 	}
 
 	// ---------------------------------------------------------------- installing (after the game closes)
@@ -297,6 +332,7 @@ public final class Updater {
 				plan.store(out, "JavaHost update in progress");
 			}
 			Files.delete(planFile());
+			planChanged();
 			String java = ProcessHandle.current().info().command().orElse("java");
 			new ProcessBuilder(java, "-cp", plan.getProperty("helper"), "com.javahost.util.UpdateSwap", running.toString())
 					.redirectErrorStream(true).redirectOutput(dir().resolve("swap.log").toFile()).start();
@@ -393,5 +429,6 @@ public final class Updater {
 		try (OutputStream out = Files.newOutputStream(planFile())) {
 			plan.store(out, "JavaHost: go back to the previous version when the game closes");
 		}
+		planChanged();
 	}
 }

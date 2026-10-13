@@ -24,6 +24,9 @@ public final class WorldShareRouter {
 				return;
 			}
 			ServerPlayer from = context.player();
+			if (!Guard.allow(from, Guard.WORLD_SHARE, Math.max(256, payload.data().length))) {
+				return;
+			}
 			ServerPlayer to = context.server().getPlayerList().getPlayer(payload.to());
 			if (to == null || to == from || !ServerPlayNetworking.canSend(to, ShareDown.TYPE)) {
 				if (payload.kind() == Payloads.SHARE_OFFER || payload.kind() == Payloads.SHARE_CHUNK) {

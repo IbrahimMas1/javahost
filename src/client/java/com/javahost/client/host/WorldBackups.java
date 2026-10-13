@@ -106,7 +106,7 @@ public final class WorldBackups {
 			} catch (IOException e) {
 				throw new java.util.concurrent.CompletionException(e);
 			}
-		}).whenComplete((done, error) -> {
+		}, com.javahost.util.IoExecutor.POOL).whenComplete((done, error) -> {
 			server.execute(() -> paused.forEach(level -> level.noSave = false));
 			running = false;
 		});
@@ -176,7 +176,8 @@ public final class WorldBackups {
 			Files.move(world, saves.resolve(aside));
 		}
 		try {
-			WorldZip.unzip(backup.file(), world);
+			// The same safe unpacking as worlds from friends: sizes come from the zip and are enforced while writing.
+			WorldZip.unzipWorld(backup.file(), world, WorldZip.unpackedSize(backup.file()) + 64L * 1024 * 1024, 2_000_000);
 		} catch (IOException e) {
 			// Put the original back if the restore didn't work (keeping any half-restored copy aside, not deleting it).
 			if (Files.exists(world)) {

@@ -37,7 +37,8 @@ public class WorldPickerScreen extends Screen {
 
 	private final Screen behind;
 	private final Runnable onSent;
-	private final List<Source> sources;
+	private List<Source> sources = List.of();
+	private boolean loading = true;
 	private final List<Friend> friends;
 	private Friend target;
 	private Source selected;
@@ -58,17 +59,24 @@ public class WorldPickerScreen extends Screen {
 		super(Component.literal("Send a world"));
 		this.behind = behind;
 		this.onSent = onSent;
-		this.sources = WorldShare.sources();
 		this.friends = WorldShare.reachableFriends();
 		this.target = friend != null ? friend : friends.isEmpty() ? null : friends.getFirst();
-		this.selected = sources.stream().filter(s -> s.path().equals(preselect)).findFirst()
-				.orElse(sources.isEmpty() ? null : sources.getFirst());
-		for (Source source : sources) {
-			if (source.size() < 0 && !SIZES.containsKey(source.path())) {
-				SIZES.put(source.path(), -1L);
-				CompletableFuture.runAsync(() -> SIZES.put(source.path(), WorldShare.measure(source)));
+		// Listing worlds reads each one's level.dat: do it in the background (it's usually done before the first frame).
+		Source live = WorldShare.liveSource();
+		com.javahost.util.IoExecutor.supply(() -> WorldShare.savedSources(live)).thenAccept(found -> net.minecraft.client.Minecraft.getInstance().execute(() -> {
+			sources = found;
+			loading = false;
+			selected = sources.stream().filter(s -> s.path().equals(preselect)).findFirst().orElse(sources.isEmpty() ? null : sources.getFirst());
+			for (Source source : sources) {
+				if (source.size() < 0 && !SIZES.containsKey(source.path())) {
+					SIZES.put(source.path(), -1L);
+					com.javahost.util.IoExecutor.run(() -> SIZES.put(source.path(), WorldShare.measure(source)));
+				}
 			}
-		}
+			if (minecraft != null && minecraft.gui.screen() == this) {
+				rebuildWidgets(); // the box grows to fit the list
+			}
+		}));
 	}
 
 	@Override
@@ -101,7 +109,7 @@ public class WorldPickerScreen extends Screen {
 			return "No friends in this world to send to";
 		}
 		if (selected == null) {
-			return "You have no worlds to send";
+			return loading ? "Finding your worlds..." : "You have no worlds to send";
 		}
 		return WorldShare.cannotSendTo(target.id());
 	}
@@ -197,13 +205,15 @@ public class WorldPickerScreen extends Screen {
 		Draw.unclip();
 		g.disableScissor();
 		if (sources.isEmpty()) {
-			Draw.textFit(g, "No worlds yet.", boxW - 40, boxX + 22, listY + 8, Theme.FAINT);
+			Draw.textFit(g, loading ? "Finding your worlds..." : "No worlds yet.", boxW - 40, boxX + 22, listY + 8, Theme.FAINT);
 		}
 
 		// What happens, or why not.
 		String problem = problem();
 		int noteY = boxY + boxH - 52;
-		if (problem != null) {
+		if (loading) {
+			Draw.textFit(g, "Finding your worlds...", boxW - 32, boxX + 16, noteY, Theme.FAINT);
+		} else if (problem != null) {
 			Icons.WARNING.draw(g, boxX + 16, noteY - 1, Theme.WARNING);
 			Draw.textFit(g, problem, boxW - 50, boxX + 32, noteY, Theme.WARNING);
 		} else {

@@ -70,7 +70,7 @@ public final class Connectivity {
 		relayState = relayAlreadyOn ? State.CHECKING : State.OFF;
 		Config config = Config.get();
 		relayMode = RelayMode.valueOf(config.relayMode);
-		CompletableFuture.runAsync(() -> probe(config.useUpnp, config.useIpv6, relayMode));
+		CompletableFuture.runAsync(() -> probe(config.useUpnp, config.useIpv6, relayMode), com.javahost.util.IoExecutor.NET);
 	}
 
 	static void stop() {
@@ -91,7 +91,7 @@ public final class Connectivity {
 					router.closePort(openedPort);
 				}
 				router.closeIpv6Pinhole(pinhole);
-			});
+			}, com.javahost.util.IoExecutor.NET);
 		}
 	}
 

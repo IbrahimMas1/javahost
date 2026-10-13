@@ -31,6 +31,8 @@ import com.javahost.client.host.Connectivity;
 import com.javahost.client.host.HostController;
 import com.javahost.client.pack.IrisCompat;
 import com.javahost.client.voice.VoiceClient;
+import com.javahost.net.Payloads.VoiceUp2;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.client.gui.screens.ConnectScreen;
@@ -180,6 +182,14 @@ final class MultiplayerTest {
 		});
 		prepareShader(context, HOST_SHADER, SHADER_SETTINGS);
 
+		// Counts real joins by Guest, to prove refused players never get into the world at all.
+		java.util.concurrent.atomic.AtomicInteger guestJoins = new java.util.concurrent.atomic.AtomicInteger();
+		net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+			if (handler.player.getPlainTextName().equals("Guest")) {
+				guestJoins.incrementAndGet();
+			}
+		});
+		int joinsBeforeRefusal = -1;
 		try (TestSingleplayerContext world = context.worldBuilder().create()) {
 			world.getConnection().waitForChunksRender();
 			// Test accounts are offline accounts; real players have Microsoft accounts and keep verification on.
@@ -224,9 +234,12 @@ final class MultiplayerTest {
 			// ---- One click invite; the guest's game confirms delivery.
 			context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.FRIENDS));
 			context.runOnClient(mc -> check(!HostController.isHosting(), "world not open yet before inviting"));
+			// As if Minecraft's own "Open to LAN" had been used earlier with "Allow commands" on.
+			context.runOnClient(mc -> mc.getSingleplayerServer().setGuestCommandAccess(true));
 			context.runOnClient(mc -> InviteFlow.invite(guestFriend));
 			context.waitFor(mc -> Friends.inviteStatus(guestFriend.id()).map(st -> st.state() == Friends.InviteState.DELIVERED).orElse(false), 2 * ONE_MINUTE);
 			context.runOnClient(mc -> check(HostController.isHosting(), "inviting opened the world automatically and sent the invite"));
+			context.runOnClient(mc -> check(!mc.getSingleplayerServer().getGuestCommandAccess(), "guests get no commands, even after a vanilla Open to LAN with commands on"));
 			check(true, "the invite shows Delivered (the guest's game confirmed it)");
 			context.waitTicks(5);
 			context.takeScreenshot("mp-host-friends-invited");
@@ -328,6 +341,7 @@ final class MultiplayerTest {
 				com.javahost.client.rules.RulesClient.request("__cohost:" + guestPlayer, "false");
 			});
 			sendWorlds(context, guestPlayer);
+			survivesAbuse(context);
 			writeShared("host-controls-done", "ok");
 
 			// ---- The guest leaves, sees us hosting in their friends list and joins with no invite.
@@ -380,6 +394,7 @@ final class MultiplayerTest {
 					continue;
 				}
 				if (unfriendedNotAcked()) {
+					joinsBeforeRefusal = guestJoins.get();
 					writeShared("host-saw-remove", "ok");
 					check(true, "host got the guest's unfriend message");
 					continue;
@@ -412,8 +427,99 @@ final class MultiplayerTest {
 			context.runOnClient(mc -> HostController.stop());
 			context.runOnClient(mc -> check(!mc.getSingleplayerServer().isPublished(), "host stopped hosting"));
 		}
+		check(joinsBeforeRefusal >= 0 && guestJoins.get() == joinsBeforeRefusal,
+				"a non-friend is refused at login: they never joined the world (no 'joined' message, nothing sent to them)");
 		JavaHost.LOGGER.info("[JavaHost MP] HOST DONE: {}", readShared("guest-done"));
 		check(readShared("guest-done").startsWith("PASS"), "guest reported success");
+	}
+
+	// ================================================================ 1.7: safety
+
+	/** Host side: a hacked guest floods JavaHost traffic; the world keeps running and the flooder is removed. */
+	private static void survivesAbuse(ClientGameTestContext context) {
+		String sha = context.computeOnClient(mc -> HostState.sharedPacks().isEmpty() ? "" : HostState.sharedPacks().getFirst().info().sha1());
+		writeShared("host-ready-for-abuse", sha);
+		context.waitFor(mc -> readShared("guest-abuse-done") != null || HostController.guests().isEmpty(), 3 * ONE_MINUTE);
+		long tickMs = context.computeOnClient(mc -> mc.getSingleplayerServer().getAverageTickTimeNanos() / 1_000_000);
+		check(tickMs < 50, "the world kept running smoothly through the flood (average tick " + tickMs + " ms)");
+		context.waitFor(mc -> HostController.guests().isEmpty(), ONE_MINUTE);
+		check(true, "a game that kept flooding was removed from the world");
+		waitForShared(context, "guest-abuse-done", ONE_MINUTE);
+	}
+
+	/** Guest side: acts like a hacked client. Short bursts are just dropped; a 12-second flood gets us removed. */
+	private static void abuseHost(ClientGameTestContext context, Friends.Friend host) {
+		waitForShared(context, "host-ready-for-abuse", 2 * ONE_MINUTE);
+		String sha = readShared("host-ready-for-abuse").trim();
+		UUID hostId = host.id();
+		context.runOnClient(mc -> {
+			// Fake acknowledgements for a pack we never received, and the same pack asked for again and again.
+			for (int i = 0; i < 20 && !sha.isEmpty(); i++) {
+				ClientPlayNetworking.send(new com.javahost.net.Payloads.PackRequest(List.of(sha)));
+				ClientPlayNetworking.send(new com.javahost.net.Payloads.PackAck(sha, 100_000));
+			}
+			// Relayed "messages" claiming billions of pieces.
+			for (int i = 0; i < 200; i++) {
+				ClientPlayNetworking.send(new com.javahost.net.Payloads.RelayUp(hostId, i, 0, Integer.MAX_VALUE, new byte[30 * 1024]));
+			}
+			// Rule-change spam.
+			for (int i = 0; i < 200; i++) {
+				ClientPlayNetworking.send(new com.javahost.net.Payloads.RulesChange("DIFFICULTY", i % 2 == 0 ? "hard" : "easy"));
+			}
+		});
+		context.waitTicks(40);
+		check(context.computeOnClient(mc -> mc.level != null), "short bursts are dropped, not punished (still in the world)");
+		// Now a sustained party-voice flood: 200 frames a second for 13 seconds.
+		for (int second = 0; second < 13 && context.computeOnClient(mc -> mc.level != null); second++) {
+			int base = second * 200;
+			context.runOnClient(mc -> {
+				for (int i = 0; i < 200 && ClientPlayNetworking.canSend(VoiceUp2.TYPE); i++) {
+					ClientPlayNetworking.send(new VoiceUp2(base + i, true, new byte[100]));
+				}
+			});
+			context.waitTicks(20);
+		}
+		context.waitFor(mc -> mc.gui.screen() instanceof DisconnectedScreen, ONE_MINUTE);
+		String reason = context.computeOnClient(mc -> ((DisconnectedScreen) mc.gui.screen()).getNarrationMessage().getString());
+		check(reason.contains("Too much traffic"), "a client that keeps flooding is removed (" + reason + ")");
+		context.runOnClient(mc -> mc.gui.setScreen(new TitleScreen()));
+		writeShared("guest-abuse-done", "ok");
+	}
+
+	/**
+	 * Guest side: with the wrong signing key on file for the host (as if a fake server answered), joining from the
+	 * friends list must not stay in that world: each way in fails the proof, and we're told why.
+	 */
+	private static void joinsAFakeWorldAndLeaves(ClientGameTestContext context, Friends.Friend host) {
+		String realKey = host.signKey();
+		check(realKey != null, "the host's signing key arrived with their accept");
+		String wrongKey = com.javahost.util.FriendCrypto.encodePublic(com.javahost.util.FriendCrypto.newSigningKeyPair().getPublic());
+		setSignKey(context, host.id(), wrongKey);
+		Presence.Status status = context.computeOnClient(mc -> Presence.of(host.id()).orElseThrow());
+		context.runOnClient(mc -> InviteFlow.join(status.asInvite(host.name())));
+		context.waitFor(mc -> com.javahost.client.friends.Notifications.items().stream().anyMatch(i -> i.text().contains("Couldn't confirm")),
+				3 * ONE_MINUTE);
+		context.waitFor(mc -> mc.level == null && !(mc.gui.screen() instanceof ConnectScreen), ONE_MINUTE);
+		check(true, "a world that can't prove it's the friend's is left at once, by every route, with a clear message");
+		context.takeScreenshot("mp-guest-unconfirmed-world");
+		setSignKey(context, host.id(), realKey);
+	}
+
+	private static void setSignKey(ClientGameTestContext context, UUID friend, String key) {
+		context.runOnClient(mc -> {
+			try {
+				java.lang.reflect.Field dataField = Friends.class.getDeclaredField("data");
+				dataField.setAccessible(true);
+				Object data = dataField.get(null);
+				java.lang.reflect.Field friendsField = data.getClass().getDeclaredField("friends");
+				friendsField.setAccessible(true);
+				@SuppressWarnings("unchecked")
+				List<Friends.Friend> friends = (List<Friends.Friend>) friendsField.get(data);
+				friends.replaceAll(f -> f.id().equals(friend) ? new Friends.Friend(f.id(), f.name(), f.box(), f.since(), f.statusKey(), key) : f);
+			} catch (ReflectiveOperationException e) {
+				throw new AssertionError(e);
+			}
+		});
 	}
 
 	// ================================================================ 1.6: sending a world copy
@@ -735,6 +841,7 @@ final class MultiplayerTest {
 		writeShared("guest-tried-locked", "ok");
 		context.takeScreenshot("mp-guest-joined-from-invite");
 		receiveWorlds(context, host);
+		abuseHost(context, host);
 		waitForShared(context, "host-controls-done", 3 * ONE_MINUTE);
 		VoiceClient.setTestTone(false);
 		context.runOnClient(mc -> mc.disconnect(new TitleScreen(), false));
@@ -749,9 +856,14 @@ final class MultiplayerTest {
 		context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.FRIENDS));
 		context.waitTicks(10);
 		context.takeScreenshot("mp-guest-friends-hosting");
+		joinsAFakeWorldAndLeaves(context, host);
+		context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.FRIENDS));
+		context.waitTicks(10);
 		clickMenuButton(context, "Join");
 		context.waitFor(mc -> (mc.player != null && mc.level != null && mc.gui.screen() == null)
 				|| mc.gui.screen() instanceof DisconnectedScreen, 3 * ONE_MINUTE);
+		context.waitFor(mc -> !InviteFlow.verifying(), ONE_MINUTE);
+		check(context.computeOnClient(mc -> mc.level != null), "joining from the friends list: the host proved it's their world");
 		String refusedPresence = context.computeOnClient(mc -> mc.gui.screen() instanceof DisconnectedScreen d ? d.getNarrationMessage().getString() : null);
 		check(refusedPresence == null, "guest joined from Join on the friends list" + (refusedPresence == null ? "" : " (refused: " + refusedPresence + ")"));
 		context.waitTicks(40);

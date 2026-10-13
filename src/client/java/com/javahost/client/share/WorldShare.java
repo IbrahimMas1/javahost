@@ -254,13 +254,23 @@ public final class WorldShare {
 
 	/** The worlds you can send: the open one (a live copy), your other saved worlds, and your backups. */
 	public static List<Source> sources() {
+		return savedSources(liveSource());
+	}
+
+	/** The world that's open, as a live copy (game thread), or null. */
+	public static Source liveSource() {
+		IntegratedServer server = Minecraft.getInstance().getSingleplayerServer();
+		return server == null ? null : new Source(Source.Kind.LIVE, server.getWorldData().getLevelName(),
+				server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize(), -1, System.currentTimeMillis());
+	}
+
+	/** {@code live} (if any) followed by every other saved world and backup. Reads disk: call off the game thread. */
+	public static List<Source> savedSources(Source live) {
 		Minecraft minecraft = Minecraft.getInstance();
 		List<Source> sources = new ArrayList<>();
-		IntegratedServer server = minecraft.getSingleplayerServer();
-		Path open = null;
-		if (server != null) {
-			open = server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize();
-			sources.add(new Source(Source.Kind.LIVE, server.getWorldData().getLevelName(), open, -1, System.currentTimeMillis()));
+		Path open = live == null ? null : live.path();
+		if (live != null) {
+			sources.add(live);
 		}
 		Path saves = minecraft.getLevelSource().getBaseDir();
 		try (Stream<Path> list = Files.list(saves)) {
@@ -332,7 +342,7 @@ public final class WorldShare {
 					} catch (IOException e) {
 						throw new java.util.concurrent.CompletionException(e);
 					}
-				});
+				}, com.javahost.util.IoExecutor.POOL);
 			}
 		}
 		zipped.thenApplyAsync(zip -> {
@@ -342,7 +352,7 @@ public final class WorldShare {
 			} catch (IOException e) {
 				throw new java.util.concurrent.CompletionException(e);
 			}
-		}).whenComplete((header, error) -> minecraft.execute(() -> {
+		}, com.javahost.util.IoExecutor.POOL).whenComplete((header, error) -> minecraft.execute(() -> {
 			if (transfer.stage != Stage.PREPARING) {
 				cleanUp(transfer, true); // cancelled while zipping: the zip has just been finished
 				return;
@@ -545,7 +555,7 @@ public final class WorldShare {
 			} catch (IOException e) {
 				throw new java.util.concurrent.CompletionException(e);
 			}
-		}).whenComplete((ok, error) -> minecraft.execute(() -> {
+		}, com.javahost.util.IoExecutor.POOL).whenComplete((ok, error) -> minecraft.execute(() -> {
 			if (error != null) {
 				JavaHost.LOGGER.warn("[Share] couldn't unpack {}", transfer.world, error);
 				fail(transfer, "Couldn't unpack the world: " + rootMessage(error), true);
@@ -690,11 +700,11 @@ public final class WorldShare {
 	}
 
 	public static Path outgoingDir() {
-		return Minecraft.getInstance().gameDirectory.toPath().resolve("javahost").resolve("outgoing");
+		return Minecraft.getInstance().gameDirectory.toPath().resolve("javahost").resolve("outgoing-worlds");
 	}
 
 	public static Path incomingDir() {
-		return Minecraft.getInstance().gameDirectory.toPath().resolve("javahost").resolve("incoming");
+		return Minecraft.getInstance().gameDirectory.toPath().resolve("javahost").resolve("incoming-worlds");
 	}
 
 	/** Leftovers from a game that closed mid-transfer. */

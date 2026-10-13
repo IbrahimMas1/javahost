@@ -132,7 +132,7 @@ public final class Mailbox {
 					if (!retry) {
 						return CompletableFuture.completedFuture(sent);
 					}
-					long delay = (long) (1000 * Math.pow(3, attempt));
+					long delay = (long) (1000 * Math.pow(3, attempt)) + java.util.concurrent.ThreadLocalRandom.current().nextLong(500);
 					return CompletableFuture.supplyAsync(() -> null, CompletableFuture.delayedExecutor(delay, java.util.concurrent.TimeUnit.MILLISECONDS))
 							.thenCompose(ignored -> withRetries(request, attempt + 1));
 				});
@@ -236,7 +236,8 @@ public final class Mailbox {
 				}
 				if (listening == topics) {
 					setStatus(Status.OFFLINE, onStatus);
-					sleep(backoff * 1000L);
+					// Plus up to half again at random, so lots of players don't all reconnect at the same moment.
+					sleep(backoff * 1000L + java.util.concurrent.ThreadLocalRandom.current().nextLong(backoff * 500L + 1));
 					backoff = Math.min(backoff * 2, 60);
 				}
 			} finally {

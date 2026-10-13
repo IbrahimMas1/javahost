@@ -23,7 +23,7 @@ class ChunksTest {
 
 		List<Integer> order = new ArrayList<>(List.of(0, 1, 2, 3));
 		Collections.shuffle(order, new Random(9));
-		Chunks.Assembly assembly = new Chunks.Assembly(pieces.size(), 4 * 1024 * 1024);
+		Chunks.Assembly assembly = new Chunks.Assembly(pieces.size(), 4 * 1024 * 1024, 30 * 1024);
 		byte[] whole = null;
 		for (int i = 0; i < order.size(); i++) {
 			whole = assembly.add(order.get(i), pieces.get(order.get(i)));
@@ -43,7 +43,7 @@ class ChunksTest {
 		assertEquals("hi", chat.text());
 		assertNull(chat.file());
 
-		Chunks.Assembly assembly = new Chunks.Assembly(3, 50);
+		Chunks.Assembly assembly = new Chunks.Assembly(3, 50, 20);
 		assembly.add(0, new byte[30]);
 		assertThrows(IllegalStateException.class, () -> assembly.add(1, new byte[30]));
 		assertNull(assembly.add(7, new byte[1]), "out of range is ignored");

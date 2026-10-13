@@ -27,6 +27,9 @@ public final class FastLane {
 	private static final SecureRandom RANDOM = new SecureRandom();
 	/** Transfers we're receiving, by sender and transfer id. Only touched on the client thread. */
 	private static final Map<String, Chunks.Assembly> INCOMING = new HashMap<>();
+	/** Unfinished transfers held at once: per sender, and in bytes overall. A host can't make us hoard memory. */
+	private static final int MAX_PER_SENDER = 4;
+	private static final int MAX_HELD_BYTES = 8 * 1024 * 1024;
 
 	private FastLane() {
 	}
@@ -34,6 +37,11 @@ public final class FastLane {
 	public static void register() {
 		ClientPlayNetworking.registerGlobalReceiver(RelayDown.TYPE, (piece, context) -> receive(piece));
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, minecraft) -> minecraft.execute(INCOMING::clear));
+		net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(minecraft -> {
+			if (!INCOMING.isEmpty() && minecraft.level != null && minecraft.level.getGameTime() % 100 == 0) {
+				INCOMING.values().removeIf(assembly -> assembly.olderThan(120_000));
+			}
+		});
 	}
 
 	/** True when this friend can be reached through the game connection right now. */
@@ -64,10 +72,19 @@ public final class FastLane {
 	}
 
 	private static void receive(RelayDown piece) {
-		INCOMING.values().removeIf(assembly -> assembly.olderThan(120_000));
 		String key = piece.from() + "/" + piece.id();
-		Chunks.Assembly assembly = INCOMING.computeIfAbsent(key, k -> new Chunks.Assembly(piece.total(), Payloads.RELAY_MAX_BYTES));
 		try {
+			Chunks.Assembly assembly = INCOMING.get(key);
+			if (assembly == null) {
+				String prefix = piece.from() + "/";
+				long fromSender = INCOMING.keySet().stream().filter(k -> k.startsWith(prefix)).count();
+				int held = INCOMING.values().stream().mapToInt(Chunks.Assembly::bytes).sum();
+				if (fromSender >= MAX_PER_SENDER || held >= MAX_HELD_BYTES) {
+					return; // too much unfinished from them (or overall): drop it
+				}
+				assembly = new Chunks.Assembly(piece.total(), Payloads.RELAY_MAX_BYTES, Payloads.RELAY_CHUNK_SIZE);
+				INCOMING.put(key, assembly);
+			}
 			byte[] whole = assembly.add(piece.index(), piece.data());
 			if (whole == null) {
 				return;

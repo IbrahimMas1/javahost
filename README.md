@@ -57,6 +57,16 @@ Friends need JavaHost too to get voice and your packs. The easiest way is to sen
 - **Offline friends:** messages are kept for 12 hours, so a friend who's offline gets your request when they next play. Screenshots are kept for 3 hours.
 - ntfy.sh is free, so it limits each internet connection to about 250 *sent* messages a day (receiving is free). Normal play uses far fewer: your online status sends one every 30 minutes or when it changes. The Account page shows today's count, and JavaHost tells you if you hit the limit.
 
+## Safety (1.7)
+
+- **Joining checks it's really your friend's world.** Each player has a signing key that only their own game holds. When you join a friend, their game must prove the world is theirs. A fake server, or some other PC on your network, is left at once and the next way in is tried. Friends on older versions need to update before you can join them.
+- **Online status can't be faked.** Statuses are signed by the friend who sent them, so another friend can't post a fake "Hosting" with their own address.
+- **Real names.** The name on a friend request is checked with Mojang, so nobody can pose as one of your friends. You're warned if a different account uses a friend's old name.
+- **Strangers never get in.** Banned, blocked and (in friends-only worlds) unknown players are turned away at login, before they're in the world. Guests never get commands. Friends-only also covers worlds opened with Minecraft's own "Open to LAN".
+- **Hacked clients can't swamp the host.** Voice, relayed messages, world copies and rule changes have per-player limits. A game that keeps flooding is removed.
+- **Nothing harmful lands on your PC.** Host packs must match their SHA-1 and size, and are cached under 2 GB. Fake piece counts are refused. Images and world files are checked for "bombs" before decoding. Received worlds can't bring co-host rights.
+- **Block a player** from a friend request or their profile. Their messages are dropped unread and they can't join your worlds. Undo it in Settings.
+
 ## Limits
 
 - Direct connections depend on your router and internet provider. The Host tab shows which ways work; when none do, the relay gets friends in.

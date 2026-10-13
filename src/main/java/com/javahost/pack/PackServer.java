@@ -37,6 +37,10 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public final class PackServer {
 	private static final int WINDOW = 8;
+	/** Chunks sent per player per tick at most (~1 MB), so a big pack never stalls the world. */
+	private static final int PER_TICK = 4;
+	/** How many times one player may download the same pack in a session (a retry after a hiccup is fine). */
+	private static final int MAX_SENDS = 2;
 
 	private static final class Transfer {
 		final SharedPack pack;
@@ -52,6 +56,8 @@ public final class PackServer {
 
 	/** Queued transfers per player; only the head of each queue is actively sending. */
 	private static final Map<UUID, ArrayDeque<Transfer>> TRANSFERS = new HashMap<>();
+	/** How often each player has been sent each pack this session (player -> sha1 -> count). */
+	private static final Map<UUID, Map<String, Integer>> SENDS = new HashMap<>();
 
 	private PackServer() {
 	}
@@ -82,13 +88,18 @@ public final class PackServer {
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> offerTo(server, handler.player));
 
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> TRANSFERS.remove(handler.player.getUUID()));
-		ServerLifecycleEvents.SERVER_STOPPED.register(server -> TRANSFERS.clear());
+		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+			TRANSFERS.clear();
+			SENDS.clear();
+		});
 
 		ServerPlayNetworking.registerGlobalReceiver(PackRequest.TYPE, (payload, context) -> {
 			ArrayDeque<Transfer> queue = TRANSFERS.computeIfAbsent(context.player().getUUID(), id -> new ArrayDeque<>());
+			Map<String, Integer> sent = SENDS.computeIfAbsent(context.player().getUUID(), id -> new HashMap<>());
 			for (String sha1 : payload.sha1s()) {
 				SharedPack pack = HostState.findPack(sha1);
-				if (pack != null && queue.stream().noneMatch(t -> t.pack == pack)) {
+				if (pack != null && queue.stream().noneMatch(t -> t.pack == pack) && sent.getOrDefault(sha1, 0) < MAX_SENDS) {
+					sent.merge(sha1, 1, Integer::sum);
 					queue.add(new Transfer(pack));
 				}
 			}
@@ -97,7 +108,8 @@ public final class PackServer {
 		ServerPlayNetworking.registerGlobalReceiver(PackAck.TYPE, (payload, context) -> {
 			ArrayDeque<Transfer> queue = TRANSFERS.get(context.player().getUUID());
 			Transfer head = queue == null ? null : queue.peek();
-			if (head != null && head.pack.info().sha1().equals(payload.sha1())) {
+			// Only chunks we've actually sent can be acknowledged (a made-up ack would make us send everything at once).
+			if (head != null && head.pack.info().sha1().equals(payload.sha1()) && payload.index() < head.nextToSend) {
 				head.acked = Math.max(head.acked, payload.index());
 				if (head.acked >= head.total - 1) {
 					queue.poll();
@@ -131,11 +143,13 @@ public final class PackServer {
 	}
 
 	private static void pump(ServerPlayer player, Transfer transfer) throws IOException {
-		if (transfer.nextToSend >= transfer.total || transfer.nextToSend - transfer.acked > WINDOW) {
-			return;
+		if (transfer.nextToSend >= transfer.total || transfer.nextToSend - transfer.acked > WINDOW
+				|| !((com.javahost.mixin.ConnectionAccess) ((com.javahost.mixin.ServerCommonListenerAccess) player.connection).javahost$connection())
+						.javahost$channel().isWritable()) {
+			return; // nothing due, or the player isn't reading what we've already sent
 		}
 		try (FileChannel channel = FileChannel.open(transfer.pack.file(), StandardOpenOption.READ)) {
-			while (transfer.nextToSend < transfer.total && transfer.nextToSend - transfer.acked <= WINDOW) {
+			for (int sent = 0; sent < PER_TICK && transfer.nextToSend < transfer.total && transfer.nextToSend - transfer.acked <= WINDOW; sent++) {
 				long offset = (long) transfer.nextToSend * Payloads.PACK_CHUNK_SIZE;
 				int length = (int) Math.min(Payloads.PACK_CHUNK_SIZE, transfer.pack.info().size() - offset);
 				ByteBuffer buffer = ByteBuffer.allocate(Math.max(length, 0));

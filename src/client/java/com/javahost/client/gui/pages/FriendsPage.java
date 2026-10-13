@@ -91,8 +91,13 @@ public class FriendsPage extends Page {
 			for (Request request : incoming) {
 				add(new FlatButton(60, 16, Component.literal("Accept"), FlatButton.Style.PRIMARY, null,
 						b -> Friends.accept(request)), width - 92, y + 6);
-				add(new FlatButton(18, 16, Component.empty(), FlatButton.Style.GHOST, Icons.CROSS,
-						b -> Friends.decline(request)), width - 26, y + 6);
+				FlatButton decline = add(new FlatButton(18, 16, Component.literal("Decline"), FlatButton.Style.GHOST, Icons.CROSS,
+						b -> Friends.decline(request)).iconOnly(), width - 26, y + 6);
+				decline.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Decline")));
+				FlatButton block = add(new FlatButton(44, 16, Component.literal("Block"), FlatButton.Style.GHOST, null,
+						b -> Friends.block(request.id(), request.name())), width - 140, y + 6);
+				block.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+						"They can't send you requests or messages, or join your worlds. Undo in Settings.")));
 				y += ROW;
 			}
 			y += 12;
@@ -281,8 +286,9 @@ public class FriendsPage extends Page {
 			card(g, left, y - 2, width, incoming.size() * ROW + 4);
 			for (Request request : incoming) {
 				Faces.draw(g, request.id(), left + 8, y + 5, 18);
-				Draw.text(g, request.name(), left + 32, y + 5, Theme.TEXT);
-				Draw.text(g, "wants to be friends", left + 32, y + 15, Theme.MUTED);
+				Draw.textFit(g, request.name(), width - 180, left + 32, y + 5, Theme.TEXT);
+				boolean warn = request.note() != null && !request.note().isEmpty();
+				Draw.textFit(g, warn ? request.note() : "wants to be friends", width - 180, left + 32, y + 15, warn ? Theme.WARNING : Theme.MUTED);
 				y += ROW;
 			}
 		}

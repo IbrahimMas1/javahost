@@ -19,6 +19,7 @@
 		]
 	},
 	"mixins": [
+		"javahost.mixins.json",
 		{
 			"config": "javahost.client.mixins.json",
 			"environment": "client"

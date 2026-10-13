@@ -361,7 +361,18 @@ public final class VoiceClient {
 
 				int read = 0;
 				while (read < raw.length) {
-					read += line.read(raw, read, raw.length - read);
+					int n = line.read(raw, read, raw.length - read);
+					if (n <= 0) {
+						break; // unplugged or stopped: read() returns at once, and looping would spin a CPU core
+					}
+					read += n;
+				}
+				if (read < raw.length) {
+					line.close();
+					line = null;
+					micProblem = "The microphone stopped. Reconnecting...";
+					Thread.sleep(500);
+					continue;
 				}
 
 				double gain = config.micGain;

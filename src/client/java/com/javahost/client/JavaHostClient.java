@@ -117,12 +117,28 @@ public class JavaHostClient implements ClientModInitializer {
 		// Leaving the world (or the integrated server stopping) ends hosting and closes the router port.
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> HostController.cleanup());
 		ClientLifecycleEvents.CLIENT_STOPPING.register(minecraft -> {
+			com.javahost.client.friends.Friends.flushNow();
 			com.javahost.client.update.Updater.launchSwapIfStaged();
 			Presence.goOffline();
 			E4mcCompat.shutdownForExit();
 		});
 		ClientLifecycleEvents.CLIENT_STARTED.register(minecraft -> {
 			Popups.startFriends();
+			// Our game vouches for worlds we host (guests check this before trusting the world is ours).
+			com.javahost.HostState.setProver(new com.javahost.HostState.Prover() {
+				@Override
+				public java.util.UUID host() {
+					return com.javahost.client.friends.Identity.id();
+				}
+
+				@Override
+				public byte[] sign(byte[] data) {
+					return com.javahost.client.friends.Identity.signWithIdentity(data);
+				}
+			});
+			net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(com.javahost.net.Payloads.HostProof.TYPE,
+					(proof, context) -> com.javahost.client.friends.InviteFlow.onProof(proof));
+			HostController.applyHostRules(Config.get()); // join rules apply to every opened world, not only via JavaHost
 			com.javahost.client.share.WorldShare.register();
 			com.javahost.client.update.UpdateChecker.start();
 		});

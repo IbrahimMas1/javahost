@@ -946,7 +946,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 				friendsField.setAccessible(true);
 				@SuppressWarnings("unchecked")
 				java.util.List<com.javahost.client.friends.Friends.Friend> friends = (java.util.List<com.javahost.client.friends.Friends.Friend>) friendsField.get(data);
-				friends.add(new com.javahost.client.friends.Friends.Friend(alexId, "Alex_TheBuilder", "", System.currentTimeMillis(), null));
+				friends.add(new com.javahost.client.friends.Friends.Friend(alexId, "Alex_TheBuilder", "", System.currentTimeMillis(), null, null));
 			} catch (ReflectiveOperationException e) {
 				throw new AssertionError(e);
 			}

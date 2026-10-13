@@ -114,6 +114,7 @@ public class HostPage extends Page {
 				config.friendsOnly, v -> {
 					config.friendsOnly = v;
 					config.save();
+					HostController.applyHostRules(config);
 				}), 10, y + 18);
 		add(new Segmented<>(132, List.of(2, 4, 8, 16), config.maxPlayers, String::valueOf, n -> {
 			config.maxPlayers = n;
