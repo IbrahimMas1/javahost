@@ -316,8 +316,12 @@ public class JavaHostScreen extends Screen {
 		// Page header (shifted right when there's a back button).
 		int titleX = canGoBack() ? contentX + 18 : contentX;
 		int titleW = contentX + contentW - 62 - titleX;
-		Draw.scaledText(g, Draw.fit(page.title(), (int) (titleW / 1.25f)), titleX, winY + 10, 1.25f, Theme.TEXT);
-		Draw.text(g, Draw.fit(page.subtitle(), titleW), titleX, winY + 24, Theme.MUTED);
+		String title = Draw.fit(page.title(), (int) (titleW / 1.25f));
+		Draw.scaledText(g, title, titleX, winY + 10, 1.25f, Theme.TEXT);
+		if (!title.equals(page.title())) {
+			Draw.truncated(g, titleX, winY + 9, (int) (Draw.font().width(title) * 1.25f), 12, page.title());
+		}
+		Draw.textFit(g, page.subtitle(), titleW, titleX, winY + 24, Theme.MUTED);
 		g.fill(contentX, winY + HEADER + 2, contentX + contentW, winY + HEADER + 3, Theme.withAlpha(Theme.BORDER, 0.7f));
 
 		g.nextStratum();
@@ -334,6 +338,7 @@ public class JavaHostScreen extends Screen {
 		int slide = Math.round((1 - tabAnim) * 12);
 		int top = contentY - Math.round(scroll);
 		g.enableScissor(contentX - 4, contentY, contentX + contentW + 4, contentY + contentH);
+		Draw.clip(contentX - 4, contentY, contentX + contentW + 4, contentY + contentH);
 		g.pose().pushMatrix();
 		g.pose().translate(slide, 0);
 		page.draw(g, contentX, top, mouseX - slide, mouseY);
@@ -346,6 +351,7 @@ public class JavaHostScreen extends Screen {
 		page.drawOverlay(g, contentX, top, mouseX, mouseY);
 		g.pose().popMatrix();
 		g.disableScissor();
+		Draw.unclip();
 
 		if (maxScroll() > 0) {
 			int barH = Math.max(16, contentH * contentH / (contentH + maxScroll()));
@@ -477,7 +483,7 @@ public class JavaHostScreen extends Screen {
 				int faceX = compact ? getX() + (getWidth() - face) / 2 : getX() + 6;
 				Faces.draw(g, Identity.id(), faceX, getY() + (getHeight() - face) / 2, face);
 				if (!compact) {
-					Draw.text(g, Draw.fit(Identity.name(), getWidth() - 26), getX() + 23, getY() + (getHeight() - 8) / 2 + 1, color);
+					Draw.textFit(g, Identity.name(), getWidth() - 26, getX() + 23, getY() + (getHeight() - 8) / 2 + 1, color);
 				}
 				return;
 			}

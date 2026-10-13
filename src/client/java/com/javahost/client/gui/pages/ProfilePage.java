@@ -25,6 +25,8 @@ import net.minecraft.network.chat.Component;
 
 /** One friend: a 3D skin you can spin, what they're up to, and everything you can do with them. */
 public class ProfilePage extends Page {
+	/** Extra height when the action buttons need two rows. */
+	private int shift;
 	private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("d MMM yyyy").withZone(ZoneId.systemDefault());
 	private Friend friend;
 	private long confirmRemoveUntil;
@@ -56,7 +58,13 @@ public class ProfilePage extends Page {
 		int right = 108;
 		int rightW = width - right;
 		Optional<Presence.Status> status = Presence.of(friend.id());
-		int buttonW = Math.max(60, (rightW - 12) / 3);
+		// Three buttons in a row when they fit; otherwise the main one on its own row and the other two below.
+		boolean oneRow = (rightW - 12) / 3 >= 84;
+		int buttonW = oneRow ? (rightW - 12) / 3 : rightW;
+		int smallW = oneRow ? buttonW : (rightW - 6) / 2;
+		int row2Y = oneRow ? 48 : 72;
+		int row2X = oneRow ? right + buttonW + 6 : right;
+		shift = oneRow ? 0 : 24;
 		if (InviteFlow.playingTogether(friend.id())) {
 			FlatButton together = add(new FlatButton(buttonW, 20, Component.literal("Here"), FlatButton.Style.SECONDARY, Icons.CHECK, b -> {
 			}), right, 48);
@@ -73,16 +81,16 @@ public class ProfilePage extends Page {
 					}), right, 48);
 			invite.active = InviteFlow.canInvite() && !InviteFlow.busy(friend.id());
 		}
-		add(new FlatButton(buttonW, 20, Component.literal("Message"), FlatButton.Style.SECONDARY, Icons.CHAT,
-				b -> screen.openChat(friend.id())), right + buttonW + 6, 48);
-		add(new FlatButton(buttonW, 20, Component.literal("Screenshot"), FlatButton.Style.SECONDARY, Icons.CAMERA,
+		add(new FlatButton(smallW, 20, Component.literal("Message"), FlatButton.Style.SECONDARY, Icons.CHAT,
+				b -> screen.openChat(friend.id())), row2X, row2Y);
+		add(new FlatButton(smallW, 20, Component.literal("Screenshot"), FlatButton.Style.SECONDARY, Icons.CAMERA,
 				b -> {
 					ScreenshotsPage.sendTarget = friend.id();
 					screen.switchTo(JavaHostScreen.Tab.SCREENSHOTS);
-				}), right + (buttonW + 6) * 2, 48);
+				}), row2X + smallW + 6, row2Y);
 
 		add(new FlatSlider(rightW - 20, "Voice volume", config.playerVolumes.getOrDefault(id, 1.0), 0, 2,
-				v -> config.playerVolumes.put(id, v), v -> Math.round(v * 100) + "%"), right + 10, 94);
+				v -> config.playerVolumes.put(id, v), v -> Math.round(v * 100) + "%"), right + 10, 94 + shift);
 		add(new ToggleSwitch(rightW - 20, Component.literal("Mute their voice"), null, config.mutedPlayers.contains(id), muted -> {
 			if (muted) {
 				config.mutedPlayers.add(id);
@@ -90,7 +98,7 @@ public class ProfilePage extends Page {
 				config.mutedPlayers.remove(id);
 			}
 			config.save();
-		}), right + 10, 122);
+		}), right + 10, 122 + shift);
 
 		boolean confirming = System.currentTimeMillis() < confirmRemoveUntil;
 		add(new FlatButton(rightW, 18, Component.literal(confirming ? "Click again to remove " + friend.name() : "Remove friend"),
@@ -102,8 +110,8 @@ public class ProfilePage extends Page {
 						confirmRemoveUntil = System.currentTimeMillis() + 4000;
 						screen.refresh();
 					}
-				}), right, 152);
-		reserve(176);
+				}), right, 152 + shift);
+		reserve(176 + shift);
 	}
 
 	private String signature() {
@@ -131,12 +139,12 @@ public class ProfilePage extends Page {
 		Optional<Presence.Status> status = Presence.of(friend.id());
 		int dot = status.isPresent() ? Theme.ACCENT : Theme.FAINT;
 		String invite = InviteFlow.status(friend.id());
-		status(g, right, top + 18, dot, Draw.fit(invite != null ? invite : FriendsPage.statusLine(friend), rightW - 14), Theme.MUTED);
+		statusFit(g, right, top + 18, dot, invite != null ? invite : FriendsPage.statusLine(friend), rightW - 14, Theme.MUTED);
 		Draw.text(g, "Friends since " + DATE.format(Instant.ofEpochMilli(friend.since())), right, top + 32, Theme.FAINT);
 		FriendsPage.versionChip(g, friend.id(), right + 4 + (int) (Draw.font().width(Draw.fit(friend.name(), (int) (rightW / 1.5f))) * 1.5f), top + 4,
 				rightW - 8 - (int) (Draw.font().width(friend.name()) * 1.5f));
 
-		sectionLabel(g, "Their voice", right, top + 78);
-		card(g, right, top + 88, rightW, 58);
+		sectionLabel(g, "Their voice", right, top + 78 + shift);
+		card(g, right, top + 88 + shift, rightW, 58);
 	}
 }

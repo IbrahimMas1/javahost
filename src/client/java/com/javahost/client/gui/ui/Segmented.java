@@ -74,7 +74,11 @@ public class Segmented<T> extends AbstractWidget {
 		Draw.bordered(g, x, y, seg * options.size(), getHeight(), 4, Theme.FIELD, isFocused() ? Theme.FAINT : Theme.BORDER);
 		Draw.roundRect(g, x + 2 + Math.round(slide * seg), y + 2, seg - 4, getHeight() - 4, 3, active ? Theme.CARD_HOVER : Theme.CARD);
 		for (int i = 0; i < options.size(); i++) {
-			String text = Draw.fit(labels.apply(options.get(i)), seg - 6);
+			String full = labels.apply(options.get(i));
+			String text = Draw.fit(full, seg - 6);
+			if (!text.equals(full)) {
+				Draw.truncated(g, x + i * seg, y, seg, getHeight(), full); // full label on hover
+			}
 			boolean isSelected = options.get(i) == selected;
 			boolean hovered = isHovered() && mouseX >= x + i * seg && mouseX < x + (i + 1) * seg;
 			int color = !active ? Theme.FAINT : isSelected ? Theme.ACCENT : hovered ? Theme.TEXT : Theme.MUTED;

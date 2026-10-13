@@ -176,7 +176,7 @@ public class PerformancePage extends Page {
 			Draw.roundRect(g, left, y + 8, width, 3, 1, Theme.FIELD);
 			Draw.roundRect(g, left + Math.max(0, pulse), y + 8, Math.min(60, width - Math.max(0, pulse)), 3, 1, Theme.INFO);
 		}
-		Draw.text(g, Draw.fit(status, width), left, y + 16, color);
+		Draw.textFit(g, status, width, left, y + 16, color);
 	}
 
 	private void row(GuiGraphicsExtractor g, int left, int y, BoostMod mod) {
@@ -187,7 +187,7 @@ public class PerformancePage extends Page {
 		String badge = loaded ? "Active" : "Restart needed";
 		int bw = Draw.font().width(badge) + 10;
 		int reserved = installed ? bw + 16 : 80;
-		Draw.text(g, Draw.fit(mod.benefit(), width - 24 - reserved), left + 24, y + 14, Theme.MUTED);
+		Draw.textFit(g, mod.benefit(), width - 24 - reserved, left + 24, y + 14, Theme.MUTED);
 		if (installed) {
 			int bx = left + width - bw - 8;
 			Draw.roundRect(g, bx, y + 6, bw, 12, 6, Theme.withAlpha(loaded ? Theme.ACCENT : Theme.WARNING, 0.18f));

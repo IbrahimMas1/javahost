@@ -52,9 +52,9 @@ public class ToggleSwitch extends AbstractButton {
 		int sy = y + 2;
 
 		int labelColor = active ? Theme.mix(Theme.TEXT, 0xFFFFFFFF, hover) : Theme.FAINT;
-		Draw.text(g, Draw.fit(getMessage().getString(), w - switchW - 8), x, y + 4, labelColor);
+		Draw.textFit(g, getMessage().getString(), w - switchW - 8, x, y + 4, labelColor);
 		if (hint != null) {
-			Draw.text(g, Draw.fit(hint, w - switchW - 8), x, y + 15, active ? Theme.MUTED : Theme.FAINT);
+			Draw.textFit(g, hint, w - switchW - 8, x, y + 15, active ? Theme.MUTED : Theme.FAINT);
 		}
 
 		int track = active ? Theme.mix(Theme.FIELD, Theme.ACCENT_DARK, knob) : Theme.CARD;

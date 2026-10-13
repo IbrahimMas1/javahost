@@ -82,10 +82,15 @@ public class NotificationsPage extends Page {
 		return item.kind() == Kind.MESSAGE ? item.name() + ": " + item.text() : item.text();
 	}
 
-	private int rowHeight(Item item, boolean action) {
-		int lines = wrappedHeight(body(item), textWidth(action));
+	/** Height of a row's text block: optional title, the wrapped text, and the "2m ago" line. */
+	private int contentHeight(Item item, boolean action) {
 		int title = item.kind() == Kind.INFO ? 11 : 0;
-		return Math.max(30, 6 + title + lines + 12);
+		return title + wrappedHeight(body(item), textWidth(action)) + 2 + 8;
+	}
+
+	/** Even padding above and below the text, and never shorter than the face and buttons need. */
+	private int rowHeight(Item item, boolean action) {
+		return Math.max(30, contentHeight(item, action) + 16);
 	}
 
 	/** The one thing you'd want to do with this notification, or null if it's no longer actionable. */
@@ -162,9 +167,9 @@ public class NotificationsPage extends Page {
 				g.fill(left + 8, y - 1, left + width - 8, y, Theme.withAlpha(Theme.BORDER, 0.6f));
 			}
 			if (item.kind() == Kind.INFO) {
-				Icons.logo(g, left + 9, y + 6, 18);
+				Icons.logo(g, left + 9, y + (h - 18) / 2, 18);
 			} else {
-				Faces.draw(g, item.player(), left + 8, y + 6, 18);
+				Faces.draw(g, item.player(), left + 8, y + (h - 18) / 2, 18);
 			}
 			Icons kindIcon = switch (item.kind()) {
 				case INVITE, HOSTING -> Icons.PLAY;
@@ -174,12 +179,12 @@ public class NotificationsPage extends Page {
 				case INFO -> null;
 			};
 			int textX = left + (kindIcon == null ? 34 : 45);
+			int textY = y + (h - contentHeight(item, hasAction.get(i))) / 2;
 			if (kindIcon != null) {
-				kindIcon.draw(g, left + 32, y + 6, item.kind() == Kind.INVITE || item.kind() == Kind.HOSTING ? Theme.ACCENT : Theme.MUTED);
+				kindIcon.draw(g, left + 32, textY - 1, item.kind() == Kind.INVITE || item.kind() == Kind.HOSTING ? Theme.ACCENT : Theme.MUTED);
 			}
-			int textY = y + 6;
 			if (item.kind() == Kind.INFO) {
-				Draw.text(g, Draw.fit(item.name(), textWidth(hasAction.get(i))), textX, textY, Theme.TEXT);
+				Draw.textFit(g, item.name(), textWidth(hasAction.get(i)), textX, textY, Theme.TEXT);
 				textY += 11;
 			}
 			int used = wrap(g, body(item), textX, textY, textWidth(hasAction.get(i)),

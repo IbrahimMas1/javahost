@@ -145,8 +145,8 @@ public final class TitleFriendsPanel extends Button {
 		if (invite != null && invite.payload() instanceof Invite pending) {
 			Draw.roundRect(g, x + 4, y, W - 8, INVITE - 4, 6, Theme.withAlpha(Theme.ACCENT, 0.16f));
 			Faces.draw(g, pending.from(), x + 10, y + 8, 16);
-			Draw.text(g, Draw.fit(pending.name(), W - 70), x + 31, y + 6, Theme.TEXT);
-			Draw.text(g, Draw.fit("invited you", W - 70), x + 31, y + 17, Theme.ACCENT);
+			Draw.textFit(g, pending.name(), W - 70, x + 31, y + 6, Theme.TEXT);
+			Draw.textFit(g, "invited you", W - 70, x + 31, y + 17, Theme.ACCENT);
 			y += INVITE;
 		}
 
@@ -155,7 +155,7 @@ public final class TitleFriendsPanel extends Button {
 				return;
 			}
 			String hint = Friends.friends().isEmpty() ? "No friends yet" : "No one online";
-			Draw.text(g, Draw.fit(hint, W - 16), x + 8, y + 8, Theme.FAINT);
+			Draw.textFit(g, hint, W - 16, x + 8, y + 8, Theme.FAINT);
 			return;
 		}
 		for (Entry entry : entries) {
@@ -164,13 +164,13 @@ public final class TitleFriendsPanel extends Button {
 			Draw.roundRect(g, x + 20, y + 16, 6, 6, 3, Theme.WINDOW);
 			Draw.roundRect(g, x + 21, y + 17, 4, 4, 2, status.hosting() ? Theme.ACCENT : Theme.INFO);
 			int textW = W - 36 - (status.hosting() ? JOIN_W + 6 : 0);
-			Draw.text(g, Draw.fit(entry.friend().name(), textW), x + 30, y + 3, Theme.TEXT);
+			Draw.textFit(g, entry.friend().name(), textW, x + 30, y + 3, Theme.TEXT);
 			String line = switch (status.state()) {
 				case HOSTING -> status.hosting() ? status.world() + " " + status.players() + "/" + status.max() : "Playing";
 				case PLAYING -> "Playing";
 				default -> "Online";
 			};
-			Draw.text(g, Draw.fit(line, textW), x + 30, y + 13, status.hosting() ? Theme.ACCENT : Theme.FAINT);
+			Draw.textFit(g, line, textW, x + 30, y + 13, status.hosting() ? Theme.ACCENT : Theme.FAINT);
 			y += ROW;
 		}
 	}

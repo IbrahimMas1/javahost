@@ -72,9 +72,9 @@ public class JoinPage extends Page {
 		sectionLabel(g, "Invite", left, top);
 		if (error != null) {
 			Icons.WARNING.draw(g, left, top + 38, Theme.WARNING);
-			Draw.text(g, Draw.fit(error, width - 14), left + 13, top + 39, Theme.WARNING);
+			Draw.textFit(g, error, width - 14, left + 13, top + 39, Theme.WARNING);
 		} else {
-			Draw.text(g, Draw.fit("Invite codes, relay and server addresses all work.", width), left, top + 39, Theme.FAINT);
+			Draw.textFit(g, "Invite codes, relay and server addresses all work.", width, left, top + 39, Theme.FAINT);
 		}
 
 		sectionLabel(g, "Recent", left, top + 62);
@@ -87,8 +87,8 @@ public class JoinPage extends Page {
 		card(g, left, y - 2, width, recent.size() * ROW + 4);
 		for (RecentJoin entry : recent) {
 			Icons.GLOBE.draw(g, left + 9, y + 7, Theme.MUTED);
-			Draw.text(g, Draw.fit(entry.label(), width - 150), left + 24, y + 4, Theme.TEXT);
-			Draw.text(g, Draw.fit(entry.invite(), width - 150), left + 24, y + 14, Theme.FAINT);
+			Draw.textFit(g, entry.label(), width - 150, left + 24, y + 4, Theme.TEXT);
+			Draw.textFit(g, entry.invite(), width - 150, left + 24, y + 14, Theme.FAINT);
 			Draw.text(g, ago(entry.time()), left + width - 64 - 50, y + 8, Theme.FAINT);
 			y += ROW;
 		}

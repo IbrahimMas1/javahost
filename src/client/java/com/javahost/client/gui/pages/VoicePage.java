@@ -117,13 +117,11 @@ public class VoicePage extends Page {
 		int rowY = top + 298;
 		card(g, left, rowY - 2, width, Math.max(1, nearby.size()) * 30 + 4);
 		if (nearby.isEmpty()) {
-			Draw.text(g, Draw.fit(VoiceClient.isAvailable() ? "Nobody in voice range right now." : "Join a world with voice chat to see people here.",
-					width - 20), left + 10, rowY + 10, Theme.MUTED);
+			Draw.textFit(g, VoiceClient.isAvailable() ? "Nobody in voice range right now." : "Join a world with voice chat to see people here.", width - 20, left + 10, rowY + 10, Theme.MUTED);
 		}
 		for (var entry : nearby) {
 			com.javahost.client.gui.ui.Faces.draw(g, entry.getKey(), left + 8, rowY + 6, 18);
-			Draw.text(g, Draw.fit(entry.getValue(), 66), left + 32, rowY + 11,
-					VoiceClient.isTalking(entry.getKey()) ? Theme.ACCENT : Theme.TEXT);
+			Draw.textFit(g, entry.getValue(), 66, left + 32, rowY + 11, VoiceClient.isTalking(entry.getKey()) ? Theme.ACCENT : Theme.TEXT);
 			rowY += 30;
 		}
 		Config config = Config.get();

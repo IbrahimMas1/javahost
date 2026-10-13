@@ -92,6 +92,9 @@ public class FlatButton extends Button {
 		String label = iconOnly ? "" : getMessage().getString();
 		int iconSpace = icon == null ? 0 : (label.isEmpty() ? Icons.SIZE : Icons.SIZE + 5);
 		String shown = label.isEmpty() ? "" : Draw.fit(label, w - 10 - iconSpace);
+		if (!shown.equals(label)) {
+			Draw.truncated(g, x, y, w, h, label); // full label on hover
+		}
 		int contentWidth = iconSpace + Draw.font().width(shown);
 		int cx = x + (w - contentWidth) / 2;
 		int cy = y + (h - 8) / 2;

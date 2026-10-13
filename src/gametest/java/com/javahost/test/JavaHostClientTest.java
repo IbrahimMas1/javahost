@@ -588,6 +588,121 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		// A laptop-sized window, where the menu switches to its compact icon sidebar.
 		reviewAtScale(context, 4, 1710, 1070);
 		reviewAtScale(context, 3, 1280, 800);
+		// A friend's profile on the laptop-sized window: every button must fit inside the window.
+		java.util.UUID alexId = java.util.UUID.nameUUIDFromBytes("Alex".getBytes());
+		context.runOnClient(mc -> {
+			try {
+				java.lang.reflect.Field dataField = com.javahost.client.friends.Friends.class.getDeclaredField("data");
+				dataField.setAccessible(true);
+				Object data = dataField.get(null);
+				java.lang.reflect.Field friendsField = data.getClass().getDeclaredField("friends");
+				friendsField.setAccessible(true);
+				@SuppressWarnings("unchecked")
+				java.util.List<com.javahost.client.friends.Friends.Friend> friends = (java.util.List<com.javahost.client.friends.Friends.Friend>) friendsField.get(data);
+				friends.add(new com.javahost.client.friends.Friends.Friend(alexId, "Alex_TheBuilder", "", System.currentTimeMillis(), null));
+			} catch (ReflectiveOperationException e) {
+				throw new AssertionError(e);
+			}
+		});
+		for (int[] size : new int[][] {{1710, 1070, 4}, {1280, 800, 3}}) {
+			context.getInput().resizeWindow(size[0], size[1]);
+			context.runOnClient(mc -> {
+				mc.options.guiScale().set(size[2]);
+				mc.resizeGui();
+			});
+			context.setScreen(() -> new JavaHostScreen(null, Tab.FRIENDS));
+			context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).openProfile(alexId));
+			context.waitTicks(8);
+			boolean fits = context.computeOnClient(mc -> mc.gui.screen().children().stream()
+					.filter(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w && w.visible)
+					.map(c -> (net.minecraft.client.gui.components.AbstractWidget) c)
+					.allMatch(w -> w.getRight() <= mc.getWindow().getGuiScaledWidth() - 8));
+			check(fits, "profile buttons fit inside the window at " + size[0] + "x" + size[1] + " scale " + size[2]);
+			context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-profile");
+			// Rest the mouse on a cut-off label for over a second: the full text appears.
+		}
+		context.runOnClient(mc -> {
+			try {
+				java.lang.reflect.Field dataField = com.javahost.client.friends.Friends.class.getDeclaredField("data");
+				dataField.setAccessible(true);
+				Object data = dataField.get(null);
+				java.lang.reflect.Field friendsField = data.getClass().getDeclaredField("friends");
+				friendsField.setAccessible(true);
+				((java.util.List<?>) friendsField.get(data)).removeIf(f -> ((com.javahost.client.friends.Friends.Friend) f).id().equals(alexId));
+			} catch (ReflectiveOperationException e) {
+				throw new AssertionError(e);
+			}
+		});
+		// Hover text: on the Host tab before hosting at the small size, the subtitle is cut short; resting on it shows it all.
+		// Repeated toasts with the same key update in place instead of piling up.
+		context.setScreen(() -> null);
+		context.runOnClient(mc -> {
+			for (int i = 0; i < 12; i++) {
+				com.javahost.client.Toasts.show("voice-mode", i % 2 == 0 ? "Party voice" : "Nearby voice", "Spam test " + i);
+			}
+		});
+		context.waitTicks(4);
+		int toastCount = context.computeOnClient(mc -> {
+			try {
+				java.lang.reflect.Field visible = mc.gui.toastManager().getClass().getDeclaredField("visibleToasts");
+				visible.setAccessible(true);
+				java.lang.reflect.Field queued = mc.gui.toastManager().getClass().getDeclaredField("queued");
+				queued.setAccessible(true);
+				int count = 0;
+				for (Object instance : (java.util.Collection<?>) visible.get(mc.gui.toastManager())) {
+					java.lang.reflect.Method getToast = instance.getClass().getDeclaredMethod("getToast");
+					getToast.setAccessible(true);
+					Object toast = getToast.invoke(instance);
+					if ("voice-mode".equals(((net.minecraft.client.gui.components.toasts.Toast) toast).getToken())) {
+						count++;
+					}
+				}
+				for (Object toast : (java.util.Collection<?>) queued.get(mc.gui.toastManager())) {
+					if ("voice-mode".equals(((net.minecraft.client.gui.components.toasts.Toast) toast).getToken())) {
+						count++;
+					}
+				}
+				return count;
+			} catch (ReflectiveOperationException e) {
+				throw new AssertionError(e);
+			}
+		});
+		check(toastCount == 1, "pressing B 12 times leaves one voice toast, not a queue (" + toastCount + ")");
+		context.takeScreenshot("toast-after-spam");
+		context.runOnClient(mc -> {
+			com.javahost.client.Toasts.show("Microphone on", "Press M to toggle");
+			com.javahost.client.Toasts.show("World backed up", "Restore it any time from the Host tab, even after friends leave.");
+		});
+		context.waitTicks(30);
+		context.takeScreenshot("toast-stack");
+		// A narrow window cuts the Host tab's subtitle; resting the mouse on it shows the full text after a second.
+		context.getInput().resizeWindow(900, 560);
+		context.runOnClient(mc -> {
+			mc.options.guiScale().set(3);
+			mc.resizeGui();
+		});
+		context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
+		context.waitTicks(8);
+		double[] spot = context.computeOnClient(mc -> {
+			// The hint under "Always use the host's packs" is cut short at this size.
+			for (var child : mc.gui.screen().children()) {
+				if (child instanceof net.minecraft.client.gui.components.AbstractWidget w && w.getMessage().getString().equals("Always use the host's packs")) {
+					double scale = mc.getWindow().getGuiScale();
+					return new double[] {(w.getX() + 40) * scale, (w.getY() + 15) * scale};
+				}
+			}
+			throw new AssertionError("no packs toggle");
+		});
+		context.getInput().setCursorPos(spot[0], spot[1]);
+		context.waitTicks(30);
+		context.takeScreenshot("hover-full-text");
+		context.getInput().setCursorPos(0, 0);
+		context.setScreen(() -> null);
+		context.getInput().resizeWindow(854, 480);
+		context.runOnClient(mc -> {
+			mc.options.guiScale().set(0);
+			mc.resizeGui();
+		});
 		context.runOnClient(mc -> com.javahost.client.friends.Notifications.clear());
 		// The Host tab before hosting, at the laptop size: Start hosting must be on screen without scrolling.
 		context.runOnClient(mc -> HostController.stop());

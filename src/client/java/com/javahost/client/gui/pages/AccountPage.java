@@ -93,19 +93,19 @@ public class AccountPage extends Page {
 		Draw.scaledText(g, Draw.fit(Identity.name(), (int) (rightW / 1.5f)), right, top + 2, 1.5f, Theme.TEXT);
 		if (Identity.canSign()) {
 			Icons.CHECK.draw(g, right, top + 18, Theme.ACCENT);
-			Draw.text(g, Draw.fit("Microsoft account", rightW - 14), right + 13, top + 19, Theme.ACCENT);
+			Draw.textFit(g, "Microsoft account", rightW - 14, right + 13, top + 19, Theme.ACCENT);
 		} else {
 			Icons.WARNING.draw(g, right, top + 18, Theme.WARNING);
-			Draw.text(g, Draw.fit("Not signed in", rightW - 14), right + 13, top + 19, Theme.WARNING);
+			Draw.textFit(g, "Not signed in", rightW - 14, right + 13, top + 19, Theme.WARNING);
 		}
 		boolean hidden = Config.get().appearOffline;
-		status(g, right, top + 33, hidden ? Theme.FAINT : Theme.ACCENT, Draw.fit("Friends see: " + seenAs(), rightW - 14), Theme.MUTED);
+		statusFit(g, right, top + 33, hidden ? Theme.FAINT : Theme.ACCENT, "Friends see: " + seenAs(), rightW - 14, Theme.MUTED);
 
 		int friends = Friends.friends().size();
 		int online = Presence.onlineFriends().size();
 		String counts = friends + (friends == 1 ? " friend" : " friends") + " · " + online + " online · "
 				+ (Friends.status() == Mailbox.Status.ONLINE ? "connected" : Friends.status() == Mailbox.Status.CONNECTING ? "connecting..." : "offline");
-		Draw.text(g, Draw.fit(counts, rightW), right, top + 118, Theme.FAINT);
+		Draw.textFit(g, counts, rightW, right, top + 118, Theme.FAINT);
 
 		// Friend messages today, against the relay's daily allowance.
 		int y = top + 146;
@@ -118,7 +118,7 @@ public class AccountPage extends Page {
 		Draw.text(g, amount, left + 10, y + 20, Theme.TEXT);
 		Draw.roundRect(g, left + 10, y + 32, width - 20, 4, 2, Theme.FIELD);
 		Draw.roundRect(g, left + 10, y + 32, Math.max(4, Math.round((width - 20) * used)), 4, 2, barColor);
-		Draw.text(g, Draw.fit("Only sending counts. Resets daily.", width - 20), left + 10, y + 42, Theme.FAINT);
+		Draw.textFit(g, "Only sending counts. Resets daily.", width - 20, left + 10, y + 42, Theme.FAINT);
 
 		y += 76;
 		sectionLabel(g, "Privacy", left, y);
@@ -126,7 +126,7 @@ public class AccountPage extends Page {
 		int line = y + 18;
 		for (String text : PRIVACY) {
 			Icons.CHECK.draw(g, left + 10, line - 1, Theme.ACCENT);
-			Draw.text(g, Draw.fit(text, width - 34), left + 24, line, Theme.MUTED);
+			Draw.textFit(g, text, width - 34, left + 24, line, Theme.MUTED);
 			line += 14;
 		}
 	}

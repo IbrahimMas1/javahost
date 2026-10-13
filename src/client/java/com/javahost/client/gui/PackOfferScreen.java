@@ -71,7 +71,7 @@ public class PackOfferScreen extends Screen {
 
 		Icons.PACKAGE.draw(g, boxX + 16, boxY + 16, 18, Theme.ACCENT);
 		Draw.scaledText(g, "Use the host's packs?", boxX + 42, boxY + 16, 1.25f, Theme.TEXT);
-		Draw.text(g, Draw.fit("See the world exactly the way the host does.", boxW - 58), boxX + 42, boxY + 30, Theme.MUTED);
+		Draw.textFit(g, "See the world exactly the way the host does.", boxW - 58, boxX + 42, boxY + 30, Theme.MUTED);
 
 		String size = downloadBytes == 0 ? "Already downloaded" : String.format("%.1f MB to download", downloadBytes / 1048576.0);
 		Draw.text(g, size, boxX + 16, boxY + 52, Theme.FAINT);
@@ -83,7 +83,7 @@ public class PackOfferScreen extends Screen {
 			PackInfo pack = packs.get(i);
 			boolean shader = pack.kind() == PackKind.SHADER_PACK;
 			(shader ? Icons.SPARKLE : Icons.PACKAGE).draw(g, boxX + 20, y + 5, shader ? Theme.INFO : Theme.ACCENT);
-			Draw.text(g, Draw.fit(pack.name(), boxW - 120), boxX + 35, y + 6, Theme.TEXT);
+			Draw.textFit(g, pack.name(), boxW - 120, boxX + 35, y + 6, Theme.TEXT);
 			String kind = shader ? "Shader" : String.format("%.1f MB", pack.size() / 1048576.0);
 			Draw.text(g, kind, boxX + boxW - 22 - Draw.font().width(kind), y + 6, Theme.MUTED);
 			y += ROW;

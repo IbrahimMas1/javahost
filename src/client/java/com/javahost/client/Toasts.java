@@ -21,7 +21,15 @@ public final class Toasts {
 	}
 
 	public static void show(String title, String message) {
-		add(new JavaHostToast(title, message, null));
+		show(title, title, message);
+	}
+
+	/**
+	 * Shows a toast; a newer toast with the same {@code key} replaces the one on screen (or waiting) instead of
+	 * queuing behind it, so pressing a key repeatedly doesn't leave a backlog of toasts.
+	 */
+	public static void show(String key, String title, String message) {
+		add(key, title, message, null);
 	}
 
 	/** A toast that's also kept, in full, in the notification center (for things worth reading later). */
@@ -33,15 +41,28 @@ public final class Toasts {
 
 	/** A toast with a player's face, e.g. "Alex joined your world". */
 	public static void player(UUID player, String title, String message) {
-		add(new JavaHostToast(title, message, player));
+		add(player + "|" + title, title, message, player);
 	}
 
 	/** Toasts that arrived while the JavaHost menu was open (they'd cover its buttons); shown when it closes. */
-	private static final java.util.ArrayDeque<Toast> WAITING = new java.util.ArrayDeque<>();
+	private static final java.util.ArrayDeque<JavaHostToast> WAITING = new java.util.ArrayDeque<>();
 
-	private static void add(Toast toast) {
+	private static void add(String key, String title, String message, UUID face) {
 		Minecraft minecraft = Minecraft.getInstance();
 		minecraft.execute(() -> {
+			// Same kind of toast already showing or waiting: update it instead of adding another.
+			for (JavaHostToast waiting : WAITING) {
+				if (waiting.key.equals(key)) {
+					waiting.update(title, message, face);
+					return;
+				}
+			}
+			JavaHostToast showing = minecraft.gui.toastManager().getToast(JavaHostToast.class, key);
+			if (showing != null) {
+				showing.update(title, message, face);
+				return;
+			}
+			JavaHostToast toast = new JavaHostToast(key, title, message, face);
 			if (menuOpen(minecraft)) {
 				WAITING.add(toast);
 				while (WAITING.size() > 3) {
@@ -67,24 +88,43 @@ public final class Toasts {
 	}
 
 	private static final class JavaHostToast implements Toast {
-		private final String title;
-		private final String message;
-		private final UUID face;
+		private static final int WIDTH = 200;
+		private final String key;
+		private String title;
+		private String message;
+		private UUID face;
 		private Visibility visibility = Visibility.SHOW;
+		private List<net.minecraft.util.FormattedCharSequence> wrapped;
+		/** Restart the display time on the next update (the text changed). */
+		private boolean restart;
+		private long shownFrom;
+		private long elapsed;
 
-		JavaHostToast(String title, String message, UUID face) {
+		JavaHostToast(String key, String title, String message, UUID face) {
+			this.key = key;
 			this.title = title;
 			this.message = message;
 			this.face = face;
 		}
 
-		private List<net.minecraft.util.FormattedCharSequence> wrapped;
+		void update(String title, String message, UUID face) {
+			this.title = title;
+			this.message = message;
+			this.face = face;
+			this.wrapped = null;
+			this.restart = true;
+		}
 
+		@Override
+		public Object getToken() {
+			return key;
+		}
+
+		/** One or two lines of message, cut with "..." if longer (the full text is in the notification center). */
 		private List<net.minecraft.util.FormattedCharSequence> lines() {
 			if (wrapped == null) {
-				List<net.minecraft.util.FormattedCharSequence> all = Draw.font().split(net.minecraft.network.chat.Component.literal(message), width() - 40);
+				List<net.minecraft.util.FormattedCharSequence> all = Draw.font().split(net.minecraft.network.chat.Component.literal(message), WIDTH - 40);
 				if (all.size() > 2) {
-					// Keep two lines; the second ends with an ellipsis.
 					all = List.of(all.get(0), net.minecraft.util.FormattedCharSequence.composite(all.get(1),
 							net.minecraft.network.chat.Component.literal("...").getVisualOrderText()));
 				}
@@ -94,8 +134,13 @@ public final class Toasts {
 		}
 
 		@Override
+		public int width() {
+			return WIDTH;
+		}
+
+		@Override
 		public int height() {
-			return lines().size() > 1 ? 42 : 32;
+			return SLOT_HEIGHT; // one slot, so stacked toasts sit evenly with no gaps
 		}
 
 		@Override
@@ -105,7 +150,12 @@ public final class Toasts {
 
 		@Override
 		public void update(ToastManager manager, long fullyVisibleForMs) {
-			visibility = fullyVisibleForMs >= SHOW_MS ? Visibility.HIDE : Visibility.SHOW;
+			if (restart) {
+				restart = false;
+				shownFrom = fullyVisibleForMs;
+			}
+			elapsed = Math.max(0, fullyVisibleForMs - shownFrom);
+			visibility = elapsed >= SHOW_MS ? Visibility.HIDE : Visibility.SHOW;
 		}
 
 		@Override
@@ -113,22 +163,28 @@ public final class Toasts {
 			if (menuOpen(Minecraft.getInstance())) {
 				return; // don't cover the menu's buttons; it finishes its time out of sight
 			}
-			Draw.roundRect(g, 0, 0, width(), height(), 6, Theme.GLASS_EDGE);
-			Draw.roundRect(g, 1, 1, width() - 2, height() - 2, 5, 0xEC161B22);
-			Draw.roundRect(g, 1, 6, 2, height() - 12, 1, Theme.ACCENT);
-			// A thin line along the bottom shows how long the toast stays.
-			float left = 1 - Math.min(1f, fullyVisibleForMs / (float) SHOW_MS);
-			g.fill(6, height() - 2, 6 + Math.round((width() - 12) * left), height() - 1, Theme.withAlpha(Theme.ACCENT, 0.7f));
+			int h = height();
+			Draw.roundRect(g, 0, 0, WIDTH, h, 6, Theme.GLASS_EDGE);
+			Draw.roundRect(g, 1, 1, WIDTH - 2, h - 2, 5, 0xEC161B22);
+			// The accent strip on the left shrinks to show how long the toast stays.
+			float left = 1 - Math.min(1f, elapsed / (float) SHOW_MS);
+			int strip = Math.max(2, Math.round((h - 8) * left));
+			Draw.roundRect(g, 1, 4 + (h - 8 - strip) / 2, 2, strip, 1, Theme.ACCENT);
 			if (face != null) {
 				Faces.draw(g, face, 9, 8, 16);
 			} else {
 				Icons.logo(g, 9, 8, 16);
 			}
-			Draw.text(g, Draw.fit(title, width() - 40), 32, 7, Theme.TEXT);
-			// Up to two lines of message (the full text is in the notification center when it matters).
 			List<net.minecraft.util.FormattedCharSequence> lines = lines();
-			for (int i = 0; i < lines.size(); i++) {
-				g.text(Draw.font(), lines.get(i), 32, 18 + i * 10, Theme.MUTED, false);
+			if (lines.size() > 1) {
+				Draw.text(g, Draw.fit(title, WIDTH - 40), 32, 3, Theme.TEXT);
+				g.text(Draw.font(), lines.get(0), 32, 13, Theme.MUTED, false);
+				g.text(Draw.font(), lines.get(1), 32, 22, Theme.MUTED, false);
+			} else {
+				Draw.text(g, Draw.fit(title, WIDTH - 40), 32, 7, Theme.TEXT);
+				if (!lines.isEmpty()) {
+					g.text(Draw.font(), lines.get(0), 32, 18, Theme.MUTED, false);
+				}
 			}
 		}
 	}

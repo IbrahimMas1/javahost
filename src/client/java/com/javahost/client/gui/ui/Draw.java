@@ -101,6 +101,85 @@ public final class Draw {
 		return text.substring(0, keep) + ellipsis;
 	}
 
+	// ---------------------------------------------------------------- full text on hover
+
+	/** A spot where text was cut short with "…"; hovering it for a second shows the whole thing. */
+	private record Truncated(float x0, float y0, float x1, float y1, String text) {
+	}
+
+	private static final java.util.List<Truncated> TRUNCATED = new java.util.ArrayList<>();
+	private static float clipX0 = Float.NEGATIVE_INFINITY;
+	private static float clipY0 = Float.NEGATIVE_INFINITY;
+	private static float clipX1 = Float.POSITIVE_INFINITY;
+	private static float clipY1 = Float.POSITIVE_INFINITY;
+	private static String hovered;
+	private static long hoveredSince;
+	private static final long HOVER_DELAY_MS = 1000;
+
+	/** Draws text cut to {@code maxWidth}; if it had to be cut, the full text shows on hover. */
+	public static void textFit(GuiGraphicsExtractor g, String text, int maxWidth, int x, int y, int color) {
+		String shown = fit(text, maxWidth);
+		text(g, shown, x, y, color);
+		if (!shown.equals(text)) {
+			truncated(g, x, y - 1, font().width(shown), 10, text);
+		}
+	}
+
+	/** Registers an area (in the current drawing transform) whose text was cut short. */
+	public static void truncated(GuiGraphicsExtractor g, int x, int y, int w, int h, String fullText) {
+		org.joml.Vector2f a = g.pose().transformPosition(new org.joml.Vector2f(x, y));
+		org.joml.Vector2f b = g.pose().transformPosition(new org.joml.Vector2f(x + w, y + h));
+		float x0 = Math.max(Math.min(a.x, b.x), clipX0);
+		float y0 = Math.max(Math.min(a.y, b.y), clipY0);
+		float x1 = Math.min(Math.max(a.x, b.x), clipX1);
+		float y1 = Math.min(Math.max(a.y, b.y), clipY1);
+		if (x1 <= x0 || y1 <= y0) {
+			return; // scrolled out of view
+		}
+		if (TRUNCATED.size() > 256) {
+			TRUNCATED.clear(); // nothing is showing tooltips (e.g. no screen open); don't grow forever
+		}
+		TRUNCATED.add(new Truncated(x0, y0, x1, y1, fullText));
+	}
+
+	/** Limits hover areas to a visible region (e.g. a scrolling page), until {@link #unclip()}. */
+	public static void clip(int x0, int y0, int x1, int y1) {
+		clipX0 = x0;
+		clipY0 = y0;
+		clipX1 = x1;
+		clipY1 = y1;
+	}
+
+	public static void unclip() {
+		clipX0 = clipY0 = Float.NEGATIVE_INFINITY;
+		clipX1 = clipY1 = Float.POSITIVE_INFINITY;
+	}
+
+	/** Called after a screen is drawn: shows the full text of whatever cut-short text the mouse has rested on. */
+	public static void showTruncatedTooltip(GuiGraphicsExtractor g, int mouseX, int mouseY) {
+		String found = null;
+		for (int i = TRUNCATED.size() - 1; i >= 0; i--) {
+			Truncated t = TRUNCATED.get(i);
+			if (mouseX >= t.x0() && mouseX < t.x1() && mouseY >= t.y0() && mouseY < t.y1()) {
+				found = t.text();
+				break;
+			}
+		}
+		TRUNCATED.clear();
+		if (found == null) {
+			hovered = null;
+			return;
+		}
+		if (!found.equals(hovered)) {
+			hovered = found;
+			hoveredSince = System.currentTimeMillis();
+			return;
+		}
+		if (System.currentTimeMillis() - hoveredSince >= HOVER_DELAY_MS) {
+			g.setTooltipForNextFrame(font(), font().split(Component.literal(found), 220), mouseX, mouseY);
+		}
+	}
+
 	/** Word-wraps text to {@code maxWidth} and draws it; returns the height used. */
 	public static int wrapped(GuiGraphicsExtractor g, Component text, int x, int y, int maxWidth, int color) {
 		int lineY = y;

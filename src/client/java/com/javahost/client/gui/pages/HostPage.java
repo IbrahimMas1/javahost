@@ -436,14 +436,12 @@ public class HostPage extends Page {
 		Draw.roundRect(g, left, top, 3, HERO_H, 1, ready ? Theme.ACCENT : Theme.FAINT);
 		Icons.HOST.draw(g, left + 12, top + 14, ready ? Theme.ACCENT : Theme.FAINT);
 		int textW = width - 128 - 40;
-		Draw.text(g, Draw.fit(ready ? worldName() : "No world open", textW), left + 30, top + 15, Theme.TEXT);
-		Draw.text(g, Draw.fit(ready ? "Friends join with one click" : "Open a singleplayer world to host it", textW),
-				left + 30, top + 27, Theme.MUTED);
-		Draw.text(g, Draw.fit(ready ? "Stops when you leave the world" : "Then come back here", textW),
-				left + 30, top + 39, Theme.FAINT);
+		Draw.textFit(g, ready ? worldName() : "No world open", textW, left + 30, top + 15, Theme.TEXT);
+		Draw.textFit(g, ready ? "Friends join with one click" : "Open a world to host it", textW, left + 30, top + 27, Theme.MUTED);
+		Draw.textFit(g, ready ? "Stops when you leave the world" : "Then come back here", textW, left + 30, top + 39, Theme.FAINT);
 		if (error != null) {
 			Icons.WARNING.draw(g, left, top + HERO_H + 4, Theme.WARNING);
-			Draw.text(g, Draw.fit(error, width - 14), left + 14, top + HERO_H + 5, Theme.WARNING);
+			Draw.textFit(g, error, width - 14, left + 14, top + HERO_H + 5, Theme.WARNING);
 		}
 
 		sectionLabel(g, "Who can join", left, top + whoY);
@@ -460,7 +458,7 @@ public class HostPage extends Page {
 			int y = top + bannedY + 12;
 			for (var entry : banned) {
 				Faces.draw(g, java.util.UUID.fromString(entry.getKey()), left + 10, y + 4, 14);
-				Draw.text(g, Draw.fit(entry.getValue(), width - 110), left + 30, y + 7, Theme.MUTED);
+				Draw.textFit(g, entry.getValue(), width - 110, left + 30, y + 7, Theme.MUTED);
 				y += ROW;
 			}
 		}
@@ -487,20 +485,20 @@ public class HostPage extends Page {
 		card(g, left, y + 12, width, 38 + Math.max(1, backups.size()) * BACKUP_ROW);
 		int rowY = y + 50;
 		if (backups.isEmpty()) {
-			Draw.text(g, Draw.fit("No backups yet. One is made when a friend joins.", width - 20), left + 10, rowY + 6, Theme.FAINT);
+			Draw.textFit(g, "No backups yet. One is made when a friend joins.", width - 20, left + 10, rowY + 6, Theme.FAINT);
 		}
 		for (WorldBackups.Backup backup : backups) {
 			Icons.PACKAGE.draw(g, left + 10, rowY + 5, Theme.MUTED);
 			String when = BACKUP_TIME.format(java.time.Instant.ofEpochMilli(backup.time())) + " · " + Math.max(1, backup.size() / (1024 * 1024)) + " MB";
-			Draw.text(g, Draw.fit(backup.world(), width - 190), left + 26, rowY + 2, Theme.TEXT);
-			Draw.text(g, Draw.fit(when, width - 120), left + 26, rowY + 12, Theme.FAINT);
+			Draw.textFit(g, backup.world(), width - 190, left + 26, rowY + 2, Theme.TEXT);
+			Draw.textFit(g, when, width - 120, left + 26, rowY + 12, Theme.FAINT);
 			rowY += BACKUP_ROW;
 		}
 		if (backups.isEmpty()) {
 			rowY += BACKUP_ROW;
 		}
 		if (backupMessage != null) {
-			Draw.text(g, Draw.fit(backupMessage, width), left, rowY + 32, backupMessage.startsWith("Couldn't") ? Theme.WARNING : Theme.ACCENT);
+			Draw.textFit(g, backupMessage, width, left, rowY + 32, backupMessage.startsWith("Couldn't") ? Theme.WARNING : Theme.ACCENT);
 		}
 	}
 
@@ -511,8 +509,8 @@ public class HostPage extends Page {
 		Draw.roundRect(g, left, top, 3, HERO_H, 1, best == null ? Theme.INFO : stateColor(best.state()));
 		int textW = width - 130;
 		if (best == null || best.invite() == null) {
-			status(g, left + 12, top + 10, Theme.INFO, Draw.fit("Getting ready...", textW), Theme.TEXT);
-			Draw.text(g, Draw.fit("Finding the best way for friends to join.", textW), left + 12, top + 26, Theme.MUTED);
+			statusFit(g, left + 12, top + 10, Theme.INFO, "Getting ready...", textW, Theme.TEXT);
+			Draw.textFit(g, "Finding the best way for friends to join.", textW, left + 12, top + 26, Theme.MUTED);
 		} else {
 			String headline = best.state() != State.WORKING ? "Open; some friends may not reach it" : switch (best.name()) {
 				case "Internet", "Relay" -> "Friends anywhere can join";
@@ -520,10 +518,10 @@ public class HostPage extends Page {
 				case "Same Wi-Fi" -> "Only people on your Wi-Fi can join";
 				default -> "Ready";
 			};
-			status(g, left + 12, top + 9, stateColor(best.state()), Draw.fit(headline, textW), Theme.TEXT);
+			statusFit(g, left + 12, top + 9, stateColor(best.state()), headline, textW, Theme.TEXT);
 			String invite = best.invite();
 			Draw.scaledText(g, Draw.fit(invite, (int) ((width - 160) / 1.5f)), left + 12, top + 26, 1.5f, Theme.ACCENT);
-			Draw.text(g, Draw.fit("Invites from Friends try every way.", textW), left + 12, top + 44, Theme.FAINT);
+			Draw.textFit(g, "Invites from Friends try every way.", textW, left + 12, top + 44, Theme.FAINT);
 		}
 
 		// Players.
@@ -532,11 +530,11 @@ public class HostPage extends Page {
 		card(g, left, rowY - 2, width, guests.isEmpty() ? ROW + 4 : guests.size() * PLAYER_ROW + 4);
 		if (guests.isEmpty()) {
 			Icons.USER.draw(g, left + 9, rowY + 6, Theme.FAINT);
-			Draw.text(g, Draw.fit("No one yet. Invite friends to play.", width - 34), left + 24, rowY + 7, Theme.MUTED);
+			Draw.textFit(g, "No one yet. Invite friends to play.", width - 34, left + 24, rowY + 7, Theme.MUTED);
 		}
 		for (Guest guest : guests) {
 			Faces.draw(g, guest.id(), left + 8, rowY + 5, 18);
-			Draw.text(g, Draw.fit(guest.name(), width - 240), left + 32, rowY + 5, Theme.TEXT);
+			Draw.textFit(g, guest.name(), width - 240, left + 32, rowY + 5, Theme.TEXT);
 			int ping = guest.pingMs();
 			Draw.text(g, ping <= 0 ? "ping —" : ping + " ms", left + 32, rowY + 15,
 					ping <= 0 ? Theme.FAINT : ping < 80 ? Theme.ACCENT : ping < 200 ? Theme.WARNING : Theme.DANGER);
@@ -564,8 +562,7 @@ public class HostPage extends Page {
 				};
 				Draw.text(g, state, left + 84, rowY + 7, stateColor(route.state()));
 				String right = route.invite() != null && route.state() != State.UNAVAILABLE ? route.invite() : route.detail();
-				Draw.text(g, Draw.fit(right, width - 180), left + 150, rowY + 7,
-						route.invite() != null && route.state() != State.UNAVAILABLE ? Theme.MUTED : Theme.FAINT);
+				Draw.textFit(g, right, width - 180, left + 150, rowY + 7, route.invite() != null && route.state() != State.UNAVAILABLE ? Theme.MUTED : Theme.FAINT);
 				rowY += ROW;
 			}
 		}
@@ -573,7 +570,7 @@ public class HostPage extends Page {
 		String packs = HostController.packStatus();
 		if (!packs.isEmpty()) {
 			Icons.PACKAGE.draw(g, left, top + footerY, Theme.MUTED);
-			Draw.text(g, Draw.fit(packs, width - 14), left + 13, top + footerY + 1, Theme.MUTED);
+			Draw.textFit(g, packs, width - 14, left + 13, top + footerY + 1, Theme.MUTED);
 		}
 		drawBackups(g, left, top);
 	}

@@ -92,7 +92,7 @@ public class JavaHostClient implements ClientModInitializer {
 				Config config = Config.get();
 				config.muted = !config.muted;
 				config.save();
-				Toasts.show(config.muted ? "Microphone muted" : "Microphone on", "Press " + TOGGLE_MUTE.getTranslatedKeyMessage().getString() + " to toggle");
+				Toasts.show("mic", config.muted ? "Microphone muted" : "Microphone on", "Press " + TOGGLE_MUTE.getTranslatedKeyMessage().getString() + " to toggle");
 			}
 			while (PARTY_VOICE.consumeClick()) {
 				toggleParty();
@@ -134,6 +134,9 @@ public class JavaHostClient implements ClientModInitializer {
 	}
 
 	private static void addMenuButtons() {
+		// Full text for anything cut short with "…", after resting the mouse on it for a second.
+		ScreenEvents.AFTER_INIT.register((minecraft, screen, width, height) ->
+				ScreenEvents.beforeExtract(screen).register((s, g, mouseX, mouseY, delta) -> Draw.showTruncatedTooltip(g, mouseX, mouseY)));
 		ScreenEvents.AFTER_INIT.register((minecraft, screen, width, height) -> {
 			if (screen instanceof TitleScreen || (screen instanceof PauseScreen pause && pause.showsPauseMenu())) {
 				MenuDock.attach(minecraft, screen, width, height, screen instanceof TitleScreen);
@@ -154,11 +157,11 @@ public class JavaHostClient implements ClientModInitializer {
 		config.save();
 		String key = PARTY_VOICE.getTranslatedKeyMessage().getString();
 		if (!"PARTY".equals(config.voiceMode)) {
-			Toasts.show("Nearby voice", "Only players close to you hear you. " + key + " for party.");
+			Toasts.show("voice-mode", "Nearby voice", "Only players close to you hear you. " + key + " for party.");
 		} else if (VoiceClient.isAvailable() && !VoiceClient.partyAvailable()) {
-			Toasts.notify("Party voice needs JavaHost 1.4", "The host needs to update. Nearby voice still works.");
+			Toasts.show("voice-mode", "Party voice needs JavaHost 1.4", "The host needs to update. Nearby voice still works.");
 		} else {
-			Toasts.show("Party voice", "Everyone in this world hears you, wherever they are. " + key + " to switch back.");
+			Toasts.show("voice-mode", "Party voice", "Everyone in this world hears you, wherever they are. " + key + " to switch back.");
 		}
 	}
 
@@ -205,7 +208,7 @@ public class JavaHostClient implements ClientModInitializer {
 		Draw.roundRect(g, x, top, w, 26, 6, Theme.withAlpha(Theme.WINDOW, 0.92f));
 		icon.draw(g, x + 8, top + 5, Theme.ACCENT);
 		int rightW = right == null ? 0 : Draw.font().width(right) + 6;
-		Draw.text(g, Draw.fit(label, w - 30 - rightW), x + 22, top + 5, Theme.TEXT);
+		Draw.textFit(g, label, w - 30 - rightW, x + 22, top + 5, Theme.TEXT);
 		if (right != null) {
 			Draw.text(g, right, x + w - 8 - Draw.font().width(right), top + 5, Theme.MUTED);
 		}

@@ -131,6 +131,12 @@ public abstract class Page {
 	}
 
 	/** A coloured dot followed by text. */
+	/** A status line cut to {@code maxWidth}, with the full text on hover. */
+	protected static void statusFit(GuiGraphicsExtractor g, int x, int y, int color, String text, int maxWidth, int textColor) {
+		Draw.roundRect(g, x, y + 1, 6, 6, 3, color);
+		Draw.textFit(g, text, maxWidth, x + 10, y, textColor);
+	}
+
 	protected static void status(GuiGraphicsExtractor g, int x, int y, int color, String text, int textColor) {
 		Draw.roundRect(g, x, y + 1, 6, 6, 3, color);
 		Draw.text(g, text, x + 10, y, textColor);

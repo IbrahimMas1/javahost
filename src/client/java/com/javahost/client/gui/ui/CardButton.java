@@ -50,7 +50,7 @@ public class CardButton extends AbstractButton {
 		int shown = Math.min(2, lines.size());
 		int blockH = 10 + shown * 10;
 		int ty0 = y + (h - blockH) / 2;
-		Draw.text(g, Draw.fit(getMessage().getString(), textW), textX, ty0, active ? Theme.TEXT : Theme.FAINT);
+		Draw.textFit(g, getMessage().getString(), textW, textX, ty0, active ? Theme.TEXT : Theme.FAINT);
 		for (int i = 0; i < shown; i++) {
 			g.text(Draw.font(), lines.get(i), textX, ty0 + 11 + i * 10, active ? Theme.MUTED : Theme.FAINT, false);
 		}

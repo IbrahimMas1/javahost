@@ -179,7 +179,7 @@ public class ChatPage extends Page {
 			}
 		}
 		if (error != null) {
-			Draw.text(g, Draw.fit(error, width), left, top + inputY + 24, Theme.WARNING);
+			Draw.textFit(g, error, width, left, top + inputY + 24, Theme.WARNING);
 		}
 	}
 }

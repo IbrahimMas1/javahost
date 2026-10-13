@@ -237,7 +237,7 @@ public class ScreenshotsPage extends Page {
 			if (pickerFriends.isEmpty()) {
 				card(g, left, y + 12, width, 32);
 				Icons.USERS.draw(g, left + 10, y + 22, Theme.FAINT);
-				Draw.text(g, Draw.fit("No friends yet.", width - 160), left + 26, y + 24, Theme.MUTED);
+				Draw.textFit(g, "No friends yet.", width - 160, left + 26, y + 24, Theme.MUTED);
 				return;
 			}
 			card(g, left, y + 12, width, pickerFriends.size() * ROW + 4);
@@ -245,10 +245,10 @@ public class ScreenshotsPage extends Page {
 			for (Friend friend : pickerFriends) {
 				FriendsPage.faceWithDot(g, friend.id(), left + 8, y + 4, 16);
 				boolean target = friend.id().equals(sendTarget);
-				Draw.text(g, Draw.fit(friend.name(), width - 120), left + 32, y + 3, target ? Theme.ACCENT : Theme.TEXT);
+				Draw.textFit(g, friend.name(), width - 120, left + 32, y + 3, target ? Theme.ACCENT : Theme.TEXT);
 				String status = SEND_STATUS.get(key(friend));
 				String line = status != null && !status.equals("Sent") && !status.equals("Sending...") ? status : FriendsPage.statusLine(friend);
-				Draw.text(g, Draw.fit(line, width - 120), left + 32, y + 13, status != null && !status.startsWith("Sen") ? Theme.WARNING : Theme.FAINT);
+				Draw.textFit(g, line, width - 120, left + 32, y + 13, status != null && !status.startsWith("Sen") ? Theme.WARNING : Theme.FAINT);
 				y += ROW;
 			}
 			return;

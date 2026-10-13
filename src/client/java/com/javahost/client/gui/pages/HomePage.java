@@ -98,6 +98,6 @@ public class HomePage extends Page {
 		card(g, x, y, w, 44);
 		icon.draw(g, x + 9, y + 9, accent);
 		Draw.text(g, label, x + 23, y + 10, Theme.MUTED);
-		Draw.text(g, Draw.fit(value, w - 18), x + 9, y + 27, Theme.TEXT);
+		Draw.textFit(g, value, w - 18, x + 9, y + 27, Theme.TEXT);
 	}
 }

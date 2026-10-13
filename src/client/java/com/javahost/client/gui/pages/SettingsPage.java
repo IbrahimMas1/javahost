@@ -96,7 +96,7 @@ public class SettingsPage extends Page {
 		if (com.javahost.client.perf.VideoMenu.sodiumInstalled()) {
 			sectionLabel(g, "Video", left, top + 222);
 			card(g, left, top + 234, width, 30);
-			Draw.text(g, Draw.fit("Video settings menu", width - 180), left + 10, top + 245, Theme.TEXT);
+			Draw.textFit(g, "Video settings menu", width - 180, left + 10, top + 245, Theme.TEXT);
 		}
 		int keysTop = top + KEYS_TOP;
 		sectionLabel(g, "Keys", left, keysTop);
@@ -110,6 +110,6 @@ public class SettingsPage extends Page {
 			Draw.text(g, bound, left + width - w - 4, y + 3, key.isUnbound() ? Theme.FAINT : Theme.ACCENT);
 			y += 20;
 		}
-		Draw.text(g, Draw.fit("Change keys in Options → Controls → Key Binds → JavaHost.", width), left, y + 12, Theme.FAINT);
+		Draw.textFit(g, "Change keys in Options → Controls → Key Binds → JavaHost.", width, left, y + 12, Theme.FAINT);
 	}
 }

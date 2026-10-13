@@ -268,9 +268,9 @@ public class FriendsPage extends Page {
 		if (!Identity.canSign()) {
 			card(g, left, top + 12, width, 24);
 			Icons.WARNING.draw(g, left + 8, top + 19, Theme.WARNING);
-			Draw.text(g, Draw.fit("Sign in with a Microsoft account to use friends.", width - 30), left + 22, top + 20, Theme.WARNING);
+			Draw.textFit(g, "Sign in with a Microsoft account to use friends.", width - 30, left + 22, top + 20, Theme.WARNING);
 		} else if (message != null) {
-			Draw.text(g, Draw.fit(message, width), left, top + 37, messageColor);
+			Draw.textFit(g, message, width, left, top + 37, messageColor);
 		} else {
 			Draw.text(g, "They'll get a request next time they play.", left, top + 37, Theme.FAINT);
 		}
@@ -292,7 +292,7 @@ public class FriendsPage extends Page {
 		card(g, left, y - 2, width, Math.max(1, friends.size()) * ROW + 4);
 		if (friends.isEmpty()) {
 			Icons.USERS.draw(g, left + 9, y + 9, Theme.FAINT);
-			Draw.text(g, Draw.fit("No friends yet. Add someone by name above.", width - 34), left + 24, y + 10, Theme.MUTED);
+			Draw.textFit(g, "No friends yet. Add someone by name above.", width - 34, left + 24, y + 10, Theme.MUTED);
 		}
 		for (Friend friend : friends) {
 			faceWithDot(g, friend.id(), left + 8, y + 5, 18);
@@ -305,7 +305,7 @@ public class FriendsPage extends Page {
 					? (invite.startsWith("Delivered") || invite.startsWith("In your world") ? Theme.ACCENT
 							: invite.startsWith("Not delivered") || invite.startsWith("Couldn't") ? Theme.WARNING : Theme.INFO)
 					: Presence.of(friend.id()).isPresent() ? Theme.ACCENT : Theme.FAINT;
-			Draw.text(g, Draw.fit(line, width - 140), left + 32, y + 15, color);
+			Draw.textFit(g, line, width - 140, left + 32, y + 15, color);
 			int unread = Chats.unread(friend.id());
 			if (unread > 0) {
 				Draw.roundRect(g, left + width - 12, y + 4, 8, 8, 4, Theme.DANGER);
