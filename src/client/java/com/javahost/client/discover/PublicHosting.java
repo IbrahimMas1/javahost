@@ -99,16 +99,21 @@ public final class PublicHosting {
 		lastBeat = 0;
 		status = "Getting the relay ready...";
 		// A fresh backup before any stranger arrives, so griefing can always be undone.
-		server.execute(() -> WorldBackups.backUp(server, "opened to the public"));
+		server.execute(() -> WorldBackups.backUpIfDue(server, "opened to the public"));
 		JavaHost.LOGGER.info("[Public] opening \"{}\" to the public", config.publicTitle);
 		return null;
 	}
 
 	/** Takes the world off the list and back to friends only (keeps hosting for friends). */
 	public static void close() {
+		close("you stopped listing it");
+	}
+
+	private static void close(String why) {
 		if (!HostState.publicWorld()) {
 			return;
 		}
+		JavaHost.LOGGER.info("[Public] closing to the public: {}", why);
 		HostState.setPublic(false, false);
 		HostController.applyHostRules(Config.get()); // friends-only and the usual player limit again
 		if (listed) {
@@ -125,7 +130,8 @@ public final class PublicHosting {
 			return;
 		}
 		if (!HostController.isHosting()) {
-			close();
+			close("the world closed");
+			Toasts.notify("Your world isn't public any more", "It closed when you left it. Open it again from the Host tab.");
 			return;
 		}
 		if (busy) {
@@ -141,6 +147,7 @@ public final class PublicHosting {
 			Directory.heartbeat(HostController.guests().size() + 1).thenAccept(result -> Minecraft.getInstance().execute(() -> {
 				busy = false;
 				if (!result.ok()) {
+					JavaHost.LOGGER.warn("[Public] heartbeat failed: {}", result.message());
 					listed = false; // e.g. the list forgot us after a long hiccup: list again on the next tick
 				}
 			}));
@@ -173,6 +180,7 @@ public final class PublicHosting {
 				}
 				return;
 			}
+			JavaHost.LOGGER.info("[Public] listing \"{}\" via {}: {}", config.publicTitle, relay, result.ok() ? "listed" : result.message());
 			if (result.ok()) {
 				listed = true;
 				lastBeat = System.currentTimeMillis();
@@ -187,7 +195,10 @@ public final class PublicHosting {
 					java.util.concurrent.CompletableFuture.delayedExecutor(60, java.util.concurrent.TimeUnit.SECONDS)
 							.execute(() -> Minecraft.getInstance().execute(() -> busy = false));
 				} else {
-					close();
+					// The list turned the title or description down: say why, where it can't be missed.
+					close("the list refused it");
+					status = "";
+					Toasts.notify("Couldn't list your world", result.message() + " Change the title or description and try again.");
 				}
 			}
 		}));

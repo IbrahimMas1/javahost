@@ -63,6 +63,8 @@ public class DiscoverPage extends Page {
 	private int detailH;
 	private TextField searchField;
 	private int hereY = -1;
+	private UUID confirmJoin;
+	private long confirmUntil;
 	private String lastSignature = "";
 
 	@Override
@@ -167,22 +169,33 @@ public class DiscoverPage extends Page {
 		int buttonsY = y + detailH - 26;
 		boolean mine = world.host().equals(Identity.id());
 		String why = joinProblem(world);
-		FlatButton join = add(new FlatButton(90, 20, Component.literal(mine ? "Your world" : "Join"), FlatButton.Style.PRIMARY, Icons.JOIN,
-				b -> InviteFlow.joinPublic(world)), 10, buttonsY);
+		// Joining another world leaves yours, which takes it off the list: ask first.
+		boolean confirm = PublicHosting.isPublic() && world.host().equals(confirmJoin) && System.currentTimeMillis() < confirmUntil;
+		FlatButton join = add(new FlatButton(confirm ? 170 : 90, 20, Component.literal(mine ? "Your world" : confirm ? "Click again: closes yours" : "Join"),
+				confirm ? FlatButton.Style.DANGER : FlatButton.Style.PRIMARY, Icons.JOIN, b -> {
+					if (PublicHosting.isPublic() && !confirm) {
+						confirmJoin = world.host();
+						confirmUntil = System.currentTimeMillis() + 4000;
+						screen.refresh();
+						return;
+					}
+					InviteFlow.joinPublic(world);
+				}), 10, buttonsY);
 		join.active = why == null;
 		if (why != null) {
 			join.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(why)));
 		}
+		int reportX = confirm ? 186 : 106;
 		if (!mine) {
 			add(new FlatButton(80, 20, Component.literal("Report"), FlatButton.Style.SECONDARY, Icons.WARNING,
-					b -> minecraft.gui.setScreen(new ReportScreen(screen, world.host(), Directory.nameOf(world)))), 106, buttonsY);
+					b -> minecraft.gui.setScreen(new ReportScreen(screen, world.host(), Directory.nameOf(world)))), reportX, buttonsY);
 			FlatButton hide = add(new FlatButton(80, 20, Component.literal("Hide host"), FlatButton.Style.GHOST, Icons.CROSS, b -> {
 				Config config = Config.get();
 				config.hiddenHosts.add(world.host().toString());
 				config.save();
 				selected = null;
 				screen.refresh();
-			}), 192, buttonsY);
+			}), reportX + 86, buttonsY);
 			hide.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Stop showing " + Directory.nameOf(world) + "'s worlds")));
 		}
 		return y + detailH + 4;

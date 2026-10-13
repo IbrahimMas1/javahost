@@ -54,6 +54,7 @@ public final class InviteFlow {
 	/** Why the last route didn't work out, for the message if none do. */
 	private static String lastProblem;
 	private static final long PROOF_TIMEOUT_MS = 8000;
+	private static final long CONNECT_TIMEOUT_MS = 35_000;
 	private static final java.security.SecureRandom RANDOM = new java.security.SecureRandom();
 
 	private InviteFlow() {
@@ -315,8 +316,20 @@ public final class InviteFlow {
 		if (joinQueue.isEmpty() || joinIndex < 0) {
 			return;
 		}
-		if (minecraft.gui.screen() instanceof ConnectScreen) {
+		if (minecraft.gui.screen() instanceof ConnectScreen connecting) {
 			sawConnecting = true;
+			// Some ways in (notably the relay, when the host's side has gone quiet) never fail on their own: give up
+			// on this one after a while and try the next, rather than leaving "Connecting..." up forever.
+			if (System.currentTimeMillis() - attemptStarted > CONNECT_TIMEOUT_MS) {
+				String address = joinQueue.get(joinIndex);
+				JavaHost.LOGGER.info("Route {} didn't answer in {} s, trying the next", address, CONNECT_TIMEOUT_MS / 1000);
+				lastProblem = joiningHost + "'s world didn't answer" + (address.endsWith(".e4mc.link") ? " through the relay" : "")
+						+ ". They may need to reopen it, or check their connection.";
+				sawConnecting = false;
+				connecting.onClose(); // cancels the attempt
+				next();
+				return;
+			}
 		}
 		if (minecraft.level != null && minecraft.player != null) {
 			if (expectedHost == null) {

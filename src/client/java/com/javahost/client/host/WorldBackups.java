@@ -8,9 +8,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 import com.javahost.JavaHost;
@@ -23,16 +21,16 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.storage.LevelResource;
 
 /**
- * Automatic world backups: when a friend joins your world (at most every 30 minutes), the world is saved and
- * zipped to javahost/backups/&lt;world&gt;/. Restoring never deletes anything: the current world is set aside
- * under a new name first.
+ * World backups in javahost/backups/&lt;world&gt;/. Automatic ones (a friend joins, the world opens to the public)
+ * happen at most once every 30 minutes per world, judged by the newest backup on disk, so restarting the game or
+ * reopening the world doesn't make more; only the newest 3 are kept. "Back up now" always works. Restoring never
+ * deletes anything: the current world is set aside under a new name first.
  */
 public final class WorldBackups {
-	private static final int KEEP = 5;
+	private static final int KEEP = 3;
 	private static final long MIN_GAP_MS = 30 * 60 * 1000L;
 	private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH.mm.ss");
 	private static final DateTimeFormatter ASIDE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm");
-	private static final Map<String, Long> LAST = new ConcurrentHashMap<>();
 	private static volatile boolean running;
 
 	public record Backup(String world, Path file, long size, long time) {
@@ -47,19 +45,29 @@ public final class WorldBackups {
 
 	/** Called on the server thread when a friend joins a world you're hosting. */
 	public static void onFriendJoined(MinecraftServer server) {
-		String world = worldFolder(server);
-		Long last = LAST.get(world);
-		if (!Config.get().autoBackup || running || (last != null && System.currentTimeMillis() - last < MIN_GAP_MS)) {
-			return;
+		if (Config.get().autoBackup) {
+			backUpIfDue(server, "a friend joined");
 		}
-		backUp(server, "a friend joined");
+	}
+
+	/**
+	 * An automatic backup: only if this world's newest backup is over 30 minutes old (or there's none). Completes
+	 * with the newest backup either way. Server thread only.
+	 */
+	public static CompletableFuture<Path> backUpIfDue(MinecraftServer server, String why) {
+		String world = worldFolder(server);
+		List<Backup> existing = list(world);
+		if (running || (!existing.isEmpty() && System.currentTimeMillis() - existing.getFirst().time() < MIN_GAP_MS)) {
+			JavaHost.LOGGER.info("[Backups] skipped ({}): the last backup of {} is recent", why, world);
+			return CompletableFuture.completedFuture(existing.isEmpty() ? null : existing.getFirst().file());
+		}
+		return backUp(server, why);
 	}
 
 	/** Saves the world, pauses autosave, zips it in the background, then turns autosave back on. Server thread only. */
 	public static CompletableFuture<Path> backUp(MinecraftServer server, String why) {
 		String world = worldFolder(server);
 		Path zip = root().resolve(world).resolve(LocalDateTime.now().format(STAMP) + ".zip");
-		LAST.put(world, System.currentTimeMillis());
 		return snapshot(server, zip).whenComplete((done, error) -> {
 			if (error == null) {
 				JavaHost.LOGGER.info("[Backups] backed up {} because {}", world, why);
@@ -114,6 +122,22 @@ public final class WorldBackups {
 
 	private static String worldFolder(MinecraftServer server) {
 		return server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize().getFileName().toString();
+	}
+
+	/** Once at startup: every world down to the newest few backups (older versions kept 5). Background thread. */
+	public static void trimAll() {
+		com.javahost.util.IoExecutor.run(() -> {
+			if (!Files.isDirectory(root())) {
+				return;
+			}
+			try (Stream<Path> worlds = Files.list(root())) {
+				for (Path world : worlds.filter(Files::isDirectory).toList()) {
+					trim(world.getFileName().toString());
+				}
+			} catch (IOException e) {
+				JavaHost.LOGGER.warn("[Backups] couldn't tidy old backups", e);
+			}
+		});
 	}
 
 	/** Keeps the newest few backups of a world. */

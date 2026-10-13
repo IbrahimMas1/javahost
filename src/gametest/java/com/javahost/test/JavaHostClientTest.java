@@ -646,6 +646,17 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.waitFor(mc -> backup.isDone(), 60 * 20);
 		Path zip = backup.join();
 		check(java.nio.file.Files.exists(zip), "world backed up while playing: " + zip.getFileName());
+		// Automatic backups wait 30 minutes after the newest one, even across restarts.
+		int before = context.computeOnClient(mc -> com.javahost.client.host.WorldBackups.listAll().size());
+		var again = context.computeOnClient(mc -> {
+			var result = new java.util.concurrent.CompletableFuture<Path>();
+			mc.getSingleplayerServer().execute(() -> com.javahost.client.host.WorldBackups.backUpIfDue(mc.getSingleplayerServer(), "test again")
+					.whenComplete((file, error) -> result.complete(file)));
+			return result;
+		});
+		context.waitFor(mc -> again.isDone(), 60 * 20);
+		check(context.computeOnClient(mc -> com.javahost.client.host.WorldBackups.listAll().size()) == before && zip.equals(again.join()),
+				"a second automatic backup within 30 minutes is skipped");
 		context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
 		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40,
 				mc.getWindow().getGuiScaledHeight() / 2.0, 0, -20));

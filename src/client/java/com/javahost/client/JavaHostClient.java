@@ -142,6 +142,7 @@ public class JavaHostClient implements ClientModInitializer {
 					(proof, context) -> com.javahost.client.friends.InviteFlow.onProof(proof));
 			HostController.applyHostRules(Config.get()); // join rules apply to every opened world, not only via JavaHost
 			com.javahost.client.share.WorldShare.register();
+			com.javahost.client.host.WorldBackups.trimAll();
 			com.javahost.client.update.UpdateChecker.start();
 		});
 
