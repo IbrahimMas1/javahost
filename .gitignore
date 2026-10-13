@@ -38,3 +38,20 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# python
+
+__pycache__/
+*.pyc
+
+# local notes and assistant files (kept outside the repo)
+
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+
+# secrets
+
+*.pem
+*.key
+keys/
