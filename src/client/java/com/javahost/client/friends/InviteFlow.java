@@ -188,6 +188,17 @@ public final class InviteFlow {
 
 	// ================================================================ guest side
 
+	/** The world a join was last started for (to come back to it after restarting with new mods). */
+	public record Target(UUID host, String name, boolean publicWorld) {
+	}
+
+	private static Target lastTarget;
+
+	/** The world JavaHost is joining right now, or null (e.g. joining from Minecraft's server list). */
+	public static Target joiningTarget() {
+		return joinQueue.isEmpty() ? null : lastTarget;
+	}
+
 	/** Joins the host's world, trying each way in until one connects. */
 	public static void join(Invite invite) {
 		java.util.Optional<Friend> friend = Friends.friend(invite.from());
@@ -197,6 +208,8 @@ public final class InviteFlow {
 			return;
 		}
 		int token = ++joinToken;
+		lastTarget = new Target(invite.from(), invite.name(), false);
+		com.javahost.client.mods.ModSets.clearNeeded();
 		String signKey = friend.get().signKey();
 		CompletableFuture.supplyAsync(InviteFlow::myPublicIpv4, com.javahost.util.IoExecutor.NET).thenAccept(myIp -> Minecraft.getInstance().execute(() -> {
 			if (token != joinToken) {
@@ -230,6 +243,8 @@ public final class InviteFlow {
 	public static void joinPublic(com.javahost.client.discover.Directory.PublicWorld world) {
 		++joinToken;
 		currentPublic = world;
+		lastTarget = new Target(world.host(), com.javahost.client.discover.Directory.nameOf(world), true);
+		com.javahost.client.mods.ModSets.clearNeeded();
 		JavaHost.LOGGER.info("[Public] joining {}'s public world \"{}\" via {}", world.name(), world.title(), world.relay());
 		publicJoin = true;
 		String name = com.javahost.client.discover.Directory.nameOf(world);
@@ -358,6 +373,13 @@ public final class InviteFlow {
 			return;
 		}
 		if (minecraft.gui.screen() instanceof DisconnectedScreen screen) {
+			if (com.javahost.client.mods.ModSets.needed() != null) {
+				// We reached their world; it needs mods we don't have. No point trying the other ways in.
+				JavaHost.LOGGER.info("{}'s world needs mods we don't have", joiningHost);
+				joinQueue = List.of();
+				expectedHost = null;
+				return;
+			}
 			String reason = screen.getNarrationMessage().getString();
 			// Turned away (e.g. "just for friends"). That may be some other world on this address, so keep trying
 			// the other ways in, and say why only if none work.

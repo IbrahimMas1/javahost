@@ -54,6 +54,18 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			MultiplayerTest.guest(context);
 			return;
 		}
+		if ("modhost".equals(role)) {
+			ModdedTest.host(context);
+			return;
+		}
+		if ("modguest".equals(role)) {
+			ModdedTest.guest(context);
+			return;
+		}
+		if ("showcase".equals(role)) {
+			Showcase.run(context);
+			return;
+		}
 		Config.get().tourDone = true; // the welcome tour is tested on its own below
 		inviteCodes();
 		opusRoundTrip();
@@ -740,7 +752,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 	/** Clicks a visible button in the current screen with the real mouse. */
 	// ================================================================ 1.8: public worlds
 
-	private static com.google.gson.JsonObject call(String base, String method, String path, com.google.gson.JsonObject body, String token)
+	static com.google.gson.JsonObject call(String base, String method, String path, com.google.gson.JsonObject body, String token)
 			throws Exception {
 		var request = java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + path)).header("content-type", "application/json")
 				.method(method, body == null ? java.net.http.HttpRequest.BodyPublishers.noBody() : java.net.http.HttpRequest.BodyPublishers.ofString(body.toString()));
@@ -752,7 +764,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 	}
 
 	/** Lists a made-up public world on the local list service, as account {@code name}. */
-	private static void seed(String base, String name, String title, String description, String relay, List<String> tags, int max,
+	static void seed(String base, String name, String title, String description, String relay, List<String> tags, int max,
 			int players, boolean voice) throws Exception {
 		var challenge = call(base, "POST", "/auth/challenge", new com.google.gson.JsonObject(), null);
 		var verify = new com.google.gson.JsonObject();
@@ -887,6 +899,37 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			System.clearProperty("javahost.directoryUrl");
 			node.destroy();
 		}
+	}
+
+	/** 1.9: a world that needs mods (some on Modrinth, one not), at the laptop sizes. */
+	private static void modsScreens(ClientGameTestContext context) {
+		String hash = "a".repeat(128);
+		var manifest = new com.javahost.util.ModManifest("Alex_TheBuilder", "", List.of(
+				new com.javahost.util.ModManifest.Entry("naturalist", "Naturalist", "2.0.6+26.3-fabric", true, "naturalist.jar", 11_400_000, hash, "35ZJ5hlX", ""),
+				new com.javahost.util.ModManifest.Entry("geckolib", "GeckoLib", "5.2.1", false, "geckolib.jar", 1_200_000, hash, "AbCd1234", ""),
+				new com.javahost.util.ModManifest.Entry("yungsapi", "YUNG's API", "26.1.2-Fabric-6.1.3", true, "yungsapi.jar", 900_000, hash, "EfGh5678", ""),
+				new com.javahost.util.ModManifest.Entry("castlemod", "Castle Builder Extreme With A Long Name", "1.0", true, "castle.jar", 4_000_000, hash, "",
+						"https://example.com/castle")));
+		var needed = new com.javahost.client.mods.ModSets.Needed(manifest, manifest.mods(), "203.0.113.42:25565", null);
+		for (int[] size : new int[][] {{1710, 1070, 4}, {1280, 800, 3}, {2000, 1250, 4}}) {
+			context.getInput().resizeWindow(size[0], size[1]);
+			context.runOnClient(mc -> {
+				mc.options.guiScale().set(size[2]);
+				mc.resizeGui();
+			});
+			context.setScreen(() -> new com.javahost.client.gui.ModsNeededScreen(needed));
+			context.waitTicks(4);
+			boolean fits = context.computeOnClient(mc -> mc.gui.screen().children().stream()
+					.filter(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w && w.visible)
+					.map(c -> (net.minecraft.client.gui.components.AbstractWidget) c)
+					.allMatch(w -> w.getRight() <= mc.getWindow().getGuiScaledWidth() - 8 && w.getBottom() <= mc.getWindow().getGuiScaledHeight()));
+			check(fits, "the mods-needed screen fits at " + size[0] + "x" + size[1] + " scale " + size[2]);
+			context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-mods-needed");
+			context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
+			context.waitTicks(40); // the modpack search answers from Modrinth
+			context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-mods-tab");
+		}
+		context.setScreen(() -> null);
 	}
 
 	private static void setDiscoverSelection(ClientGameTestContext context, java.util.UUID host) {
@@ -1144,6 +1187,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		}
 		worldShareScreens(context, alexId);
 		publicWorldScreens(context);
+		modsScreens(context);
 		context.runOnClient(mc -> {
 			try {
 				java.lang.reflect.Field dataField = com.javahost.client.friends.Friends.class.getDeclaredField("data");

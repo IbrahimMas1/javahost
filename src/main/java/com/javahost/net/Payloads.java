@@ -337,7 +337,40 @@ public final class Payloads {
 		}
 	}
 
+	// ---------------------------------------------------------------- mods (configuration phase, before registries are compared)
+
+	/** Largest mod list accepted (400 mods with names, hashes and links fit easily). */
+	public static final int MAX_MOD_LIST = 512 * 1024;
+
+	/** Server -> client (1.9+): the mods this world needs, as {@code ModManifest} JSON. */
+	public record ModList(String json) implements CustomPacketPayload {
+		public static final Type<ModList> TYPE = payloadType("mod_list");
+		public static final StreamCodec<FriendlyByteBuf, ModList> CODEC = CustomPacketPayload.codec(
+				(p, buf) -> buf.writeUtf(p.json, MAX_MOD_LIST),
+				buf -> new ModList(buf.readUtf(MAX_MOD_LIST)));
+
+		@Override
+		public Type<ModList> type() {
+			return TYPE;
+		}
+	}
+
+	/** Client -> server: whether the player has those mods ({@code missing} = how many they don't). */
+	public record ModCheckReply(int missing) implements CustomPacketPayload {
+		public static final Type<ModCheckReply> TYPE = payloadType("mod_check_reply");
+		public static final StreamCodec<FriendlyByteBuf, ModCheckReply> CODEC = CustomPacketPayload.codec(
+				(p, buf) -> buf.writeVarInt(p.missing),
+				buf -> new ModCheckReply(buf.readVarInt()));
+
+		@Override
+		public Type<ModCheckReply> type() {
+			return TYPE;
+		}
+	}
+
 	public static void register() {
+		PayloadTypeRegistry.clientboundConfiguration().register(ModList.TYPE, ModList.CODEC);
+		PayloadTypeRegistry.serverboundConfiguration().register(ModCheckReply.TYPE, ModCheckReply.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(VoiceUp.TYPE, VoiceUp.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(PackRequest.TYPE, PackRequest.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(PackAck.TYPE, PackAck.CODEC);

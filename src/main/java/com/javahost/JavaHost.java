@@ -30,6 +30,8 @@ public class JavaHost implements ModInitializer {
 		com.javahost.net.WorldShareRouter.register();
 		com.javahost.rules.WorldRules.register();
 		com.javahost.rules.Trust.register();
+		com.javahost.mods.ModCheck.register();
+		net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STARTED.register(server -> com.javahost.mods.ModCheck.warmUp());
 
 		// Tell JavaHost players which version the host runs.
 		net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {

@@ -18,7 +18,7 @@ A Fabric mod for Minecraft **26.3** (Java Edition).
 - **Host controls.** Change a guest's game mode, kick or ban them, and set a player limit.
 - **Shared look.** Guests get the host's resource packs and **shader, including its settings** (with Iris). They're asked first, and everything goes back to normal when they leave.
 - **Performance.** One click installs Sodium, Lithium, FerriteCore, ImmediatelyFast and Entity Culling for your exact version, checked against Modrinth's hashes. **Quick Tune** gives FPS-friendly settings and can undo them. With Sodium installed, choose **Simple** (Minecraft's own Video Settings) or **Sodium** (detailed) under Settings; each screen has a button to switch. **Quick settings** for render distance, max frame rate and graphics sit right on the Performance tab. There's an optional FPS / ping / memory overlay.
-- **Modern menu.** Press `J` in game, or use the **dock** down the right side of the title and pause screens: Host, Friends, Screenshots, Performance, Settings and your Account. Badges show what's new (including notifications, under Friends), and Friends glows when a friend's world is ready to join. The title screen also shows your 3D skin (drag to turn it) and the JavaHost version. Pick an accent colour in Settings.
+- **Modern menu.** Press `J` in game, or use the **dock** down the right side of the title and pause screens: Host, Friends, Screenshots, Performance, Settings and your Account. Mods have their own tab in the menu. Badges show what's new (including notifications, under Friends), and Friends glows when a friend's world is ready to join. The title screen also shows your 3D skin (drag to turn it) and the JavaHost version. Pick an accent colour in Settings.
 - **Account page.** Your 3D skin, how friends see you, an **Appear offline** switch, and how many friend messages you've sent today.
 - Friends need a Microsoft-account login, which every normal Minecraft purchase has.
 
@@ -67,6 +67,16 @@ Friends need JavaHost too to get voice and your packs. The easiest way is to sen
 - Accounts with online play turned off (parental controls, or banned by Mojang) can't see or open public worlds.
 - The list itself is a small service in `directory/` (a Cloudflare Worker with a D1 database). Moderate it with `scripts/moderate.sh`.
 
+## Modded worlds (1.9)
+
+- **Play with mods together.** Host with any Fabric mods for 26.3 (Naturalist, for example). When a friend who's missing some joins, they don't get Minecraft's "registry mismatch" error. Instead they see which mods the world uses, with sizes, and a **Download & restart** button.
+- **The very same files.** JavaHost matches each of the host's mods to its exact Modrinth version by hash. Friends download those files from Modrinth, and each one is checked against Modrinth's hash and the host's. Nothing a player sends is ever run. Mods that aren't on Modrinth are listed with a link so friends can get them themselves.
+- **Only what's needed.** Client-only mods (Sodium, Iris, minimaps) and host-side mods (Lithium) aren't asked of friends: only mods that add blocks, items, mobs and so on, plus the libraries they need.
+- **Your own mods are safe.** Downloaded mods are kept as a *mod set*. The switch happens when Minecraft closes: clashing mods are put aside (never deleted) and everything is put back if anything goes wrong. When you press Play again, JavaHost takes you straight back into your friend's world. **Back to my mods** on the new **Mods** tab restores your set.
+- **Modpacks.** The Mods tab searches Modrinth for Fabric modpacks for your Minecraft version and installs them as a mod set (with the pack's settings). Files come only from the hosts Modrinth allows, and every one is hash-checked. Friends who join get the mods they need automatically.
+- Friends see "Hosting "World" · 3/8 · 12 mods", and Discover shows "Modded (12)" on public worlds.
+- Only Fabric works: Forge/NeoForge modpacks and other Minecraft versions can't load JavaHost.
+
 ## Safety (1.7)
 
 - **Joining checks it's really your friend's world.** Each player has a signing key that only their own game holds. When you join a friend, their game must prove the world is theirs. A fake server, or some other PC on your network, is left at once and the next way in is tried. Friends on older versions need to update before you can join them.
@@ -92,6 +102,7 @@ Requires Java 25.
 ./gradlew build                      # mod jar in build/libs/
 ./gradlew runClientGameTest          # in-game tests + UI screenshots
 scripts/multiplayer-test.sh          # two real clients: host + guest over LAN, IPv6 and the relay
+scripts/modded-test.sh               # two real clients: the host has Naturalist, the guest gets it when joining
 ./gradlew :installer:test            # installer: real install/update/uninstall into a fake .minecraft
 ./gradlew :installer:jpackageMac     # macOS .dmg
 ```

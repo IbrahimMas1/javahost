@@ -48,6 +48,7 @@ public class JavaHostScreen extends Screen {
 		VOICE("Voice", Icons.MIC, VoicePage::new, null),
 		SCREENSHOTS("Screenshots", Icons.CAMERA, ScreenshotsPage::new, null),
 		PERFORMANCE("Performance", Icons.BOLT, PerformancePage::new, null),
+		MODS("Mods", Icons.PACKAGE, com.javahost.client.gui.pages.ModsPage::new, null),
 		SETTINGS("Settings", Icons.GEAR, SettingsPage::new, null),
 		ACCOUNT("Account", Icons.USER, AccountPage::new, null),
 		// Sub-pages, reached from other pages (they highlight their parent in the sidebar).

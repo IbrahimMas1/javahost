@@ -54,6 +54,8 @@ public final class Presence {
 	private static final Map<UUID, Status> LATEST = new HashMap<>();
 	/** The JavaHost version each friend last reported (kept even when they go offline). */
 	private static final Map<UUID, String> VERSIONS = new HashMap<>();
+	/** How many mods each hosting friend's world needs (1.9+; 0 = none, or an older JavaHost). */
+	private static final Map<UUID, Integer> MODS = new HashMap<>();
 	private static Mailbox stream;
 	private static String lastPublished = "";
 	private static long lastPublishTime;
@@ -117,6 +119,11 @@ public final class Presence {
 		return diff < 0 ? "Needs update (" + theirs + ")" : diff > 0 ? "You need to update (they have " + theirs + ")" : null;
 	}
 
+	/** How many mods a hosting friend's world needs (0 if none). */
+	public static int modsOf(UUID friend) {
+		return of(friend).filter(Status::hosting).map(s -> MODS.getOrDefault(friend, 0)).orElse(0);
+	}
+
 	public static List<Friend> onlineFriends() {
 		return Friends.friends().stream().filter(f -> of(f.id()).isPresent()).toList();
 	}
@@ -172,6 +179,10 @@ public final class Presence {
 			state.addProperty("max", Config.get().maxPlayers);
 			state.add("routes", Friends.routesJson(routes));
 			state.addProperty("hostIp", Connectivity.publicIpv4() == null ? "" : Connectivity.publicIpv4());
+			com.javahost.util.ModManifest mods = com.javahost.mods.ModScanner.ready();
+			if (mods != null && !mods.empty()) {
+				state.addProperty("mods", mods.mods().size());
+			}
 		} else if (minecraft.level != null) {
 			state.addProperty("state", State.PLAYING.name());
 		} else {
@@ -253,6 +264,7 @@ public final class Presence {
 			if (body.has("jv")) {
 				VERSIONS.put(from, body.get("jv").getAsString());
 			}
+			MODS.put(from, body.has("mods") ? Math.max(0, Math.min(999, body.get("mods").getAsInt())) : 0);
 			boolean fresh = System.currentTimeMillis() - ts < 2 * 60 * 1000L;
 			boolean startedHosting = status.hosting() && (previous == null || !previous.hosting());
 			if (fresh && startedHosting) {

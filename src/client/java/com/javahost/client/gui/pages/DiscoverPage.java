@@ -368,7 +368,8 @@ public class DiscoverPage extends Page {
 			Faces.draw(g, world.host(), left + 8, y + 7, 18);
 			int textRight = width - 120;
 			Draw.textFit(g, world.title(), textRight - 34, left + 34, y + 5, Theme.TEXT);
-			String meta = Directory.nameOf(world) + " · " + world.region() + (world.tags().isEmpty() ? "" : " · "
+			String meta = Directory.nameOf(world) + " · " + world.region() + (world.mods() > 0 ? " · Modded (" + world.mods() + ")" : "")
+					+ (world.tags().isEmpty() ? "" : " · "
 					+ String.join(", ", world.tags().stream().map(ListingText::tagLabel).toList()));
 			Draw.textFit(g, meta, textRight - 34, left + 34, y + 17, Theme.FAINT);
 			drawStatus(g, world, left + width - 112, y + 6);
@@ -378,7 +379,8 @@ public class DiscoverPage extends Page {
 						world.description().isEmpty() ? Theme.FAINT : Theme.MUTED);
 				int lines = Math.max(1, wrappedHeight(world.description(), width - 24) / 10);
 				String facts = capital(world.mode()) + " · " + capital(world.difficulty()) + " · Voice for visitors: "
-						+ (world.voice() ? "on" : "off") + " · JavaHost " + world.jv();
+						+ (world.voice() ? "on" : "off") + " · JavaHost " + world.jv()
+						+ (world.mods() > 0 ? " · Needs " + Draw.count(world.mods(), "mod") + ": JavaHost gets them for you" : "");
 				Draw.textFit(g, facts, width - 24, left + 12, dy + 8 + lines * 10, Theme.FAINT);
 				Draw.textFit(g, "You'll start as a visitor: look around and say hi; the host can trust you to build.", width - 24,
 						left + 12, dy + 20 + lines * 10, Theme.FAINT);

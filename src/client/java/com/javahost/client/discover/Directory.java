@@ -34,7 +34,7 @@ public final class Directory {
 
 	/** A world someone opened to the public. */
 	public record PublicWorld(UUID host, String name, String title, String description, List<String> tags, String mode, String difficulty,
-			int max, int players, String relay, String mc, String jv, String region, boolean voice, String signKey) {
+			int max, int players, String relay, String mc, String jv, String region, boolean voice, String signKey, int mods) {
 		public boolean full() {
 			return players >= max;
 		}
@@ -129,7 +129,7 @@ public final class Directory {
 				o.get("mode").getAsString(), o.get("difficulty").getAsString(), max,
 				Math.max(0, Math.min(max, o.get("players").getAsInt())), relay, Text.clean(o.get("mc").getAsString(), 16),
 				Text.clean(o.get("jv").getAsString(), 16), ListingText.region(relay), o.get("voice").getAsBoolean(),
-				o.get("signkey").getAsString());
+				o.get("signkey").getAsString(), o.has("mods") && !o.get("mods").isJsonNull() ? Math.max(0, Math.min(1000, o.get("mods").getAsInt())) : 0);
 	}
 
 	// ---------------------------------------------------------------- signed-in calls

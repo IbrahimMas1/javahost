@@ -102,6 +102,38 @@ def mpShared = file("build/run/mp-shared").absolutePath
 	}
 }
 
+// Modded worlds with two games: the host plays with Naturalist, the guest gets it when joining.
+// Run with: sh scripts/modded-test.sh (it downloads the mod and starts the guest twice).
+def modShared = file("build/run/mod-shared").absolutePath
+[["modHost", "Host", "modhost"], ["modGuest", "Guest", "modguest"]].each { entry ->
+	def (runName, user, role) = entry
+	loom.runs.create(runName) {
+		inherit loom.runs.getByName("clientGameTest")
+		name = "Modded test (${user})"
+		runDir = "build/run/${runName}"
+		vmArg "-Djavahost.testRole=${role}"
+		vmArg "-Djavahost.modDir=${modShared}"
+		vmArg "-Djavahost.friendsNamespace=modtest"
+		if (role == "modhost") {
+			vmArg "-Dfabric.addMods=${file("build/test-mods/naturalist-2.0.6-fabric-26.3.jar").absolutePath}"
+		}
+		programArgs "--username", user
+	}
+}
+
+// Website screenshots: a game driven from build/run/showcase/control/commands.txt (see scripts/showcase.sh).
+loom.runs.create("showcase") {
+	inherit loom.runs.getByName("clientGameTest")
+	name = "Showcase screenshots"
+	runDir = "build/run/showcase"
+	vmArg "-Djavahost.testRole=showcase"
+	vmArg "-Djavahost.showcaseDir=${file("build/run/showcase/control").absolutePath}"
+	vmArg "-Djavahost.friendsNamespace=showcase"
+	// The test account is offline; this shows the menus as a signed-in player sees them.
+	vmArg "-Djavahost.insecureFriends=true"
+	programArgs "--username", "Steve123"
+}
+
 processResources {
 	def version = project.version
 	inputs.property "version", version

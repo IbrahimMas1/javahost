@@ -77,6 +77,7 @@ public class JavaHostClient implements ClientModInitializer {
 				});
 		net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register((handler, minecraft) -> hostVersion = null);
 		PackReceiver.register();
+		com.javahost.client.mods.ModSets.register();
 
 		ClientTickEvents.END_CLIENT_TICK.register(minecraft -> {
 			VoiceClient.setPushToTalkHeld(PUSH_TO_TALK.isDown());
@@ -89,6 +90,8 @@ public class JavaHostClient implements ClientModInitializer {
 			Presence.tick(minecraft);
 			com.javahost.client.share.WorldShare.tick(minecraft);
 			com.javahost.client.discover.PublicHosting.tick();
+			com.javahost.client.mods.ModSets.tick(minecraft);
+			com.javahost.client.mods.PendingJoin.tick(minecraft);
 			while (OPEN_MENU.consumeClick()) {
 				minecraft.gui.setScreen(new JavaHostScreen(null));
 			}
@@ -121,11 +124,14 @@ public class JavaHostClient implements ClientModInitializer {
 			com.javahost.client.friends.Friends.flushNow();
 			com.javahost.client.discover.PublicHosting.shutdown();
 			com.javahost.client.update.Updater.launchSwapIfStaged();
+			com.javahost.client.mods.ModSets.launchIfStaged();
 			Presence.goOffline();
 			E4mcCompat.shutdownForExit();
 		});
 		ClientLifecycleEvents.CLIENT_STARTED.register(minecraft -> {
 			Popups.startFriends();
+			com.javahost.client.mods.ModSets.reportLastResult();
+			com.javahost.mods.ModCheck.warmUp(); // the mod list, ready for hosting and for the Mods tab
 			// Our game vouches for worlds we host (guests check this before trusting the world is ours).
 			com.javahost.HostState.setProver(new com.javahost.HostState.Prover() {
 				@Override

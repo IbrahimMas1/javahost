@@ -261,7 +261,8 @@ public class FriendsPage extends Page {
 		}
 		Presence.Status s = status.get();
 		return switch (s.state()) {
-			case HOSTING -> s.hosting() ? "Hosting \"" + s.world() + "\" · " + s.players() + "/" + s.max() : "Online";
+			case HOSTING -> s.hosting() ? "Hosting \"" + s.world() + "\" · " + s.players() + "/" + s.max()
+					+ (Presence.modsOf(s.player()) > 0 ? " · " + Draw.count(Presence.modsOf(s.player()), "mod") : "") : "Online";
 			case PLAYING -> "Playing";
 			default -> "Online";
 		};

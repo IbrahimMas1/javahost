@@ -171,12 +171,12 @@ async function publish(env, request, who, now) {
 		return json({ error: "wait a minute before changing your listing again" }, 429);
 	}
 	await env.DB.prepare(
-		`INSERT INTO listings (uuid, name, title, description, tags, mode, difficulty, max, players, relay, mc, jv, region, voice, signkey, created, changed, seen, hidden)
-		 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?15, ?15, 0)
+		`INSERT INTO listings (uuid, name, title, description, tags, mode, difficulty, max, players, relay, mc, jv, region, voice, signkey, created, changed, seen, hidden, mods)
+		 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?15, ?15, 0, ?16)
 		 ON CONFLICT(uuid) DO UPDATE SET name = ?2, title = ?3, description = ?4, tags = ?5, mode = ?6, difficulty = ?7, max = ?8,
-		   relay = ?9, mc = ?10, jv = ?11, region = ?12, voice = ?13, signkey = ?14, changed = ?15, seen = ?15`)
+		   relay = ?9, mc = ?10, jv = ?11, region = ?12, voice = ?13, signkey = ?14, changed = ?15, seen = ?15, mods = ?16`)
 		.bind(who.uuid, who.name, l.title, l.description, JSON.stringify(l.tags), l.mode, l.difficulty, l.max, l.relay, l.mc, l.jv,
-			l.region, l.voice, l.signkey, now)
+			l.region, l.voice, l.signkey, now, l.mods)
 		.run();
 	return json({ ok: true, title: l.title, description: l.description });
 }
@@ -195,7 +195,7 @@ async function unpublish(env, who) {
 
 async function list(env, now) {
 	const { results } = await env.DB.prepare(
-		`SELECT uuid, name, title, description, tags, mode, difficulty, max, players, relay, mc, jv, region, voice, signkey
+		`SELECT uuid, name, title, description, tags, mode, difficulty, max, players, relay, mc, jv, region, voice, signkey, mods
 		 FROM listings WHERE hidden = 0 AND seen > ? ORDER BY players DESC, changed DESC LIMIT 200`).bind(now - LISTING_TTL).all();
 	return json({ worlds: results.map((r) => ({ ...r, tags: JSON.parse(r.tags), voice: r.voice === 1 })) }, 200,
 		{ "cache-control": "public, max-age=15" });

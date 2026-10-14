@@ -169,6 +169,8 @@ public final class PublicHosting {
 		listing.addProperty("mc", SharedConstants.getCurrentVersion().name());
 		listing.addProperty("jv", JavaHost.VERSION);
 		listing.addProperty("voice", config.publicVoice);
+		com.javahost.util.ModManifest mods = com.javahost.mods.ModScanner.ready();
+		listing.addProperty("mods", mods == null ? 0 : mods.mods().size());
 		listing.addProperty("signkey", Identity.signPublicKey());
 		busy = true;
 		status = "Adding your world to the public list...";

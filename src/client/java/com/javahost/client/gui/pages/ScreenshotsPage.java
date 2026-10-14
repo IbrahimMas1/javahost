@@ -110,7 +110,8 @@ public class ScreenshotsPage extends Page {
 	}
 
 	private void buildGrid() {
-		add(new Segmented<>(Math.min(240, width - 110), List.of("MINE", "FRIENDS", "FAVOURITES"), view,
+		int tabsW = Math.min(240, width - 110);
+		add(new Segmented<>(tabsW, List.of("MINE", "FRIENDS", "FAVOURITES"), view,
 				v -> switch (v) {
 					case "FRIENDS" -> "From friends";
 					case "FAVOURITES" -> "★ Favourites";
@@ -119,8 +120,9 @@ public class ScreenshotsPage extends Page {
 			view = v;
 			screen.refresh();
 		}), 0, 0);
-		add(new FlatButton(width - 166, 18, Component.literal("Open folder"), FlatButton.Style.GHOST, Icons.PACKAGE,
-				b -> com.mojang.blaze3d.Blaze3D.openPath(view.equals("FRIENDS") ? Screenshots.fromFriendsDir() : Screenshots.dir())), Math.min(240, width - 110) + 6, 0);
+		// The rest of the row, so it ends at the page's right edge at every width.
+		add(new FlatButton(width - tabsW - 6, 18, Component.literal("Open folder"), FlatButton.Style.GHOST, Icons.PACKAGE,
+				b -> com.mojang.blaze3d.Blaze3D.openPath(view.equals("FRIENDS") ? Screenshots.fromFriendsDir() : Screenshots.dir())), tabsW + 6, 0);
 
 		files = currentFiles();
 		// Worked out once here rather than for every thumbnail on every frame.

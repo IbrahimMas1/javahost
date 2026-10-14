@@ -89,6 +89,7 @@ test("a listing shows up, keeps itself alive with heartbeats, and expires", asyn
 	assert.equal(worlds[0].uuid, "00000000-0000-0000-0000-00000000000a");
 	assert.deepEqual(worlds[0].tags, ["help", "chill"], "unknown tags are dropped");
 	assert.equal(worlds[0].region, "eu");
+	assert.equal(worlds[0].mods, 0);
 	assert.equal((await call(env, "POST", "/listing/heartbeat", { players: 3 }, token, now + 5 * 60_000)).status, 200);
 	worlds = (await call(env, "GET", "/listings", undefined, null, now + 10 * 60_000)).body.worlds;
 	assert.equal(worlds[0].players, 3, "still listed 5 minutes after the last heartbeat");
@@ -164,4 +165,7 @@ test("the text rules", () => {
 	assert.ok(unfriendly("[2001:db8::1]:25565 here"));
 	assert.ok(unfriendly("N1gg3r"));
 	assert.equal(validateListing({ ...LISTING, voice: "yes" }).listing.voice, 0, "voice is only on when it's really true");
+	assert.equal(validateListing({ ...LISTING, mods: 12 }).listing.mods, 12);
+	assert.equal(validateListing({ ...LISTING, mods: -3 }).listing.mods, 0, "nonsense mod counts are ignored");
+	assert.equal(validateListing(LISTING).listing.mods, 0, "older games don't send a mod count");
 });

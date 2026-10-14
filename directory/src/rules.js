@@ -78,6 +78,8 @@ export function validateListing(body) {
 			title, description, tags, mode, difficulty, max, relay, mc, jv, signkey,
 			voice: body.voice === true ? 1 : 0,
 			region: relay.split(".")[1],
+			// How many mods joining players need (1.9+); older games don't send it.
+			mods: Number.isInteger(body.mods) && body.mods >= 0 && body.mods <= 1000 ? body.mods : 0,
 		},
 	};
 }
