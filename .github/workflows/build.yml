@@ -106,7 +106,7 @@ jobs:
           git tag -l --format='%(contents)' "$GITHUB_REF_NAME" | sed '/^-----BEGIN/,$d' > notes.txt
           PROTOCOL=$(grep -o 'PROTOCOL = [0-9]*' src/main/java/com/javahost/JavaHost.java | grep -o '[0-9]*$')
           MINIMUM=$(grep '^minimum_version=' gradle.properties | cut -d= -f2)
-          java scripts/MakeUpdateManifest.java dist/update "$VERSION" "$PROTOCOL" dist/javahost-mod stonecutter.properties.toml notes.txt "$MINIMUM"
+          java scripts/MakeUpdateManifest.java dist/update "$VERSION" "$PROTOCOL" "dist/javahost-mod/$VERSION" stonecutter.properties.toml notes.txt "$MINIMUM"
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -114,6 +114,6 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           shopt -s nullglob
           gh release create "$GITHUB_REF_NAME" --title "JavaHost $VERSION" --notes-file notes.txt \
-            dist/javahost-mod/javahost-*.jar dist/update/update.json dist/update/update.json.sig \
+            "dist/javahost-mod/$VERSION"/javahost-*.jar dist/update/update.json dist/update/update.json.sig \
             dist/javahost-installer-jar/*.jar dist/javahost-installer-macos/*.dmg \
             dist/javahost-installer-windows/*.exe dist/javahost-installer-windows/*.zip
