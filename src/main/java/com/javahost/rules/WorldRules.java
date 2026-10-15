@@ -26,7 +26,11 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Difficulty;
+//? if >=1.21.11 {
 import net.minecraft.world.level.gamerules.GameRules;
+//?} else {
+/*import net.minecraft.world.level.GameRules;
+*///?}
 import net.minecraft.world.level.storage.LevelResource;
 
 /**
@@ -101,7 +105,8 @@ public final class WorldRules {
 	// ---------------------------------------------------------------- reading and writing rules
 
 	public static String get(MinecraftServer s, Rule rule) {
-		GameRules rules = s.getGameRules();
+		GameRules rules = gameRules(s);
+		//? if >=1.21.11 {
 		return switch (rule) {
 			case DIFFICULTY -> s.getWorldData().getDifficulty().getSerializedName();
 			case KEEP_INVENTORY -> String.valueOf(rules.get(GameRules.KEEP_INVENTORY));
@@ -112,16 +117,42 @@ public final class WorldRules {
 			case FIRE_SPREAD -> String.valueOf(rules.get(GameRules.FIRE_SPREAD_RADIUS_AROUND_PLAYER) > 0);
 			case NATURAL_REGEN -> String.valueOf(rules.get(GameRules.NATURAL_HEALTH_REGENERATION));
 			case COORDINATES -> String.valueOf(!rules.get(GameRules.REDUCED_DEBUG_INFO));
-			case SLEEPING -> {
-				int percent = rules.get(GameRules.PLAYERS_SLEEPING_PERCENTAGE);
-				yield percent <= 1 ? "1" : percent <= 50 ? "50" : "100";
-			}
+			case SLEEPING -> sleeping(rules.get(GameRules.PLAYERS_SLEEPING_PERCENTAGE));
 		};
+		//?} else {
+		/*return switch (rule) {
+			case DIFFICULTY -> s.getWorldData().getDifficulty().getSerializedName();
+			case KEEP_INVENTORY -> String.valueOf(rules.getBoolean(GameRules.RULE_KEEPINVENTORY));
+			//? if >=1.21.9 {
+			case PVP -> String.valueOf(rules.getBoolean(GameRules.RULE_PVP));
+			//?} else
+			/^case PVP -> String.valueOf(s.isPvpAllowed());^/
+			case DAYLIGHT -> String.valueOf(rules.getBoolean(GameRules.RULE_DAYLIGHT));
+			case WEATHER -> String.valueOf(rules.getBoolean(GameRules.RULE_WEATHER_CYCLE));
+			case MOB_GRIEFING -> String.valueOf(rules.getBoolean(GameRules.RULE_MOBGRIEFING));
+			case FIRE_SPREAD -> String.valueOf(rules.getBoolean(GameRules.RULE_DOFIRETICK));
+			case NATURAL_REGEN -> String.valueOf(rules.getBoolean(GameRules.RULE_NATURAL_REGENERATION));
+			case COORDINATES -> String.valueOf(!rules.getBoolean(GameRules.RULE_REDUCEDDEBUGINFO));
+			case SLEEPING -> sleeping(rules.getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE));
+		};
+		*///?}
+	}
+
+	private static String sleeping(int percent) {
+		return percent <= 1 ? "1" : percent <= 50 ? "50" : "100";
+	}
+
+	private static GameRules gameRules(MinecraftServer s) {
+		//? if >=26.1 || <1.21.11 {
+		return s.getGameRules();
+		//?} else
+		/*return s.overworld().getGameRules();*/
 	}
 
 	private static void set(MinecraftServer s, Rule rule, String value) {
-		GameRules rules = s.getGameRules();
+		GameRules rules = gameRules(s);
 		boolean on = Boolean.parseBoolean(value);
+		//? if >=1.21.11 {
 		switch (rule) {
 			case DIFFICULTY -> s.setDifficulty(Difficulty.valueOf(value.toUpperCase(java.util.Locale.ROOT)), true);
 			case KEEP_INVENTORY -> rules.set(GameRules.KEEP_INVENTORY, on, s);
@@ -134,6 +165,23 @@ public final class WorldRules {
 			case COORDINATES -> rules.set(GameRules.REDUCED_DEBUG_INFO, !on, s);
 			case SLEEPING -> rules.set(GameRules.PLAYERS_SLEEPING_PERCENTAGE, Integer.parseInt(value), s);
 		}
+		//?} else {
+		/*switch (rule) {
+			case DIFFICULTY -> s.setDifficulty(Difficulty.valueOf(value.toUpperCase(java.util.Locale.ROOT)), true);
+			case KEEP_INVENTORY -> rules.getRule(GameRules.RULE_KEEPINVENTORY).set(on, s);
+			//? if >=1.21.9 {
+			case PVP -> rules.getRule(GameRules.RULE_PVP).set(on, s);
+			//?} else
+			/^case PVP -> s.setPvpAllowed(on);^/
+			case DAYLIGHT -> rules.getRule(GameRules.RULE_DAYLIGHT).set(on, s);
+			case WEATHER -> rules.getRule(GameRules.RULE_WEATHER_CYCLE).set(on, s);
+			case MOB_GRIEFING -> rules.getRule(GameRules.RULE_MOBGRIEFING).set(on, s);
+			case FIRE_SPREAD -> rules.getRule(GameRules.RULE_DOFIRETICK).set(on, s);
+			case NATURAL_REGEN -> rules.getRule(GameRules.RULE_NATURAL_REGENERATION).set(on, s);
+			case COORDINATES -> rules.getRule(GameRules.RULE_REDUCEDDEBUGINFO).set(!on, s);
+			case SLEEPING -> rules.getRule(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE).set(Integer.parseInt(value), s);
+		}
+		*///?}
 	}
 
 	/** "Easy", "On", "One player"... for chat and the page. */
@@ -148,7 +196,7 @@ public final class WorldRules {
 	// ---------------------------------------------------------------- permissions and changes
 
 	public static boolean isHost(MinecraftServer s, ServerPlayer player) {
-		return s.isSingleplayerOwner(player.nameAndId());
+		return com.javahost.compat.Compat.isOwner(s, player);
 	}
 
 	static boolean canEdit(MinecraftServer s, ServerPlayer player) {
@@ -160,7 +208,7 @@ public final class WorldRules {
 		if (s == null) {
 			return;
 		}
-		String who = player.getPlainTextName();
+		String who = com.javahost.compat.Compat.name(player);
 		if (ruleName.equals("__lock")) {
 			if (!isHost(s, player)) {
 				refuse(player, "Only the host can lock or unlock the rules.");
@@ -186,7 +234,7 @@ public final class WorldRules {
 			}
 			UUID target = UUID.fromString(ruleName.substring("__cohost:".length()));
 			ServerPlayer targetPlayer = s.getPlayerList().getPlayer(target);
-			String name = targetPlayer != null ? targetPlayer.getPlainTextName() : saved.coHosts.getOrDefault(target.toString(), "a player");
+			String name = targetPlayer != null ? com.javahost.compat.Compat.name(targetPlayer) : saved.coHosts.getOrDefault(target.toString(), "a player");
 			if (Boolean.parseBoolean(value)) {
 				saved.coHosts.put(target.toString(), name);
 				record(s, who, "made " + name + " a co-host");

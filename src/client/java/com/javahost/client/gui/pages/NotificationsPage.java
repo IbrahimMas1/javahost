@@ -105,7 +105,7 @@ public class NotificationsPage extends Page {
 				case DONE, FAILED -> {
 					if (transfer.stage() == WorldShare.Stage.DONE && transfer.result() != null) {
 						add(button("Show", Icons.FOLDER, FlatButton.Style.SECONDARY,
-								() -> com.mojang.blaze3d.Blaze3D.openPath(transfer.result())), width - 96, buttonY);
+								() -> com.javahost.client.compat.ClientCompat.openPath(transfer.result())), width - 96, buttonY);
 					}
 					FlatButton dismiss = add(new FlatButton(18, 16, Component.literal("Dismiss"), FlatButton.Style.GHOST, Icons.CROSS, b -> {
 						WorldShare.dismiss(transfer);
@@ -204,7 +204,7 @@ public class NotificationsPage extends Page {
 	/** The one thing you'd want to do with this notification, or null if it's no longer actionable. */
 	private FlatButton action(Item item) {
 		return switch (item.kind()) {
-			case INVITE -> item.payload() instanceof Friends.Invite invite && !invite.expired()
+			case INVITE -> item.payload() instanceof Friends.Invite invite && !invite.expired() && invite.sameMinecraft()
 					? button("Join", Icons.JOIN, FlatButton.Style.PRIMARY, () -> {
 						Notifications.remove(item);
 						InviteFlow.join(invite);

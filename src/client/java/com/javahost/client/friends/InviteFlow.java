@@ -84,7 +84,7 @@ public final class InviteFlow {
 
 	/** A Join button makes sense: they're hosting and we aren't already in their world. */
 	public static boolean joinable(UUID friend) {
-		return Presence.of(friend).map(Presence.Status::hosting).orElse(false) && !playingTogether(friend);
+		return Presence.of(friend).map(Presence.Status::hosting).orElse(false) && Presence.sameMinecraft(friend) && !playingTogether(friend);
 	}
 
 	/** True while an invite is on its way (to disable the button). */
@@ -104,7 +104,7 @@ public final class InviteFlow {
 	public static boolean canInvite() {
 		Minecraft minecraft = Minecraft.getInstance();
 		IntegratedServer server = minecraft.getSingleplayerServer();
-		return server != null && minecraft.player != null && server.isSingleplayerOwner(minecraft.player.nameAndId());
+		return server != null && minecraft.player != null && com.javahost.compat.Compat.isOwner(server, minecraft.player);
 	}
 
 	// ================================================================ host side
@@ -307,7 +307,7 @@ public final class InviteFlow {
 			expectedHost = null;
 			if (unconfirmed) {
 				// We're still in the last world tried, and it never proved it's theirs: don't stay.
-				minecraft.disconnectFromWorld(Component.literal("Couldn't confirm this world"));
+				com.javahost.client.compat.ClientCompat.leaveWorld(Component.literal("Couldn't confirm this world"));
 				minecraft.gui.setScreen(new TitleScreen());
 			}
 			Toasts.notify("Couldn't join " + joiningHost, lastProblem != null ? lastProblem
@@ -318,7 +318,7 @@ public final class InviteFlow {
 		String address = joinQueue.get(joinIndex);
 		if (minecraft.level != null) {
 			// Leave (and save) whatever world we're in first.
-			minecraft.disconnectFromWorld(Component.literal("Joining a friend"));
+			com.javahost.client.compat.ClientCompat.leaveWorld(Component.literal("Joining a friend"));
 		}
 		attemptStarted = System.currentTimeMillis();
 		sawConnecting = false;

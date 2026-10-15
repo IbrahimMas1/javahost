@@ -12,7 +12,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /** A friend's face, a question, and two buttons: used for invites ("Join") and friend requests ("Accept"). */
-public class FriendPopup extends Screen {
+public class FriendPopup extends BaseScreen {
 	private final Screen behind;
 	private final UUID player;
 	private final String headline;
@@ -72,6 +72,7 @@ public class FriendPopup extends Screen {
 
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+		background(g, mouseX, mouseY, a);
 		g.fill(0, 0, width, height, Theme.SCRIM_GLASS);
 		Draw.glass(g, boxX, boxY, boxW, boxH, 10);
 

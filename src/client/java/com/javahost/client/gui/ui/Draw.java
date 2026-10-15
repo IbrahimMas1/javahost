@@ -80,11 +80,51 @@ public final class Draw {
 
 	/** Text drawn {@code scale} times larger, with its top-left at (x, y). */
 	public static void scaledText(GuiGraphicsExtractor g, String text, int x, int y, float scale, int color) {
-		g.pose().pushMatrix();
-		g.pose().translate(x, y);
-		g.pose().scale(scale, scale);
+		push(g);
+		translate(g, x, y);
+		scale(g, scale, scale);
 		g.text(font(), text, 0, 0, color, false);
+		pop(g);
+	}
+
+	// ---------------------------------------------------------------- transforms (Matrix3x2f from 1.21.6, PoseStack before)
+
+	public static void push(GuiGraphicsExtractor g) {
+		//? if >=1.21.6 {
+		g.pose().pushMatrix();
+		//?} else
+		/*g.pose().pushPose();*/
+	}
+
+	public static void pop(GuiGraphicsExtractor g) {
+		//? if >=1.21.6 {
 		g.pose().popMatrix();
+		//?} else
+		/*g.pose().popPose();*/
+	}
+
+	public static void translate(GuiGraphicsExtractor g, float x, float y) {
+		//? if >=1.21.6 {
+		g.pose().translate(x, y);
+		//?} else
+		/*g.pose().translate(x, y, 0);*/
+	}
+
+	public static void scale(GuiGraphicsExtractor g, float x, float y) {
+		//? if >=1.21.6 {
+		g.pose().scale(x, y);
+		//?} else
+		/*g.pose().scale(x, y, 1);*/
+	}
+
+	/** Where (x, y) in the current transform ends up on screen. */
+	public static org.joml.Vector2f toScreen(GuiGraphicsExtractor g, float x, float y) {
+		//? if >=1.21.6 {
+		return g.pose().transformPosition(new org.joml.Vector2f(x, y));
+		//?} else {
+		/*org.joml.Vector4f v = g.pose().last().pose().transform(new org.joml.Vector4f(x, y, 0, 1));
+		return new org.joml.Vector2f(v.x, v.y);
+		*///?}
 	}
 
 	/** Shortens text with "…" so it fits in {@code maxWidth} pixels. */
@@ -128,8 +168,8 @@ public final class Draw {
 
 	/** Registers an area (in the current drawing transform) whose text was cut short. */
 	public static void truncated(GuiGraphicsExtractor g, int x, int y, int w, int h, String fullText) {
-		org.joml.Vector2f a = g.pose().transformPosition(new org.joml.Vector2f(x, y));
-		org.joml.Vector2f b = g.pose().transformPosition(new org.joml.Vector2f(x + w, y + h));
+		org.joml.Vector2f a = toScreen(g, x, y);
+		org.joml.Vector2f b = toScreen(g, x + w, y + h);
 		float x0 = Math.max(Math.min(a.x, b.x), clipX0);
 		float y0 = Math.max(Math.min(a.y, b.y), clipY0);
 		float x1 = Math.min(Math.max(a.x, b.x), clipX1);
@@ -177,7 +217,14 @@ public final class Draw {
 			return;
 		}
 		if (System.currentTimeMillis() - hoveredSince >= HOVER_DELAY_MS) {
+			//? if >=1.21.6 {
 			g.setTooltipForNextFrame(font(), font().split(Component.literal(found), 220), mouseX, mouseY);
+			//?} else {
+			/*net.minecraft.client.gui.screens.Screen screen = net.minecraft.client.Minecraft.getInstance().screen;
+			if (screen != null) {
+				screen.setTooltipForNextRenderPass(font().split(Component.literal(found), 220));
+			}
+			*///?}
 		}
 	}
 

@@ -33,6 +33,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.ServerStatusPinger;
 import net.minecraft.network.chat.Component;
+//? if >=1.21.11
 import net.minecraft.server.network.EventLoopGroupHolder;
 
 /**
@@ -310,13 +311,17 @@ public class DiscoverPage extends Page {
 		PINGS.put(world.host(), data);
 		PING_STARTED.put(world.host(), System.currentTimeMillis());
 		ServerStatusPinger using = pinger;
+		//? if >=1.21.11
 		boolean nativeTransport = minecraft.options.useNativeTransport();
 		IoExecutor.NET.execute(() -> {
 			try {
 				using.pingServer(data, () -> {
 				}, () -> data.setState(data.players == null || data.protocol < 0 ? ServerData.State.UNREACHABLE
 						: data.protocol == SharedConstants.getCurrentVersion().protocolVersion() ? ServerData.State.SUCCESSFUL
+						//? if >=1.21.11 {
 						: ServerData.State.INCOMPATIBLE), EventLoopGroupHolder.remote(nativeTransport));
+						//?} else
+						/*: ServerData.State.INCOMPATIBLE));*/
 			} catch (Exception | LinkageError e) {
 				com.javahost.JavaHost.LOGGER.warn("[Public] couldn't ping {}", world.relay(), e);
 				data.setState(ServerData.State.UNREACHABLE);

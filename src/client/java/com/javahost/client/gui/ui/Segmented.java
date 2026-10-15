@@ -38,13 +38,23 @@ public class Segmented<T> extends AbstractWidget {
 	}
 
 	@Override
+	//? if >=1.21.9 {
 	public void onClick(MouseButtonEvent event, boolean doubleClick) {
+	//?} else {
+	/*public void onClick(double x, double y) {
+		var event = new MouseButtonEvent(x, y, 0);
+	*///?}
 		int index = (int) ((event.x() - getX()) / segmentWidth());
 		select(Math.max(0, Math.min(options.size() - 1, index)));
 	}
 
 	@Override
+	//? if >=1.21.9 {
 	public boolean keyPressed(KeyEvent event) {
+	//?} else {
+	/*public boolean keyPressed(int key, int scancode, int modifiers) {
+		var event = new KeyEvent(key, scancode, modifiers);
+	*///?}
 		int index = options.indexOf(selected);
 		if (event.isLeft() && index > 0) {
 			select(index - 1);

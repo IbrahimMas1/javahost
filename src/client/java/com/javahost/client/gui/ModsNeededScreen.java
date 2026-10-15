@@ -21,7 +21,7 @@ import net.minecraft.network.chat.Component;
  * "AlexPlays's world uses mods": the mods a world needs that we don't have, with one button to download the very
  * same versions from Modrinth, switch to them when Minecraft restarts, and come straight back into the world.
  */
-public class ModsNeededScreen extends Screen {
+public class ModsNeededScreen extends BaseScreen {
 	private static final int ROW = 18;
 	private static final int MAX_ROWS = 6;
 
@@ -79,7 +79,7 @@ public class ModsNeededScreen extends Screen {
 		}
 		if (stage == Stage.ASK && !elsewhere.isEmpty()) {
 			addRenderableWidget(new FlatButton(boxX + boxW - 16 - 90, boxY + boxH - 50, 90, 14, Component.literal("Mods folder"),
-					FlatButton.Style.GHOST, Icons.FOLDER, b -> com.mojang.blaze3d.Blaze3D.openPath(
+					FlatButton.Style.GHOST, Icons.FOLDER, b -> com.javahost.client.compat.ClientCompat.openPath(
 							net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("mods"))));
 		}
 	}
@@ -115,6 +115,7 @@ public class ModsNeededScreen extends Screen {
 
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+		background(g, mouseX, mouseY, a);
 		g.fill(0, 0, width, height, Theme.SCRIM_GLASS);
 		Draw.glass(g, boxX, boxY, boxW, boxH, 10);
 		Icons.PACKAGE.draw(g, boxX + 16, boxY + 16, 18, Theme.ACCENT);
@@ -176,7 +177,12 @@ public class ModsNeededScreen extends Screen {
 	}
 
 	@Override
+	//? if >=1.21.9 {
 	public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+	//?} else {
+	/*public boolean mouseClicked(double x, double y, int mouseButton) {
+		var event = new com.javahost.client.compat.input.MouseButtonEvent(x, y, mouseButton);
+	*///?}
 		// A mod that isn't on Modrinth: its row opens the page it came from (after Minecraft's usual link check).
 		if (stage == Stage.ASK && event.y() >= listY && event.x() >= boxX + 12 && event.x() < boxX + boxW - 12) {
 			int index = (int) ((event.y() - listY) / ROW);
@@ -188,7 +194,10 @@ public class ModsNeededScreen extends Screen {
 				}
 			}
 		}
+		//? if >=1.21.9 {
 		return super.mouseClicked(event, doubleClick);
+		//?} else
+		/*return super.mouseClicked(x, y, mouseButton);*/
 	}
 
 	@Override

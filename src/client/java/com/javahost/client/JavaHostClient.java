@@ -25,6 +25,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+//? if >=1.21.6
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
@@ -40,7 +41,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 public class JavaHostClient implements ClientModInitializer {
+	//? if >=1.21.9 {
 	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(JavaHost.MOD_ID, "javahost"));
+	//?} else
+	/*private static final String CATEGORY = "key.category.javahost.javahost";*/
 	public static final KeyMapping PUSH_TO_TALK = new KeyMapping("key.javahost.push_to_talk", InputConstants.KEY_V, CATEGORY);
 	public static final KeyMapping OPEN_MENU = new KeyMapping("key.javahost.menu", InputConstants.KEY_J, CATEGORY);
 	public static final KeyMapping TOGGLE_MUTE = new KeyMapping("key.javahost.mute", InputConstants.KEY_M, CATEGORY);
@@ -154,16 +158,20 @@ public class JavaHostClient implements ClientModInitializer {
 
 		// Tell the host when a friend joins their world.
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-			if (HostController.isHosting() && !server.isSingleplayerOwner(handler.player.nameAndId())) {
+			if (HostController.isHosting() && !com.javahost.compat.Compat.isOwner(server, handler.player)) {
 				UUID id = handler.player.getUUID();
-				String name = handler.player.getPlainTextName();
+				String name = com.javahost.compat.Compat.name(handler.player);
 				Toasts.player(id, name + " joined your world", "Say hi!");
 				com.javahost.client.host.WorldBackups.onFriendJoined(server);
 			}
 		});
 
+		//? if >=1.21.6 {
 		HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(JavaHost.MOD_ID, "status"), (graphics, delta) -> drawHud(graphics));
+		//?} else
+		/*net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback.EVENT.register((graphics, delta) -> drawHud(graphics));*/
 		addMenuButtons();
+		DevSmoke.register();
 	}
 
 	private static void addMenuButtons() {
@@ -202,7 +210,7 @@ public class JavaHostClient implements ClientModInitializer {
 
 	private static void drawHud(GuiGraphicsExtractor g) {
 		Minecraft minecraft = Minecraft.getInstance();
-		if (minecraft.gui.hud.isHidden()) {
+		if (com.javahost.client.compat.ClientCompat.hudHidden()) {
 			return;
 		}
 		Config config = Config.get();

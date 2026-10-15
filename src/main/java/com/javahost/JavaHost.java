@@ -52,9 +52,9 @@ public class JavaHost implements ModInitializer {
 
 		// Backstop for the login check in PlayerListMixin (e.g. if the friends list changed in between).
 		net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-			String refusal = JoinGate.refusal(server, handler.player.nameAndId());
+			String refusal = JoinGate.refusal(server, handler.player.getUUID(), com.javahost.compat.Compat.isOwner(server, handler.player));
 			if (refusal != null) {
-				JoinGate.log(handler.player.getPlainTextName(), refusal);
+				JoinGate.log(com.javahost.compat.Compat.name(handler.player), refusal);
 				handler.disconnect(net.minecraft.network.chat.Component.literal(refusal));
 			}
 		});

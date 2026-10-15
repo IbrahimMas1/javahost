@@ -32,7 +32,7 @@ public class HomePage extends Page {
 
 	private boolean canHost() {
 		IntegratedServer server = minecraft.getSingleplayerServer();
-		return server != null && minecraft.player != null && server.isSingleplayerOwner(minecraft.player.nameAndId());
+		return server != null && minecraft.player != null && com.javahost.compat.Compat.isOwner(server, minecraft.player);
 	}
 
 	private String lastState = "";

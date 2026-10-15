@@ -13,7 +13,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.client.Options;
 import net.minecraft.client.PrioritizeChunkUpdates;
+//? if >=1.21.2 {
 import net.minecraft.server.level.ParticleStatus;
+//?} else
+/*import net.minecraft.client.ParticleStatus;*/
 
 /**
  * One-click video settings tuned for frame rate, keeping the look close to vanilla. The previous
@@ -29,7 +32,10 @@ public final class QuickTune {
 	private static Map<String, Tweak<?>> tweaks() {
 		Map<String, Tweak<?>> map = new LinkedHashMap<>();
 		// The preset comes first: restoring it re-applies the preset, then the individual values follow.
+		//? if >=1.21.11 {
 		add(map, new Tweak<>("graphicsPreset", Options::graphicsPreset, current -> current));
+		//?} else
+		/*add(map, new Tweak<>("graphicsMode", Options::graphicsMode, current -> current));*/
 		add(map, new Tweak<>("renderDistance", Options::renderDistance, current -> Math.min(current, 12)));
 		add(map, new Tweak<>("simulationDistance", Options::simulationDistance, current -> Math.min(current, 8)));
 		add(map, new Tweak<>("cloudStatus", Options::cloudStatus, current -> CloudStatus.OFF));
@@ -37,8 +43,10 @@ public final class QuickTune {
 		add(map, new Tweak<>("particles", Options::particles,
 				current -> current == ParticleStatus.MINIMAL ? current : ParticleStatus.DECREASED));
 		add(map, new Tweak<>("biomeBlendRadius", Options::biomeBlendRadius, current -> Math.min(current, 1)));
+		//? if >=1.21.11 {
 		add(map, new Tweak<>("improvedTransparency", Options::improvedTransparency, current -> false));
 		add(map, new Tweak<>("chunkSectionFadeInTime", Options::chunkSectionFadeInTime, current -> 0.0));
+		//?}
 		add(map, new Tweak<>("prioritizeChunkUpdates", Options::prioritizeChunkUpdates, current -> PrioritizeChunkUpdates.NONE));
 		add(map, new Tweak<>("entityDistanceScaling", Options::entityDistanceScaling, current -> Math.min(current, 0.75)));
 		add(map, new Tweak<>("enableVsync", Options::enableVsync, current -> false));

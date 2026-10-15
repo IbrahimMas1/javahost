@@ -32,9 +32,15 @@ public class FlatButton extends Button {
 	}
 
 	@Override
+	//? if >=1.21.9 {
 	public void onPress(net.minecraft.client.input.InputWithModifiers input) {
+	//?} else
+	/*public void onPress() {*/
 		pressedAt = System.currentTimeMillis();
+		//? if >=1.21.9 {
 		super.onPress(input);
+		//?} else
+		/*super.onPress();*/
 	}
 
 	/** Shows just the icon; the label is still the button's name for narration (and tests). */
@@ -49,7 +55,13 @@ public class FlatButton extends Button {
 	}
 
 	@Override
+	//? if >=26.1 {
 	protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	//?} else if >=1.21.11 {
+	/*protected void renderContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	*///?} else {
+	/*protected void renderWidget(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	*///?}
 		hover = Draw.approach(hover, active && isHoveredOrFocused() ? 1 : 0, 0.35f);
 		int x = getX();
 		int y = getY();

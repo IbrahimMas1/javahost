@@ -172,9 +172,8 @@ final class MultiplayerTest {
 		config.port = 25599;
 
 		context.runOnClient(mc -> {
-			var format = net.minecraft.SharedConstants.getCurrentVersion().packVersion(net.minecraft.server.packs.PackType.CLIENT_RESOURCES);
 			writeZip(mc.getResourcePackDirectory().resolve("host-pack.zip"), Map.of("pack.mcmeta",
-					"{\"pack\":{\"description\":\"Host's pack\",\"min_format\":" + format.major() + ",\"max_format\":" + format.major() + "}}"));
+					TestCompat.packMcmeta("Host's pack")));
 			mc.getResourcePackRepository().reload();
 			List<String> selected = new ArrayList<>(mc.getResourcePackRepository().getSelectedIds());
 			selected.add("file/host-pack.zip");
@@ -185,13 +184,13 @@ final class MultiplayerTest {
 		// Counts real joins by Guest, to prove refused players never get into the world at all.
 		java.util.concurrent.atomic.AtomicInteger guestJoins = new java.util.concurrent.atomic.AtomicInteger();
 		net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-			if (handler.player.getPlainTextName().equals("Guest")) {
+			if (com.javahost.compat.Compat.name(handler.player).equals("Guest")) {
 				guestJoins.incrementAndGet();
 			}
 		});
 		int joinsBeforeRefusal = -1;
 		try (TestSingleplayerContext world = context.worldBuilder().create()) {
-			world.getConnection().waitForChunksRender();
+			TestCompat.waitForChunks(world);
 			// Test accounts are offline accounts; real players have Microsoft accounts and keep verification on.
 			context.runOnClient(mc -> mc.getSingleplayerServer().setUsesAuthentication(false));
 
@@ -235,11 +234,11 @@ final class MultiplayerTest {
 			context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.FRIENDS));
 			context.runOnClient(mc -> check(!HostController.isHosting(), "world not open yet before inviting"));
 			// As if Minecraft's own "Open to LAN" had been used earlier with "Allow commands" on.
-			context.runOnClient(mc -> mc.getSingleplayerServer().setGuestCommandAccess(true));
+			context.runOnClient(mc -> TestCompat.setGuestCommands(mc.getSingleplayerServer(), true));
 			context.runOnClient(mc -> InviteFlow.invite(guestFriend));
 			context.waitFor(mc -> Friends.inviteStatus(guestFriend.id()).map(st -> st.state() == Friends.InviteState.DELIVERED).orElse(false), 2 * ONE_MINUTE);
 			context.runOnClient(mc -> check(HostController.isHosting(), "inviting opened the world automatically and sent the invite"));
-			context.runOnClient(mc -> check(!mc.getSingleplayerServer().getGuestCommandAccess(), "guests get no commands, even after a vanilla Open to LAN with commands on"));
+			context.runOnClient(mc -> check(!TestCompat.guestCommands(mc.getSingleplayerServer()), "guests get no commands, even after a vanilla Open to LAN with commands on"));
 			check(true, "the invite shows Delivered (the guest's game confirmed it)");
 			context.waitTicks(5);
 			context.takeScreenshot("mp-host-friends-invited");
@@ -351,15 +350,21 @@ final class MultiplayerTest {
 			waitForShared(context, "guest-invite-done", 3 * ONE_MINUTE);
 
 			context.waitFor(mc -> !Connectivity.isProbing(), ONE_MINUTE);
-			context.waitFor(mc -> Connectivity.relayDomain() != null, 2 * ONE_MINUTE);
-			check(true, "relay is up at " + Connectivity.relayDomain());
+			// The relay mod only loads in these tests on 26.1+; older versions test the direct routes.
+			boolean relay = com.javahost.client.host.E4mcCompat.isInstalled();
+			if (relay) {
+				context.waitFor(mc -> Connectivity.relayDomain() != null, 2 * ONE_MINUTE);
+				check(true, "relay is up at " + Connectivity.relayDomain());
+			}
 			for (Connectivity.Route route : Connectivity.routes()) {
 				appendResult("route " + route.name() + ": " + route.state() + " " + route.invite() + " | " + route.detail());
 			}
 
 			Properties addresses = new Properties();
 			addresses.setProperty("lan", Connectivity.lanIp() + ":" + HostController.port());
-			addresses.setProperty("relay", Connectivity.relayDomain());
+			if (relay) {
+				addresses.setProperty("relay", Connectivity.relayDomain());
+			}
 			Connectivity.routes().stream().filter(r -> r.name().equals("IPv6") && r.invite() != null).findFirst()
 					.ifPresent(r -> addresses.setProperty("ipv6", com.javahost.net.InviteCode.decode(r.invite())));
 			StringBuilder text = new StringBuilder();
@@ -710,7 +715,9 @@ final class MultiplayerTest {
 		context.takeScreenshot("mp-guest-world-received");
 		context.setScreen(() -> null);
 		checkReceived(context, offer);
-		check(Files.exists(offer.result().resolve("players").resolve("data").resolve(host.id() + ".dat")), "the host's own player is kept in the copy");
+		// players/data/ on 26.x, playerdata/ before.
+		check(Files.exists(offer.result().resolve("players").resolve("data").resolve(host.id() + ".dat"))
+				|| Files.exists(offer.result().resolve("playerdata").resolve(host.id() + ".dat")), "the host's own player is kept in the copy");
 		writeShared("guest-got-world", "ok");
 
 		WorldShare.Transfer unwanted = awaitOffer(context, host.id());
@@ -774,7 +781,7 @@ final class MultiplayerTest {
 			for (var child : mc.gui.screen().children()) {
 				if (child instanceof net.minecraft.client.gui.components.AbstractButton button && button.visible && button.active
 						&& button.getMessage().getString().equals(label)) {
-					button.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
+					TestCompat.press(button);
 					return true;
 				}
 			}
@@ -996,7 +1003,9 @@ final class MultiplayerTest {
 		if (addresses.getProperty("ipv6") != null) {
 			routes.put("ipv6", addresses.getProperty("ipv6"));
 		}
-		routes.put("relay", addresses.getProperty("relay"));
+		if (addresses.getProperty("relay") != null) {
+			routes.put("relay", addresses.getProperty("relay"));
+		}
 
 		VoiceClient.setTestTone(true);
 		try {
@@ -1030,7 +1039,9 @@ final class MultiplayerTest {
 			check(turnedAway.contains("just for the host's friends"), "a non-friend is turned away from a friends-only world");
 			context.takeScreenshot("mp-guest-turned-away");
 			context.runOnClient(mc -> mc.gui.setScreen(new TitleScreen()));
-			visitPublicWorld(context, hostFriend.id());
+			if (routes.containsKey("relay")) {
+				visitPublicWorld(context, hostFriend.id()); // public worlds are relay-only
+			}
 			writeShared("guest-done", "PASS " + String.join(",", routes.keySet()));
 		} catch (Throwable t) {
 			writeShared("guest-done", "FAIL " + t.getMessage());
@@ -1065,7 +1076,7 @@ final class MultiplayerTest {
 		check(settings.contains(SHADER_SETTINGS), route + ": host's shader and its settings are active");
 
 		UUID hostId = context.computeOnClient(mc -> mc.level.players().stream()
-				.filter(p -> p.getPlainTextName().equals("Host")).map(AbstractClientPlayer::getUUID).findFirst().orElse(null));
+				.filter(p -> com.javahost.compat.Compat.name(p).equals("Host")).map(AbstractClientPlayer::getUUID).findFirst().orElse(null));
 		check(hostId != null, route + ": guest can see the host player");
 		int before = VoiceClient.audibleFramesFrom(hostId);
 		context.waitFor(mc -> VoiceClient.audibleFramesFrom(hostId) > before + 25, ONE_MINUTE);

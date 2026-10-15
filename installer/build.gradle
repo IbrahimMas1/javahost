@@ -1,5 +1,6 @@
 // The JavaHost installer: a small desktop app that installs Fabric, Fabric API, JavaHost and optional
-// mods into a separate "JavaHost" launcher profile.
+// mods for the Minecraft version the player picks, into a separate launcher profile. It downloads the
+// JavaHost build for that version from the latest GitHub release (checked against the signed update.json).
 //   ./gradlew :installer:fatJar        -> runnable jar (needs Java installed)
 //   ./gradlew :installer:jpackageMac   -> macOS .dmg with its own Java (no install needed)
 //   ./gradlew :installer:jpackageWindows (on Windows) -> .exe installer
@@ -13,7 +14,6 @@ repositories {
 }
 
 def modVersion = rootProject.version.toString()
-def minecraftVersion = rootProject.property("minecraft_version").toString()
 
 dependencies {
 	implementation "com.google.code.gson:gson:2.14.0"
@@ -45,23 +45,17 @@ def generatedRes = layout.buildDirectory.dir("generated-res")
 def writeInstallerProperties = tasks.register("writeInstallerProperties") {
 	def out = generatedRes.map { it.file("com/javahost/installer/installer.properties") }
 	inputs.property("modVersion", modVersion)
-	inputs.property("minecraftVersion", minecraftVersion)
 	outputs.file(out)
 	doLast {
 		def file = out.get().asFile
 		file.parentFile.mkdirs()
-		file.text = "mod_version=${modVersion}\nminecraft_version=${minecraftVersion}\n"
+		file.text = "mod_version=${modVersion}\n"
 	}
 }
 
 processResources {
 	dependsOn writeInstallerProperties
 	from(generatedRes)
-	// The mod itself travels inside the installer.
-	from(rootProject.tasks.named("jar")) {
-		into "com/javahost/installer"
-		rename { "javahost.jar" }
-	}
 }
 
 def fatJar = tasks.register("fatJar", Jar) {
@@ -89,7 +83,7 @@ def jpackageCommon = { String type, String icon ->
 		"--name", "JavaHost Installer",
 		"--app-version", modVersion,
 		"--vendor", "JavaHost",
-		"--description", "Installs JavaHost for Minecraft ${minecraftVersion}",
+		"--description", "Installs JavaHost for Minecraft",
 		"--input", layout.buildDirectory.dir("dist").get().asFile.absolutePath,
 		"--main-jar", "JavaHost-Installer-${modVersion}.jar",
 		"--main-class", "com.javahost.installer.InstallerApp",
@@ -132,8 +126,9 @@ tasks.register("jpackageAppImage", Exec) {
 
 test {
 	useJUnitPlatform()
-	// The installer tests download real files from Fabric and Modrinth.
-	systemProperty "javahost.installer.embeddedMod", rootProject.tasks.named("jar").get().archiveFile.get().asFile.absolutePath
+	// The installer tests download real files from Fabric and Modrinth, and install the 26.3 build from a test release.
+	dependsOn project(":26.3").tasks.named("jar")
+	systemProperty "javahost.test.modJar", project(":26.3").tasks.named("jar").get().archiveFile.get().asFile.absolutePath
 	testLogging {
 		events "passed", "failed", "skipped"
 		showStandardStreams = true

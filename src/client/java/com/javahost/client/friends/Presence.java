@@ -42,7 +42,8 @@ public final class Presence {
 
 		/** The same shape as an invite, so joining a hosting friend reuses the invite join flow. */
 		public Friends.Invite asInvite(String name) {
-			return new Friends.Invite(player, name, world, routes, hostIp, System.currentTimeMillis() + 60_000);
+			return new Friends.Invite(player, name, world, routes, hostIp, System.currentTimeMillis() + 60_000,
+					minecraftOf(player).orElse(com.javahost.client.compat.ClientCompat.minecraftVersion()));
 		}
 	}
 
@@ -54,6 +55,8 @@ public final class Presence {
 	private static final Map<UUID, Status> LATEST = new HashMap<>();
 	/** The JavaHost version each friend last reported (kept even when they go offline). */
 	private static final Map<UUID, String> VERSIONS = new HashMap<>();
+	/** The Minecraft version each friend plays (1.10+; older JavaHost only ran on 26.3). */
+	private static final Map<UUID, String> MINECRAFT = new HashMap<>();
 	/** How many mods each hosting friend's world needs (1.9+; 0 = none, or an older JavaHost). */
 	private static final Map<UUID, Integer> MODS = new HashMap<>();
 	private static Mailbox stream;
@@ -119,6 +122,22 @@ public final class Presence {
 		return diff < 0 ? "Needs update (" + theirs + ")" : diff > 0 ? "You need to update (they have " + theirs + ")" : null;
 	}
 
+	/** The Minecraft version a friend plays, if they've told us. */
+	public static Optional<String> minecraftOf(UUID friend) {
+		return Optional.ofNullable(MINECRAFT.get(friend));
+	}
+
+	/** False when the friend plays another Minecraft version, so their worlds can't be joined from here. */
+	public static boolean sameMinecraft(UUID friend) {
+		String theirs = MINECRAFT.get(friend);
+		return theirs == null || theirs.equals(com.javahost.client.compat.ClientCompat.minecraftVersion());
+	}
+
+	/** The friend's Minecraft version when it isn't ours (so their worlds can't be joined from here), else null. */
+	public static String otherMinecraft(UUID friend) {
+		return sameMinecraft(friend) ? null : MINECRAFT.get(friend);
+	}
+
 	/** How many mods a hosting friend's world needs (0 if none). */
 	public static int modsOf(UUID friend) {
 		return of(friend).filter(Status::hosting).map(s -> MODS.getOrDefault(friend, 0)).orElse(0);
@@ -168,6 +187,7 @@ public final class Presence {
 	private static JsonObject currentState(Minecraft minecraft) {
 		JsonObject state = new JsonObject();
 		state.addProperty("jv", JavaHost.VERSION);
+		state.addProperty("mc", com.javahost.client.compat.ClientCompat.minecraftVersion());
 		IntegratedServer server = minecraft.getSingleplayerServer();
 		if (Config.get().appearOffline) {
 			state.addProperty("state", State.OFFLINE.name());
@@ -264,6 +284,9 @@ public final class Presence {
 			if (body.has("jv")) {
 				VERSIONS.put(from, body.get("jv").getAsString());
 			}
+			// JavaHost 1.9 and older don't say, and only ran on 26.3.
+			String mc = body.has("mc") ? body.get("mc").getAsString() : "26.3";
+			MINECRAFT.put(from, mc.matches("[0-9][0-9A-Za-z.+-]{0,23}") ? mc : "?");
 			MODS.put(from, body.has("mods") ? Math.max(0, Math.min(999, body.get("mods").getAsInt())) : 0);
 			boolean fresh = System.currentTimeMillis() - ts < 2 * 60 * 1000L;
 			boolean startedHosting = status.hosting() && (previous == null || !previous.hosting());

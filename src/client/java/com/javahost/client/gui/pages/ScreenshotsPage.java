@@ -122,7 +122,7 @@ public class ScreenshotsPage extends Page {
 		}), 0, 0);
 		// The rest of the row, so it ends at the page's right edge at every width.
 		add(new FlatButton(width - tabsW - 6, 18, Component.literal("Open folder"), FlatButton.Style.GHOST, Icons.PACKAGE,
-				b -> com.mojang.blaze3d.Blaze3D.openPath(view.equals("FRIENDS") ? Screenshots.fromFriendsDir() : Screenshots.dir())), tabsW + 6, 0);
+				b -> com.javahost.client.compat.ClientCompat.openPath(view.equals("FRIENDS") ? Screenshots.fromFriendsDir() : Screenshots.dir())), tabsW + 6, 0);
 
 		files = currentFiles();
 		// Worked out once here rather than for every thumbnail on every frame.

@@ -1,4 +1,4 @@
-# Builds the mod and the installers for every platform.
+# Builds the mod (once per supported Minecraft version) and the installers for every platform.
 # Download the results from the run's "Artifacts" section.
 name: Build
 
@@ -18,11 +18,11 @@ jobs:
           distribution: temurin
           java-version: 25
       - name: Build
-        run: ./gradlew build test :installer:fatJar --no-configuration-cache
+        run: ./gradlew buildAll :installer:fatJar --no-configuration-cache
       - uses: actions/upload-artifact@v7
         with:
           name: javahost-mod
-          path: build/libs/javahost-*.jar
+          path: build/libs/*/javahost-*.jar
       - uses: actions/upload-artifact@v7
         with:
           name: javahost-installer-jar
@@ -104,11 +104,9 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           git tag -l --format='%(contents)' "$GITHUB_REF_NAME" | sed '/^-----BEGIN/,$d' > notes.txt
-          MC=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2)
-          API=$(grep '^fabric_api_version=' gradle.properties | cut -d= -f2)
           PROTOCOL=$(grep -o 'PROTOCOL = [0-9]*' src/main/java/com/javahost/JavaHost.java | grep -o '[0-9]*$')
           MINIMUM=$(grep '^minimum_version=' gradle.properties | cut -d= -f2)
-          java scripts/MakeUpdateManifest.java dist/update "$VERSION" "$PROTOCOL" "$MC" "$API" "dist/javahost-mod/javahost-$VERSION.jar" notes.txt "$MINIMUM"
+          java scripts/MakeUpdateManifest.java dist/update "$VERSION" "$PROTOCOL" dist/javahost-mod stonecutter.properties.toml notes.txt "$MINIMUM"
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -116,6 +114,6 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           shopt -s nullglob
           gh release create "$GITHUB_REF_NAME" --title "JavaHost $VERSION" --notes-file notes.txt \
-            "dist/javahost-mod/javahost-$VERSION.jar" dist/update/update.json dist/update/update.json.sig \
+            dist/javahost-mod/javahost-*.jar dist/update/update.json dist/update/update.json.sig \
             dist/javahost-installer-jar/*.jar dist/javahost-installer-macos/*.dmg \
             dist/javahost-installer-windows/*.exe dist/javahost-installer-windows/*.zip

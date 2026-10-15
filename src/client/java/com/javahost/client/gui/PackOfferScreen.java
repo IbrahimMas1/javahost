@@ -16,7 +16,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /** Asks a guest whether to use the packs and shader the host is sharing. */
-public class PackOfferScreen extends Screen {
+public class PackOfferScreen extends BaseScreen {
 	private static final int ROW = 20;
 	private final List<PackInfo> packs;
 	private final long downloadBytes;
@@ -66,6 +66,7 @@ public class PackOfferScreen extends Screen {
 
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+		background(g, mouseX, mouseY, a);
 		g.fill(0, 0, width, height, Theme.SCRIM_GLASS);
 		Draw.glass(g, boxX, boxY, boxW, boxH, 10);
 

@@ -11,6 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.toasts.Toast;
+//? if >=1.21.2
 import net.minecraft.client.gui.components.toasts.ToastManager;
 
 /** JavaHost-styled pop-ups in the corner: dark card, icon or player face, title and a line of text. */
@@ -57,7 +58,7 @@ public final class Toasts {
 					return;
 				}
 			}
-			JavaHostToast showing = minecraft.gui.toastManager().getToast(JavaHostToast.class, key);
+			JavaHostToast showing = toasts(minecraft).getToast(JavaHostToast.class, key);
 			if (showing != null) {
 				showing.update(title, message, face);
 				return;
@@ -69,10 +70,20 @@ public final class Toasts {
 					WAITING.poll(); // keep the newest few
 				}
 			} else {
-				minecraft.gui.toastManager().addToast(toast);
+				toasts(minecraft).addToast(toast);
 			}
 		});
 	}
+
+	//? if >=1.21.2 {
+	private static ToastManager toasts(Minecraft minecraft) {
+		return minecraft.gui.toastManager();
+	}
+	//?} else {
+	/*private static net.minecraft.client.gui.components.toasts.ToastComponent toasts(Minecraft minecraft) {
+		return minecraft.getToasts();
+	}
+	*///?}
 
 	private static boolean menuOpen(Minecraft minecraft) {
 		return minecraft.gui.screen() instanceof com.javahost.client.gui.JavaHostScreen;
@@ -82,7 +93,7 @@ public final class Toasts {
 	public static void tick(Minecraft minecraft) {
 		if (!WAITING.isEmpty() && !menuOpen(minecraft)) {
 			while (!WAITING.isEmpty()) {
-				minecraft.gui.toastManager().addToast(WAITING.poll());
+				toasts(minecraft).addToast(WAITING.poll());
 			}
 		}
 	}
@@ -143,6 +154,7 @@ public final class Toasts {
 			return SLOT_HEIGHT; // one slot, so stacked toasts sit evenly with no gaps
 		}
 
+		//? if >=1.21.2 {
 		@Override
 		public Visibility getWantedVisibility() {
 			return visibility;
@@ -150,6 +162,23 @@ public final class Toasts {
 
 		@Override
 		public void update(ToastManager manager, long fullyVisibleForMs) {
+			tick(fullyVisibleForMs);
+		}
+
+		@Override
+		public void extractRenderState(GuiGraphicsExtractor g, Font font, long fullyVisibleForMs) {
+			draw(g);
+		}
+		//?} else {
+		/*@Override
+		public Visibility render(GuiGraphicsExtractor g, net.minecraft.client.gui.components.toasts.ToastComponent toasts, long fullyVisibleForMs) {
+			tick(fullyVisibleForMs);
+			draw(g);
+			return visibility;
+		}
+		*///?}
+
+		private void tick(long fullyVisibleForMs) {
 			if (restart) {
 				restart = false;
 				shownFrom = fullyVisibleForMs;
@@ -158,8 +187,7 @@ public final class Toasts {
 			visibility = elapsed >= SHOW_MS ? Visibility.HIDE : Visibility.SHOW;
 		}
 
-		@Override
-		public void extractRenderState(GuiGraphicsExtractor g, Font font, long fullyVisibleForMs) {
+		private void draw(GuiGraphicsExtractor g) {
 			if (menuOpen(Minecraft.getInstance())) {
 				return; // don't cover the menu's buttons; it finishes its time out of sight
 			}

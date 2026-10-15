@@ -64,7 +64,12 @@ public final class Friends {
 	}
 
 	/** A world invite received from a friend. Routes are in the host's order of preference. */
-	public record Invite(UUID from, String name, String world, List<RouteInfo> routes, String hostIp, long expires) {
+	/** {@code minecraft}: the Minecraft version of the world (worlds can only be joined from the same version). */
+	public record Invite(UUID from, String name, String world, List<RouteInfo> routes, String hostIp, long expires, String minecraft) {
+		public boolean sameMinecraft() {
+			return minecraft.equals(com.javahost.client.compat.ClientCompat.minecraftVersion());
+		}
+
 		public boolean expired() {
 			return System.currentTimeMillis() > expires;
 		}
@@ -414,6 +419,7 @@ public final class Friends {
 		body.addProperty("hostIp", hostIp == null ? "" : hostIp);
 		body.addProperty("expires", System.currentTimeMillis() + 15 * 60 * 1000L);
 		body.add("routes", routesJson(routes));
+		body.addProperty("mc", com.javahost.client.compat.ClientCompat.minecraftVersion());
 		INVITES_SENT.put(friend.id(), new InviteStatus(InviteState.SENDING, "", System.currentTimeMillis(), "Sending..."));
 		changed();
 		JsonObject message = header("invite", friend.id());
@@ -749,7 +755,9 @@ public final class Friends {
 				// However long the sender says, an invite is good for 15 minutes from when it was sent.
 				long expires = Math.min(body.get("expires").getAsLong(), message.get("ts").getAsLong() + 15 * 60 * 1000L);
 				Invite invite = new Invite(friend.id(), friend.name(), com.javahost.util.Text.clean(str(body, "world"), 64),
-						routesFrom(body.getAsJsonArray("routes")), str(body, "hostIp"), expires);
+						routesFrom(body.getAsJsonArray("routes")), str(body, "hostIp"), expires,
+						// JavaHost 1.9 and older only ran on 26.3.
+						body.has("mc") && str(body, "mc").matches("[0-9][0-9A-Za-z.+-]{0,23}") ? str(body, "mc") : "26.3");
 				// Let the host know it arrived, even if we don't join.
 				JsonObject seen = new JsonObject();
 				seen.addProperty("ref", str(message, "id"));

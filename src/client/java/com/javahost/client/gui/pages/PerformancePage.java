@@ -75,6 +75,7 @@ public class PerformancePage extends Page {
 			options.framerateLimit().set((int) (Math.round(v / 10) * 10));
 			options.save();
 		}, v -> v >= 255 ? "Unlimited" : (Math.round(v / 10) * 10) + " FPS"), 10, 104);
+		//? if >=1.21.11 {
 		net.minecraft.client.GraphicsPreset preset = options.graphicsPreset().get();
 		List<net.minecraft.client.GraphicsPreset> presets = new java.util.ArrayList<>(List.of(
 				net.minecraft.client.GraphicsPreset.FAST, net.minecraft.client.GraphicsPreset.FANCY, net.minecraft.client.GraphicsPreset.FABULOUS));
@@ -90,6 +91,19 @@ public class PerformancePage extends Page {
 			options.applyGraphicsPreset(p);
 			options.save();
 		}), width - 10 - Math.min(inner - 80, 230), 134);
+		//?} else {
+		/*net.minecraft.client.GraphicsStatus preset = options.graphicsMode().get();
+		List<net.minecraft.client.GraphicsStatus> presets = List.of(net.minecraft.client.GraphicsStatus.FAST, net.minecraft.client.GraphicsStatus.FANCY,
+				net.minecraft.client.GraphicsStatus.FABULOUS);
+		add(new com.javahost.client.gui.ui.Segmented<>(Math.min(inner - 80, 230), presets, preset, p -> switch (p) {
+			case FAST -> "Fast";
+			case FANCY -> "Fancy";
+			case FABULOUS -> "Fabulous";
+		}, p -> {
+			options.graphicsMode().set(p);
+			options.save();
+		}), width - 10 - Math.min(inner - 80, 230), 134);
+		*///?}
 
 		modsY = 56 + 12 + 102 + 16;
 		boolean allInstalled = recommended().stream().allMatch(BoostMods::isInstalled);

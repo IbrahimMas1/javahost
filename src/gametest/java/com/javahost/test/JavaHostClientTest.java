@@ -31,7 +31,6 @@ import com.javahost.net.Payloads.PackKind;
 import com.javahost.net.Payloads.VoiceUp;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -62,10 +61,12 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			ModdedTest.guest(context);
 			return;
 		}
+		//? if >=26.3 {
 		if ("showcase".equals(role)) {
-			Showcase.run(context);
+			Showcase.run(context); // website screenshots are only taken on 26.3
 			return;
 		}
+		//?}
 		Config.get().tourDone = true; // the welcome tour is tested on its own below
 		inviteCodes();
 		opusRoundTrip();
@@ -133,12 +134,10 @@ public class JavaHostClientTest implements FabricClientGameTest {
 
 	/** A pack big enough to need several chunks, so flow control and reassembly are exercised. */
 	private static Path writeTestPack(Path file) throws IOException {
-		var format = SharedConstants.getCurrentVersion().packVersion(PackType.CLIENT_RESOURCES);
 		Files.createDirectories(file.getParent());
 		try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(file))) {
 			zip.putNextEntry(new ZipEntry("pack.mcmeta"));
-			zip.write(("{\"pack\":{\"description\":\"JavaHost test pack\",\"min_format\":" + format.major()
-					+ ",\"max_format\":" + format.major() + "}}").getBytes(StandardCharsets.UTF_8));
+			zip.write(TestCompat.packMcmeta("JavaHost test pack").getBytes(StandardCharsets.UTF_8));
 			zip.closeEntry();
 			zip.putNextEntry(new ZipEntry("assets/javahost_test/filler.bin"));
 			zip.setLevel(0);
@@ -168,8 +167,13 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		}
 
 		try (TestDedicatedServerContext server = context.worldBuilder().createServer();
-				TestDedicatedServerConnection connection = server.connect()) {
+				var connection = server.connect()) {
+			//? if >=26.2 {
 			connection.waitForChunksRender();
+			//?} else if >=26.1 {
+			/*connection.getClientLevel().waitForChunksRender();
+			*///?} else
+			/*connection.getClientWorld().waitForChunksRender();*/
 
 			context.waitFor(mc -> VoiceClient.isAvailable(), 200);
 			check(true, "server announced voice chat to the joining player");
@@ -181,11 +185,16 @@ public class JavaHostClientTest implements FabricClientGameTest {
 
 			// Voice frames go through the relay without errors even with nobody else to hear them.
 			context.runOnClient(mc -> ClientPlayNetworking.send(new VoiceUp(0, new byte[] {1, 2, 3})));
+			//? if >=26.2 {
 			connection.waitForServerboundPackets();
+			//?} else
+			/*context.waitTicks(20);*/
 			check(true, "voice frame accepted by the server relay");
 		}
 		context.waitFor(mc -> mc.getResourcePackRepository().getSelectedIds().stream().noneMatch(id -> id.startsWith("server/")), 600);
 		check(true, "host pack removed again after leaving");
+		// Removing the pack reloads resources; let that finish before the next world opens.
+		context.waitFor(TestCompat::noOverlay, 1200);
 		HostState.clear();
 	}
 
@@ -205,7 +214,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		});
 
 		try (TestSingleplayerContext world = context.worldBuilder().create()) {
-			world.getConnection().waitForChunksRender();
+			TestCompat.waitForChunks(world);
 
 			// Every tab before hosting.
 			for (Tab tab : Tab.values()) {
@@ -255,14 +264,14 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		java.util.UUID alex = java.util.UUID.nameUUIDFromBytes("Alex".getBytes());
 		context.runOnClient(mc -> com.javahost.client.friends.Notifications.add(com.javahost.client.friends.Notifications.Kind.INVITE, alex, "Alex",
 				"Alex invited you to Survival Island", new com.javahost.client.friends.Friends.Invite(alex, "Alex", "Survival Island", List.of(), "",
-						System.currentTimeMillis() + 600_000)));
+						System.currentTimeMillis() + 600_000, com.javahost.client.compat.ClientCompat.minecraftVersion())));
 		// The title screen on a big window (like a laptop's 2000x1250) at each common GUI scale.
 		int scale = context.computeOnClient(mc -> mc.options.guiScale().get());
 		context.getInput().resizeWindow(2000, 1250);
 		for (int guiScale : new int[] {4, 3, 2}) {
 			context.runOnClient(mc -> {
 				mc.options.guiScale().set(guiScale);
-				mc.resizeGui();
+				TestCompat.resizeGui(mc);
 			});
 			context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
 			context.waitTicks(10);
@@ -280,7 +289,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		// Menu icons at GUI scale 3 (the in-between size).
 		context.runOnClient(mc -> {
 			mc.options.guiScale().set(3);
-			mc.resizeGui();
+			TestCompat.resizeGui(mc);
 		});
 		for (Tab tab : List.of(Tab.FRIENDS, Tab.SETTINGS, Tab.ACCOUNT)) {
 			context.setScreen(() -> new JavaHostScreen(null, tab));
@@ -290,7 +299,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.getInput().resizeWindow(854, 480);
 		context.runOnClient(mc -> {
 			mc.options.guiScale().set(scale);
-			mc.resizeGui();
+			TestCompat.resizeGui(mc);
 		});
 		context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
 		context.waitTicks(10);
@@ -325,7 +334,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.getInput().resizeWindow(windowW, windowH);
 		context.runOnClient(mc -> {
 			mc.options.guiScale().set(guiScale);
-			mc.resizeGui();
+			TestCompat.resizeGui(mc);
 		});
 		Config.get().fpsOverlay = true;
 		context.setScreen(() -> null);
@@ -347,7 +356,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.getInput().resizeWindow(854, 480);
 		context.runOnClient(mc -> {
 			mc.options.guiScale().set(previous);
-			mc.resizeGui();
+			TestCompat.resizeGui(mc);
 		});
 		context.waitTicks(4);
 	}
@@ -368,7 +377,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		byte[] jar = ("not really a jar " + version).getBytes(java.nio.charset.StandardCharsets.UTF_8);
 		com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("localhost", 0), 0);
 		String base = "http://localhost:" + server.getAddress().getPort();
-		String json = "{\"version\": \"" + version + "\", \"protocol\": " + protocol + ", \"minecraft\": \"26.3\", "
+		String json = "{\"version\": \"" + version + "\", \"protocol\": " + protocol + ", \"minecraft\": \"" + com.javahost.client.update.UpdateScreen.minecraftVersion() + "\", "
 				+ "\"notes\": \"Faster joining, world rules and a welcome tour.\", \"releasePage\": \"" + base + "\", \"minimum\": \"" + minimum + "\", "
 				+ "\"files\": [{\"name\": \"javahost-" + version + ".jar\", \"url\": \"" + base + "/javahost-" + version + ".jar\", "
 				+ "\"sha256\": \"" + sha256(jar) + "\", \"size\": " + jar.length + ", \"replaces\": \"javahost-[0-9].*\\\\.jar\"}]}";
@@ -596,7 +605,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 
 		// Debug report.
 		String report = context.computeOnClient(mc -> com.javahost.client.DebugReport.build());
-		check(report.startsWith("JavaHost debug report") && report.contains("Minecraft 26.3")
+		check(report.startsWith("JavaHost debug report") && report.contains("Minecraft " + com.javahost.client.update.UpdateScreen.minecraftVersion())
 				&& !java.util.regex.Pattern.compile("\\b\\d{1,3}(\\.\\d{1,3}){3}\\b").matcher(report).find(), "debug report has versions and no IP addresses");
 		context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
 		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -40));
@@ -840,7 +849,9 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			var found = com.javahost.client.discover.Directory.list().get(10, java.util.concurrent.TimeUnit.SECONDS);
 			check(found.size() == 4, "the public list shows the 4 worlds (" + found.size() + ")");
 			check(found.stream().allMatch(w -> com.javahost.util.ListingText.isRelayAddress(w.relay())), "public worlds only carry relay addresses");
-			check(context.computeOnClient(mc -> com.javahost.client.discover.PublicHosting.cannotOpen()).contains("relay"),
+			// (Only when the relay mod is missing; some versions' tests load it everywhere.)
+			check(com.javahost.client.host.E4mcCompat.isInstalled()
+					|| context.computeOnClient(mc -> com.javahost.client.discover.PublicHosting.cannotOpen()).contains("relay"),
 					"opening to the public needs the relay");
 		} catch (Exception e) {
 			if (node != null) {
@@ -854,7 +865,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 				context.getInput().resizeWindow(size[0], size[1]);
 				context.runOnClient(mc -> {
 					mc.options.guiScale().set(size[2]);
-					mc.resizeGui();
+					TestCompat.resizeGui(mc);
 				});
 				// The title screen dock: every button inside the window, above the copyright line.
 				context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
@@ -915,7 +926,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.getInput().resizeWindow(size[0], size[1]);
 			context.runOnClient(mc -> {
 				mc.options.guiScale().set(size[2]);
-				mc.resizeGui();
+				TestCompat.resizeGui(mc);
 			});
 			context.setScreen(() -> new com.javahost.client.gui.ModsNeededScreen(needed));
 			context.waitTicks(4);
@@ -1008,7 +1019,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.getInput().resizeWindow(size[0], size[1]);
 			context.runOnClient(mc -> {
 				mc.options.guiScale().set(size[2]);
-				mc.resizeGui();
+				TestCompat.resizeGui(mc);
 			});
 			context.setScreen(() -> new JavaHostScreen(null, Tab.NOTIFICATIONS));
 			context.waitTicks(8);
@@ -1172,7 +1183,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.getInput().resizeWindow(size[0], size[1]);
 			context.runOnClient(mc -> {
 				mc.options.guiScale().set(size[2]);
-				mc.resizeGui();
+				TestCompat.resizeGui(mc);
 			});
 			context.setScreen(() -> new JavaHostScreen(null, Tab.FRIENDS));
 			context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).openProfile(alexId));
@@ -1246,7 +1257,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.getInput().resizeWindow(900, 560);
 		context.runOnClient(mc -> {
 			mc.options.guiScale().set(3);
-			mc.resizeGui();
+			TestCompat.resizeGui(mc);
 		});
 		context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
 		context.waitTicks(8);
@@ -1268,7 +1279,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.getInput().resizeWindow(854, 480);
 		context.runOnClient(mc -> {
 			mc.options.guiScale().set(0);
-			mc.resizeGui();
+			TestCompat.resizeGui(mc);
 		});
 		context.runOnClient(mc -> com.javahost.client.friends.Notifications.clear());
 		// The Host tab before hosting, at the laptop size: Start hosting must be on screen without scrolling.
@@ -1276,7 +1287,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.getInput().resizeWindow(1710, 1070);
 		context.runOnClient(mc -> {
 			mc.options.guiScale().set(4);
-			mc.resizeGui();
+			TestCompat.resizeGui(mc);
 		});
 		context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
 		context.waitTicks(8);
@@ -1300,7 +1311,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.getInput().resizeWindow(854, 480);
 		context.runOnClient(mc -> {
 			mc.options.guiScale().set(0);
-			mc.resizeGui();
+			TestCompat.resizeGui(mc);
 		});
 
 		java.util.UUID alex = java.util.UUID.nameUUIDFromBytes("Alex".getBytes());

@@ -13,14 +13,21 @@ import java.util.Properties;
 import java.util.stream.Stream;
 
 import com.javahost.util.ModCatalog;
+import com.javahost.util.UpdateManifest;
 import com.javahost.util.Modrinth;
 import com.javahost.util.Modrinth.ModFile;
 
 /** Does the actual installing and uninstalling. The window and the command line both drive this. */
 public final class Installer {
-	/** What to install. */
-	public record Options(Path minecraftDir, boolean performanceMods, boolean relay, boolean shaders,
+	/**
+	 * What to install. {@code build}: the release's build for the chosen Minecraft version (from
+	 * {@link UpdateManifest#forMinecraft}), with JavaHost and the Fabric API it was made against.
+	 */
+	public record Options(Path minecraftDir, UpdateManifest build, boolean performanceMods, boolean relay, boolean shaders,
 			boolean importSettings, boolean importPacks, boolean importWorlds) {
+		public Edition edition() {
+			return new Edition(build.minecraft());
+		}
 	}
 
 	/** Receives progress as a fraction (0..1) and a line describing the current step. */
@@ -28,8 +35,8 @@ public final class Installer {
 		void update(double fraction, String step);
 	}
 
+	/** The installer's own version (the release it came from). */
 	public static final String MOD_VERSION;
-	public static final String MINECRAFT_VERSION;
 
 	static {
 		Properties props = new Properties();
@@ -41,14 +48,16 @@ public final class Installer {
 			// Defaults below.
 		}
 		MOD_VERSION = props.getProperty("mod_version", "dev");
-		MINECRAFT_VERSION = props.getProperty("minecraft_version", "26.3");
 	}
+
+	/** Fabric API's Modrinth project id: it comes with JavaHost's build, so mods that need it don't fetch another. */
+	private static final String FABRIC_API_ID = "P7dR8mSH";
 
 	private Installer() {
 	}
 
-	public static boolean isInstalled(Path minecraftDir) {
-		return LauncherProfiles.hasProfile(minecraftDir);
+	public static boolean isInstalled(Path minecraftDir, Edition edition) {
+		return LauncherProfiles.hasProfile(minecraftDir, edition);
 	}
 
 	public static void install(Options options, Progress progress) throws IOException, InterruptedException {
@@ -57,20 +66,30 @@ public final class Installer {
 			throw new IOException("Couldn't find the Minecraft Launcher's files in " + mc
 					+ ". Open the Minecraft Launcher once, then try again.");
 		}
-		Path gameDir = MinecraftDirs.gameDir(mc);
+		UpdateManifest build = options.build();
+		String minecraft = build.minecraft();
+		Edition edition = options.edition();
+		Path gameDir = edition.gameDir(mc);
 		Path mods = gameDir.resolve("mods");
 		Files.createDirectories(mods);
 
-		progress.update(0.05, "Finding the latest Fabric loader for Minecraft " + MINECRAFT_VERSION + "...");
-		String loader = FabricInstaller.latestLoader(MINECRAFT_VERSION);
+		progress.update(0.05, "Finding the latest Fabric loader for Minecraft " + minecraft + "...");
+		String loader = FabricInstaller.latestLoader(minecraft);
 		progress.update(0.12, "Installing Fabric loader " + loader + "...");
-		String versionId = FabricInstaller.install(mc, MINECRAFT_VERSION, loader);
+		String versionId = FabricInstaller.install(mc, minecraft, loader);
 
-		progress.update(0.2, "Installing JavaHost " + MOD_VERSION + "...");
-		installJavaHostJar(mods);
+		// JavaHost and Fabric API, exactly as listed in the signed release.
+		List<UpdateManifest.FileEntry> own = build.files();
+		for (int i = 0; i < own.size(); i++) {
+			UpdateManifest.FileEntry file = own.get(i);
+			progress.update(0.15 + 0.1 * i / Math.max(1, own.size()), "Downloading " + file.name() + "...");
+			Path downloaded = gameDir.resolve(".javahost-download").resolve(file.name());
+			Releases.download(file, downloaded);
+			replace(mods, file, downloaded);
+		}
+		deleteTree(gameDir.resolve(".javahost-download"));
 
 		List<String> projects = new ArrayList<>();
-		projects.add("fabric-api");
 		if (options.performanceMods()) {
 			ModCatalog.group(ModCatalog.Group.PERFORMANCE).forEach(e -> projects.add(e.slug()));
 		}
@@ -80,8 +99,8 @@ public final class Installer {
 		if (options.relay()) {
 			ModCatalog.group(ModCatalog.Group.RELAY).forEach(e -> projects.add(e.slug()));
 		}
-		progress.update(0.25, "Finding mods for Minecraft " + MINECRAFT_VERSION + "...");
-		List<ModFile> files = Modrinth.resolve(projects, MINECRAFT_VERSION, id -> false, step -> progress.update(0.3, step));
+		progress.update(0.25, "Finding mods for Minecraft " + minecraft + "...");
+		List<ModFile> files = Modrinth.resolve(projects, minecraft, FABRIC_API_ID::equals, step -> progress.update(0.3, step));
 
 		for (int i = 0; i < files.size(); i++) {
 			ModFile file = files.get(i);
@@ -104,44 +123,39 @@ public final class Installer {
 			DataImporter.importWorlds(mc, gameDir);
 		}
 
-		progress.update(0.96, "Adding the JavaHost profile to the Minecraft Launcher...");
-		LauncherProfiles.addProfile(mc, versionId, gameDir, iconDataUri());
+		progress.update(0.96, "Adding the " + edition.profileName() + " profile to the Minecraft Launcher...");
+		LauncherProfiles.addProfile(mc, edition, versionId, iconDataUri());
 		progress.update(1.0, "Done!");
 	}
 
-	/** Removes the launcher profile and the Fabric version; JavaHost's folder is only deleted if asked. */
-	public static void uninstall(Path minecraftDir, boolean deleteGameDir, Progress progress) throws IOException {
-		progress.update(0.2, "Removing the JavaHost profile...");
-		String versionId = LauncherProfiles.removeProfile(minecraftDir);
-		if (versionId != null && versionId.startsWith("fabric-loader-") && !LauncherProfiles.versionUsedByOthers(minecraftDir, versionId)) {
+	/** Removes a version's launcher profile and its Fabric version; its folder is only deleted if asked. */
+	public static void uninstall(Path minecraftDir, Edition edition, boolean deleteGameDir, Progress progress) throws IOException {
+		progress.update(0.2, "Removing the " + edition.profileName() + " profile...");
+		String versionId = LauncherProfiles.removeProfile(minecraftDir, edition);
+		if (versionId != null && versionId.startsWith("fabric-loader-") && !LauncherProfiles.versionUsedByOthers(minecraftDir, edition, versionId)) {
 			progress.update(0.5, "Removing " + versionId + "...");
 			deleteTree(minecraftDir.resolve("versions").resolve(versionId));
 		}
 		if (deleteGameDir) {
 			progress.update(0.7, "Deleting JavaHost's folder...");
-			deleteTree(MinecraftDirs.gameDir(minecraftDir));
+			deleteTree(edition.gameDir(minecraftDir));
 		}
 		progress.update(1.0, "JavaHost was removed.");
 	}
 
-	private static void installJavaHostJar(Path mods) throws IOException {
+	/** Puts a downloaded release file into mods/, removing the files it replaces (older JavaHost or Fabric API). */
+	private static void replace(Path mods, UpdateManifest.FileEntry file, Path downloaded) throws IOException {
 		try (Stream<Path> list = Files.list(mods)) {
-			for (Path old : list.filter(p -> p.getFileName().toString().matches("javahost-.*\\.jar")).toList()) {
+			for (Path old : list.filter(p -> {
+				String name = p.getFileName().toString();
+				return !name.equals(file.name()) && name.matches(file.replaces());
+			}).toList()) {
 				Files.delete(old);
 			}
 		}
-		Path target = mods.resolve("javahost-" + MOD_VERSION + ".jar");
-		String override = System.getProperty("javahost.installer.embeddedMod");
-		if (override != null) {
-			Files.copy(Path.of(override), target, StandardCopyOption.REPLACE_EXISTING);
-			return;
-		}
-		try (InputStream in = Installer.class.getResourceAsStream("javahost.jar")) {
-			if (in == null) {
-				throw new IOException("This installer is missing the JavaHost mod file");
-			}
-			Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
-		}
+		Files.move(downloaded, mods.resolve(file.name()), StandardCopyOption.REPLACE_EXISTING);
+		// Fabric API used to come from Modrinth with a marker; it's part of JavaHost's build now.
+		Files.deleteIfExists(mods.resolve(".javahost-fabric-api"));
 	}
 
 	/** When updating, delete the file we installed last time for this project if the name changed. */

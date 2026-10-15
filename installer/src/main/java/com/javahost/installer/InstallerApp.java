@@ -16,6 +16,7 @@ import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
+import com.javahost.util.UpdateManifest;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLaf;
 
@@ -93,13 +94,24 @@ public final class InstallerApp {
 				mc = Path.of(args.get(i + 1));
 			}
 		}
+		// --minecraft 1.21.1 picks the Minecraft version (default: the newest one JavaHost is made for).
+		int at = args.indexOf("--minecraft");
+		String minecraft = at >= 0 && at + 1 < args.size() ? args.get(at + 1) : null;
 		Installer.Progress progress = (fraction, step) -> System.out.printf("[%3d%%] %s%n", Math.round(fraction * 100), step);
 		try {
 			if (args.contains("--uninstall")) {
-				Installer.uninstall(mc, args.contains("--delete-folder"), progress);
+				Installer.uninstall(mc, new Edition(minecraft != null ? minecraft : Edition.ORIGINAL), args.contains("--delete-folder"), progress);
 			} else {
+				progress.update(0, "Checking the latest JavaHost release...");
+				UpdateManifest release = Releases.latest();
+				String wanted = minecraft != null ? minecraft : release.minecraftVersions().getFirst();
+				UpdateManifest build = release.forMinecraft(wanted);
+				if (build == null) {
+					throw new IllegalArgumentException("JavaHost " + release.version() + " isn't made for Minecraft " + wanted + ". It's for "
+							+ String.join(", ", release.minecraftVersions()) + ".");
+				}
 				boolean imports = !args.contains("--no-import");
-				Installer.install(new Installer.Options(mc, !args.contains("--no-performance"), !args.contains("--no-relay"),
+				Installer.install(new Installer.Options(mc, build, !args.contains("--no-performance"), !args.contains("--no-relay"),
 						args.contains("--shaders"), imports, imports, args.contains("--worlds")), progress);
 			}
 			return 0;

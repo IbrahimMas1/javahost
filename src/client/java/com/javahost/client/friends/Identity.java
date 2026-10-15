@@ -198,7 +198,10 @@ public final class Identity {
 			return true;
 		}
 		try {
+			//? if >=1.21.9 {
 			SignatureValidator mojang = Minecraft.getInstance().services().profileKeySignatureValidator();
+			//?} else
+			/*SignatureValidator mojang = Minecraft.getInstance().getProfileKeySignatureValidator();*/
 			if (mojang == null || !message.has("key") || !message.has("sig")) {
 				return false;
 			}

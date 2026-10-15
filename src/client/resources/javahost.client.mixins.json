@@ -1,10 +1,14 @@
 {
 	"required": true,
 	"package": "com.javahost.client.mixin",
-	"compatibilityLevel": "JAVA_25",
+	"compatibilityLevel": "JAVA_${java}",
 	"client": [
 		"ChatComponentMixin",
-		"NameTagMixin"
+		"ClientCommonListenerAccess",
+		"IntegratedServerAccess",
+		"NameTagMixin",
+		"OptionsSubScreenAccess",
+		"ServerConnectionListenerAccess"
 	],
 	"injectors": {
 		"defaultRequire": 1

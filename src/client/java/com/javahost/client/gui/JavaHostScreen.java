@@ -39,7 +39,7 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 
 /** The JavaHost menu: a dark window with a sidebar of tabs, a notification bell, and the selected page. */
-public class JavaHostScreen extends Screen {
+public class JavaHostScreen extends BaseScreen {
 	public enum Tab {
 		HOME("Home", Icons.HOME, HomePage::new, null),
 		FRIENDS("Friends", Icons.USERS, FriendsPage::new, null),
@@ -306,6 +306,7 @@ public class JavaHostScreen extends Screen {
 
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+		background(g, mouseX, mouseY, a);
 		scroll = Draw.approach(scroll, scrollTarget, 0.4f);
 		openAnim = Draw.approach(openAnim, 1, 0.3f);
 		tabAnim = Draw.approach(tabAnim, 1, 0.35f);
@@ -315,10 +316,10 @@ public class JavaHostScreen extends Screen {
 
 		// Open animation: the window grows slightly into place.
 		float scale = 0.94f + 0.06f * openAnim;
-		g.pose().pushMatrix();
-		g.pose().translate(width / 2f, height / 2f);
-		g.pose().scale(scale, scale);
-		g.pose().translate(-width / 2f, -height / 2f);
+		Draw.push(g);
+		Draw.translate(g, width / 2f, height / 2f);
+		Draw.scale(g, scale, scale);
+		Draw.translate(g, -width / 2f, -height / 2f);
 
 		Draw.glass(g, winX, winY, winW, winH, 10);
 		Draw.roundRect(g, winX + 1, winY + 1, sideW, winH - 2, 9, Theme.GLASS_SIDEBAR);
@@ -356,8 +357,8 @@ public class JavaHostScreen extends Screen {
 		int top = contentY - Math.round(scroll);
 		g.enableScissor(contentX - 4, contentY, contentX + contentW + 4, contentY + contentH);
 		Draw.clip(contentX - 4, contentY, contentX + contentW + 4, contentY + contentH);
-		g.pose().pushMatrix();
-		g.pose().translate(slide, 0);
+		Draw.push(g);
+		Draw.translate(g, slide, 0);
 		page.draw(g, contentX, top, mouseX - slide, mouseY);
 		g.nextStratum();
 		boolean mouseInContent = mouseY >= contentY && mouseY < contentY + contentH;
@@ -366,7 +367,7 @@ public class JavaHostScreen extends Screen {
 		}
 		g.nextStratum();
 		page.drawOverlay(g, contentX, top, mouseX, mouseY);
-		g.pose().popMatrix();
+		Draw.pop(g);
 		g.disableScissor();
 		Draw.unclip();
 
@@ -391,7 +392,7 @@ public class JavaHostScreen extends Screen {
 				button.extractRenderState(g, mouseX, mouseY, a);
 			}
 		}
-		g.pose().popMatrix();
+		Draw.pop(g);
 	}
 
 	/** A small red count bubble. */
@@ -403,12 +404,21 @@ public class JavaHostScreen extends Screen {
 	}
 
 	@Override
+	//? if >=1.21.9 {
 	public boolean keyPressed(KeyEvent event) {
 		if (page != null && page.keyPressed(event)) {
 			return true;
 		}
 		return super.keyPressed(event);
 	}
+	//?} else {
+	/*public boolean keyPressed(int key, int scancode, int modifiers) {
+		if (page != null && page.keyPressed(new KeyEvent(key, scancode, modifiers))) {
+			return true;
+		}
+		return super.keyPressed(key, scancode, modifiers);
+	}
+	*///?}
 
 	@Override
 	public boolean isPauseScreen() {
@@ -486,6 +496,7 @@ public class JavaHostScreen extends Screen {
 	}
 
 	@Override
+	//? if >=1.21.9 {
 	public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
 		if (tour != null) {
 			// During the tour only its own buttons respond.
@@ -498,6 +509,20 @@ public class JavaHostScreen extends Screen {
 		}
 		return super.mouseClicked(event, doubleClick);
 	}
+	//?} else {
+	/*public boolean mouseClicked(double x, double y, int mouseButton) {
+		if (tour != null) {
+			// During the tour only its own buttons respond.
+			for (AbstractWidget button : tour.buttons()) {
+				if (button.isMouseOver(x, y)) {
+					return button.mouseClicked(x, y, mouseButton);
+				}
+			}
+			return true;
+		}
+		return super.mouseClicked(x, y, mouseButton);
+	}
+	*///?}
 
 	/** Leaves the menu, back to the screen it was opened from. */
 	public void close() {
@@ -539,14 +564,23 @@ public class JavaHostScreen extends Screen {
 		}
 
 		@Override
+		//? if >=1.21.9 {
 		public void onPress(InputWithModifiers input) {
+		//?} else
+		/*public void onPress() {*/
 			if (tab != target) {
 				switchTo(target);
 			}
 		}
 
 		@Override
+		//? if >=26.1 {
 		protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+		//?} else if >=1.21.11 {
+		/*protected void renderContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+		*///?} else {
+		/*protected void renderWidget(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+		*///?}
 			boolean selected = tab == target || tab.parent == target;
 			hover = Draw.approach(hover, isHoveredOrFocused() ? 1 : 0, 0.35f);
 			// The selected highlight is drawn by the screen (it slides between tabs); here just the hover.

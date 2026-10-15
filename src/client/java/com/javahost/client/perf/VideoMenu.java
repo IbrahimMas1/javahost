@@ -22,7 +22,9 @@ import net.minecraft.network.chat.Component;
  * max FPS, graphics, brightness, GUI scale...) are the same settings underneath, so both stay in sync.
  */
 public final class VideoMenu {
-	private static final String SODIUM_SCREEN = "net.caffeinemc.mods.sodium.client.gui.VideoSettingsScreen";
+	/** Sodium's video settings screen: VideoSettingsScreen from Sodium 0.7, SodiumOptionsGUI before (1.21.1-1.21.4). */
+	private static final java.util.List<String> SODIUM_SCREENS = java.util.List.of("net.caffeinemc.mods.sodium.client.gui.VideoSettingsScreen",
+			"net.caffeinemc.mods.sodium.client.gui.SodiumOptionsGUI");
 
 	private VideoMenu() {
 	}
@@ -36,7 +38,7 @@ public final class VideoMenu {
 			return;
 		}
 		ScreenEvents.AFTER_INIT.register((minecraft, screen, width, height) -> {
-			if (screen.getClass().getName().equals(SODIUM_SCREEN)) {
+			if (SODIUM_SCREENS.contains(screen.getClass().getName())) {
 				if ("SIMPLE".equals(Config.get().videoMenu)) {
 					// Sodium swapped its own screen in; put Minecraft's back (on the next tick, not mid-init).
 					Screen parent = sodiumParent(screen);
@@ -56,6 +58,7 @@ public final class VideoMenu {
 				simple.setTooltip(Tooltip.create(Component.literal("Minecraft's own Video Settings: fewer, simpler options")));
 				Screens.getWidgets(screen).add(simple);
 				// Sodium's screen handles clicks itself and doesn't pass them on to added buttons, so catch ours first.
+				//? if >=1.21.9 {
 				net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents.allowMouseClick(screen).register((s, click) -> {
 					if (simple.isMouseOver(click.x(), click.y())) {
 						simple.onPress(click);
@@ -63,6 +66,15 @@ public final class VideoMenu {
 					}
 					return true;
 				});
+				//?} else {
+				/*net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents.allowMouseClick(screen).register((s, x, y, button) -> {
+					if (simple.isMouseOver(x, y)) {
+						simple.onPress();
+						return false;
+					}
+					return true;
+				});
+				*///?}
 			} else if (screen instanceof VideoSettingsScreen vanilla) {
 				FlatButton more = new FlatButton(width - 156, 6, 150, 18, Component.literal("More settings (Sodium)"), FlatButton.Style.SECONDARY,
 						Icons.BOLT, b -> {
@@ -84,7 +96,7 @@ public final class VideoMenu {
 	/** Opens Sodium's Video Settings directly (Sodium is optional, so this goes through reflection). */
 	public static void openSodium(Minecraft minecraft, Screen parent) {
 		try {
-			Method create = Class.forName(SODIUM_SCREEN).getMethod("createScreen", Screen.class);
+			Method create = sodiumScreenClass().getMethod("createScreen", Screen.class);
 			minecraft.gui.setScreen((Screen) create.invoke(null, parent));
 		} catch (ReflectiveOperationException | LinkageError e) {
 			JavaHost.LOGGER.warn("Couldn't open Sodium's video settings", e);
@@ -92,12 +104,23 @@ public final class VideoMenu {
 		}
 	}
 
+	private static Class<?> sodiumScreenClass() throws ClassNotFoundException {
+		for (String name : SODIUM_SCREENS) {
+			try {
+				return Class.forName(name);
+			} catch (ClassNotFoundException ignored) {
+				// try the older name
+			}
+		}
+		throw new ClassNotFoundException("Sodium's video settings screen");
+	}
+
 	private static Screen sodiumParent(Screen sodium) {
 		return field(sodium, sodium.getClass(), "prevScreen");
 	}
 
 	private static Screen lastScreen(VideoSettingsScreen vanilla) {
-		return field(vanilla, net.minecraft.client.gui.screens.options.OptionsSubScreen.class, "lastScreen");
+		return ((com.javahost.client.mixin.OptionsSubScreenAccess) vanilla).javahost$lastScreen();
 	}
 
 	private static Screen field(Object owner, Class<?> type, String name) {

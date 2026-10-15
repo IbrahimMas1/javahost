@@ -44,6 +44,14 @@ public final class Popups {
 		switch (event) {
 			case Event.InviteReceived(Invite invite) -> {
 				INVITES.removeIf(old -> old.from().equals(invite.from()));
+				if (!invite.sameMinecraft()) {
+					// Their world is on another Minecraft version: say so instead of offering a Join that can't work.
+					Notifications.add(Notifications.Kind.INVITE, invite.from(), invite.name(),
+							invite.name() + " invited you to " + invite.world() + " (Minecraft " + invite.minecraft() + ")", invite);
+					Toasts.player(invite.from(), invite.name() + " invited you", "Their world is on Minecraft " + invite.minecraft()
+							+ ". Use JavaHost for that version to join.");
+					return;
+				}
 				INVITES.add(invite);
 				Notifications.add(Notifications.Kind.INVITE, invite.from(), invite.name(),
 						invite.name() + " invited you to " + invite.world(), invite);

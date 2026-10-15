@@ -7,7 +7,7 @@ CONTROL=build/run/showcase/control
 if [ "$1" = "start" ]; then
 	mkdir -p "$CONTROL"
 	rm -f "$CONTROL/done.txt"
-	./gradlew runShowcase --no-configuration-cache > build/run/showcase.log 2>&1 &
+	./gradlew :26.3:runShowcase --no-configuration-cache > build/run/showcase.log 2>&1 &
 	until grep -q ready "$CONTROL/done.txt" 2>/dev/null; do
 		if ! kill -0 $! 2>/dev/null; then
 			echo "the game stopped; see build/run/showcase.log"

@@ -113,9 +113,16 @@ public final class E4mcCompat {
 		if (!DOMAIN_MESSAGE_KEY.equals(translatable.getKey()) || translatable.getArgs().length == 0) {
 			return;
 		}
+		//? if >=1.21.5 {
 		if (translatable.getArgs()[0] instanceof Component domainPart
 				&& domainPart.getStyle().getClickEvent() instanceof ClickEvent.CopyToClipboard copy) {
 			Connectivity.onRelayDomain(copy.value());
 		}
+		//?} else {
+		/*if (translatable.getArgs()[0] instanceof Component domainPart && domainPart.getStyle().getClickEvent() != null
+				&& domainPart.getStyle().getClickEvent().getAction() == ClickEvent.Action.COPY_TO_CLIPBOARD) {
+			Connectivity.onRelayDomain(domainPart.getStyle().getClickEvent().getValue());
+		}
+		*///?}
 	}
 }

@@ -74,7 +74,7 @@ public class HostPage extends Page {
 
 	private boolean canHost() {
 		IntegratedServer server = minecraft.getSingleplayerServer();
-		return server != null && minecraft.player != null && server.isSingleplayerOwner(minecraft.player.nameAndId());
+		return server != null && minecraft.player != null && com.javahost.compat.Compat.isOwner(server, minecraft.player);
 	}
 
 	private String worldName() {
@@ -345,7 +345,7 @@ public class HostPage extends Page {
 			} catch (java.io.IOException ignored) {
 				// Opening the folder below still helps.
 			}
-			com.mojang.blaze3d.Blaze3D.openPath(WorldBackups.root());
+			com.javahost.client.compat.ClientCompat.openPath(WorldBackups.root());
 		}), half + 6, rowY + 10);
 		reserve(rowY + 50);
 	}

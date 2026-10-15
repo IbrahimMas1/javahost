@@ -29,7 +29,7 @@ import net.minecraft.network.chat.Component;
  * Pick a world (the one you're in, another saved world, or a backup) and a friend in this world, then send them a
  * copy. Glass, like the friend popups.
  */
-public class WorldPickerScreen extends Screen {
+public class WorldPickerScreen extends BaseScreen {
 	private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("d MMM, HH:mm").withZone(ZoneId.systemDefault());
 	private static final int ROW = 26;
 	/** Folder sizes, measured in the background (walking a big world takes a moment). */
@@ -159,7 +159,15 @@ public class WorldPickerScreen extends Screen {
 	}
 
 	@Override
+	//? if >=1.21.9 {
 	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+	//?} else {
+	/*public boolean mouseClicked(double x, double y, int mouseButton) {
+		var event = new MouseButtonEvent(x, y, mouseButton);
+		long now = System.currentTimeMillis();
+		boolean doubleClick = now - lastClick < 250;
+		lastClick = now;
+	*///?}
 		if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && event.x() >= boxX + 12 && event.x() < boxX + boxW - 12
 				&& event.y() >= listY && event.y() < listY + listH) {
 			int index = (int) ((event.y() - listY + scroll) / ROW);
@@ -171,11 +179,18 @@ public class WorldPickerScreen extends Screen {
 				return true;
 			}
 		}
+		//? if >=1.21.9 {
 		return super.mouseClicked(event, doubleClick);
+		//?} else
+		/*return super.mouseClicked(x, y, mouseButton);*/
 	}
+
+	//? if <1.21.9
+	/*private long lastClick;*/
 
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+		background(g, mouseX, mouseY, a);
 		g.fill(0, 0, width, height, Theme.SCRIM_GLASS);
 		Draw.glass(g, boxX, boxY, boxW, boxH, 10);
 		Icons.UPLOAD.draw(g, boxX + 16, boxY + 15, Theme.ACCENT);

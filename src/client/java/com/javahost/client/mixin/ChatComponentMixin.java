@@ -12,7 +12,10 @@ import net.minecraft.network.chat.Component;
 /** Watches client-side system messages so we can pick up the relay address e4mc announces. */
 @Mixin(ChatComponent.class)
 public class ChatComponentMixin {
+	//? if >=26.1 {
 	@Inject(method = "addClientSystemMessage", at = @At("HEAD"))
+	//?} else
+	/*@Inject(method = "addMessage(Lnet/minecraft/network/chat/Component;)V", at = @At("HEAD"))*/
 	private void javahost$watchRelayDomain(Component message, CallbackInfo ci) {
 		E4mcCompat.onChatMessage(message);
 	}

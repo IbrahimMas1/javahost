@@ -93,13 +93,13 @@ public class WorldRulesPage extends Page {
 		if (state.host()) {
 			UUID me = minecraft.player == null ? null : minecraft.player.getUUID();
 			others = minecraft.getConnection() == null ? List.of() : minecraft.getConnection().getOnlinePlayers().stream()
-					.filter(p -> !p.getProfile().id().equals(me)).toList();
+					.filter(p -> !com.javahost.compat.Compat.id(p.getProfile()).equals(me)).toList();
 			coHostsY = y + 12;
 			y = coHostsY + 12;
 			for (PlayerInfo player : others) {
-				UUID id = player.getProfile().id();
+				UUID id = com.javahost.compat.Compat.id(player.getProfile());
 				boolean coHost = state.coHosts().stream().anyMatch(c -> c.id().equals(id));
-				add(new ToggleSwitch(inner - 30, Component.literal(player.getProfile().name()), null, coHost,
+				add(new ToggleSwitch(inner - 30, Component.literal(com.javahost.compat.Compat.name(player.getProfile())), null, coHost,
 						on -> RulesClient.request("__cohost:" + id, String.valueOf(on))), 40, y + 5);
 				y += ROW;
 			}
@@ -156,7 +156,7 @@ public class WorldRulesPage extends Page {
 				Draw.textFit(g, "Nobody else is here right now.", width - 20, left + 10, rowY + 9, Theme.FAINT);
 			}
 			for (PlayerInfo player : others) {
-				Faces.draw(g, player.getProfile().id(), left + 12, rowY + 6, 14);
+				Faces.draw(g, com.javahost.compat.Compat.id(player.getProfile()), left + 12, rowY + 6, 14);
 				rowY += ROW;
 			}
 		}

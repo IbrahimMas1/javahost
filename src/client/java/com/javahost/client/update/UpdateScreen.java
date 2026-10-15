@@ -20,7 +20,7 @@ import net.minecraft.util.FormattedCharSequence;
  * updated, then lets you keep your version until the next launch. Updating downloads and verifies the new files
  * here; they're installed when Minecraft closes.
  */
-public class UpdateScreen extends Screen {
+public class UpdateScreen extends com.javahost.client.gui.BaseScreen {
 	private enum Stage { OFFER, NEEDS_INSTALLER, COMPATIBILITY, DOWNLOADING, READY, FAILED }
 
 	private final Screen behind;
@@ -38,16 +38,14 @@ public class UpdateScreen extends Screen {
 	public UpdateScreen(Screen behind, UpdateManifest update) {
 		super(Component.literal("JavaHost update"));
 		this.behind = behind;
-		this.update = update;
-		this.stage = sameMinecraft() ? Stage.OFFER : Stage.NEEDS_INSTALLER;
+		// The build for this Minecraft version, if the release has one.
+		UpdateManifest mine = update.forMinecraft(minecraftVersion());
+		this.update = mine != null ? mine : update;
+		this.stage = mine != null ? Stage.OFFER : Stage.NEEDS_INSTALLER;
 		this.important = update.requires(JavaHost.VERSION);
 	}
 
-	private boolean sameMinecraft() {
-		return update.minecraft().equals(minecraftVersion());
-	}
-
-	static String minecraftVersion() {
+	public static String minecraftVersion() {
 		return FabricLoader.getInstance().getModContainer("minecraft").map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("");
 	}
 
@@ -70,8 +68,8 @@ public class UpdateScreen extends Screen {
 			case OFFER -> (important ? "This update fixes something important, so it can't be skipped. " : "")
 					+ "You have " + JavaHost.VERSION + " (" + Math.max(1, update.totalSize() / (1024 * 1024)) + " MB to download)."
 					+ (update.notes().isEmpty() ? "" : "\n\n" + update.notes());
-			case NEEDS_INSTALLER -> "This version needs Minecraft " + update.minecraft() + " (you're on " + minecraftVersion()
-					+ "). Download the new JavaHost installer to update.";
+			case NEEDS_INSTALLER -> "JavaHost " + update.version() + " isn't made for Minecraft " + minecraftVersion() + ". It's for "
+					+ String.join(", ", update.minecraftVersions()) + ". Use the JavaHost installer to switch Minecraft version.";
 			case COMPATIBILITY -> compatible()
 					? "Friends on " + update.version() + " can still join your worlds, and you can join theirs. Some new features need you both on "
 							+ update.version() + "."
@@ -147,6 +145,7 @@ public class UpdateScreen extends Screen {
 
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+		background(g, mouseX, mouseY, a);
 		g.fill(0, 0, width, height, Theme.SCRIM_GLASS);
 		Draw.glass(g, boxX, boxY, boxW, boxH, 10);
 		Icons icon = switch (stage) {

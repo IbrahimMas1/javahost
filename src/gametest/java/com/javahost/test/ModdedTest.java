@@ -108,7 +108,7 @@ final class ModdedTest {
 				"client-only mods (Sodium, Iris) aren't asked of friends: " + mods.mods().stream().map(ModManifest.Entry::id).toList());
 
 		try (TestSingleplayerContext world = context.worldBuilder().create()) {
-			world.getConnection().waitForChunksRender();
+			TestCompat.waitForChunks(world);
 			// Test accounts are offline, so the guest can't be checked with Mojang.
 			context.runOnClient(mc -> mc.getSingleplayerServer().setUsesAuthentication(false));
 			context.runOnClient(mc -> check(HostController.start(mc.getSingleplayerServer()) == null, "start hosting"));
@@ -174,7 +174,7 @@ final class ModdedTest {
 		context.takeScreenshot("modded-guest-in-world");
 		write("guest-joined", "yes");
 		waitForFile(context, "host-done", 5 * MINUTE);
-		context.runOnClient(mc -> mc.disconnectFromWorld(net.minecraft.network.chat.Component.literal("Test done")));
+		context.runOnClient(mc -> com.javahost.client.compat.ClientCompat.leaveWorld(net.minecraft.network.chat.Component.literal("Test done")));
 		context.waitTicks(20);
 		try {
 			ModSets.stageRestore();

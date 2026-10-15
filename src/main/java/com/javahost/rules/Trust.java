@@ -48,7 +48,7 @@ public final class Trust {
 
 	/** A stranger in a public world who hasn't been trusted yet. */
 	public static boolean isVisitor(MinecraftServer server, ServerPlayer player) {
-		return HostState.publicWorld() && !server.isSingleplayerOwner(player.nameAndId()) && !isTrusted(player.getUUID());
+		return HostState.publicWorld() && !com.javahost.compat.Compat.isOwner(server, player) && !isTrusted(player.getUUID());
 	}
 
 	public static boolean isTrusted(UUID player) {
@@ -78,15 +78,15 @@ public final class Trust {
 	}
 
 	private static void welcome(MinecraftServer s, ServerPlayer player) {
-		if (!HostState.publicWorld() || s.isSingleplayerOwner(player.nameAndId())) {
+		if (!HostState.publicWorld() || com.javahost.compat.Compat.isOwner(s, player)) {
 			return;
 		}
 		if (isVisitor(s, player)) {
 			player.setGameMode(GameType.ADVENTURE);
-			String host = s.getSingleplayerProfile() != null ? s.getSingleplayerProfile().name() : "the host";
+			String host = s.getSingleplayerProfile() != null ? com.javahost.compat.Compat.hostName(s) : "the host";
 			player.sendSystemMessage(Component.literal("[JavaHost] You're visiting " + host + "'s public world. Look around, say hi, "
 					+ "and ask the host to trust you if you'd like to build.").withStyle(ChatFormatting.AQUA));
-		} else if (player.gameMode() == GameType.ADVENTURE && s.getDefaultGameType() != GameType.ADVENTURE) {
+		} else if (com.javahost.compat.Compat.gameMode(player) == GameType.ADVENTURE && s.getDefaultGameType() != GameType.ADVENTURE) {
 			player.setGameMode(s.getDefaultGameType()); // trusted while they were away
 		}
 	}

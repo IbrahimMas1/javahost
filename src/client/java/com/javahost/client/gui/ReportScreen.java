@@ -13,7 +13,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /** Reporting a public world: pick a reason. Three reports from different players hide it until it's reviewed. */
-public class ReportScreen extends Screen {
+public class ReportScreen extends BaseScreen {
 	private static final String[][] REASONS = {
 			{"offensive", "Offensive title or description"},
 			{"griefing", "Griefing or harassment"},
@@ -70,6 +70,7 @@ public class ReportScreen extends Screen {
 
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+		background(g, mouseX, mouseY, a);
 		g.fill(0, 0, width, height, Theme.SCRIM_GLASS);
 		Draw.glass(g, boxX, boxY, boxW, boxH, 10);
 		Faces.draw(g, host, boxX + 16, boxY + 14, 18);

@@ -20,6 +20,8 @@ import java.awt.geom.Path2D;
 import java.nio.file.Path;
 import java.util.List;
 
+import com.javahost.util.UpdateManifest;
+
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -27,7 +29,10 @@ import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JList;
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -53,8 +58,13 @@ public final class InstallerWindow extends JPanel {
 	private final Runnable onClose;
 	private Path minecraftDir = MinecraftDirs.defaultMinecraftDir();
 
+	/** The latest release (its build for each Minecraft version), once it has loaded. */
+	private UpdateManifest release;
+	private String releaseProblem;
+
 	// Options page
 	private JLabel optionsTitle;
+	private JComboBox<UpdateManifest.Target> versionBox;
 	private JTextField folderField;
 	private JLabel folderStatus;
 	private JCheckBox perf;
@@ -90,8 +100,54 @@ public final class InstallerWindow extends JPanel {
 		content.add(donePage(), "done");
 		content.add(errorPage(), "error");
 		add(content, BorderLayout.CENTER);
-		setPreferredSize(new Dimension(780, 520));
+		setPreferredSize(new Dimension(780, 560));
 		refreshOptions();
+		loadRelease();
+	}
+
+	/** Fetches the latest release's list of builds (one per Minecraft version) in the background. */
+	private void loadRelease() {
+		new SwingWorker<UpdateManifest, Void>() {
+			@Override
+			protected UpdateManifest doInBackground() throws Exception {
+				return Releases.latest();
+			}
+
+			@Override
+			protected void done() {
+				try {
+					showRelease(get());
+				} catch (Exception e) {
+					Throwable cause = e.getCause() != null ? e.getCause() : e;
+					releaseProblem = "Couldn't reach GitHub to see the Minecraft versions. Check your connection and reopen the installer.";
+					System.err.println("Couldn't load the release: " + cause);
+					refreshOptions();
+				}
+			}
+		}.execute();
+	}
+
+	private void showRelease(UpdateManifest manifest) {
+		release = manifest;
+		releaseProblem = null;
+		versionBox.removeAllItems();
+		List<UpdateManifest.Target> targets = manifest.targets().isEmpty()
+				? List.of(new UpdateManifest.Target(manifest.minecraft(), List.of(manifest.minecraft()), manifest.files()))
+				: manifest.targets();
+		for (UpdateManifest.Target target : targets) {
+			versionBox.addItem(target);
+		}
+		versionBox.setSelectedIndex(0);
+		refreshOptions();
+	}
+
+	private UpdateManifest.Target selectedTarget() {
+		return (UpdateManifest.Target) versionBox.getSelectedItem();
+	}
+
+	private Edition selectedEdition() {
+		UpdateManifest.Target target = selectedTarget();
+		return new Edition(target != null ? target.minecraft() : Edition.ORIGINAL);
 	}
 
 	public void show(String page) {
@@ -105,20 +161,48 @@ public final class InstallerWindow extends JPanel {
 		optionsTitle = title("Install JavaHost");
 		page.add(optionsTitle);
 		page.add(gap(4));
-		page.add(muted("<html><div style='width:330px'>Fabric, Fabric API and JavaHost for Minecraft " + Installer.MINECRAFT_VERSION
-				+ ", in their own launcher profile so your normal game stays untouched.</div></html>"));
+		page.add(muted("<html><div style='width:340px'>Pick the Minecraft version your mods are made for. Each version gets its own "
+				+ "launcher profile and folder, so your normal game stays untouched.</div></html>"));
 		page.add(gap(18));
 
-		page.add(section("MINECRAFT FOLDER"));
+		// Version on the left, folder on the right.
+		JPanel labels = row();
+		JLabel versionLabel = section("MINECRAFT VERSION");
+		versionLabel.setPreferredSize(new Dimension(150, versionLabel.getPreferredSize().height));
+		labels.add(versionLabel, BorderLayout.WEST);
+		labels.add(section("MINECRAFT FOLDER"), BorderLayout.CENTER);
+		labels.setMaximumSize(new Dimension(Integer.MAX_VALUE, 16));
+		page.add(labels);
 		page.add(gap(6));
 		JPanel folderRow = row();
+		versionBox = new JComboBox<>();
+		versionBox.setPreferredSize(new Dimension(150, 30));
+		versionBox.setRenderer(new DefaultListCellRenderer() {
+			@Override
+			public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean focus) {
+				String text = "Loading…";
+				if (value instanceof UpdateManifest.Target target) {
+					List<String> also = target.releases().stream().filter(r -> !r.equals(target.minecraft())).toList();
+					text = index < 0 || also.isEmpty() ? target.minecraft()
+							: "<html>" + target.minecraft() + "  <font color='#8B96A3'>also " + String.join(", ", also) + "</font></html>";
+				} else if (releaseProblem != null) {
+					text = "Unavailable";
+				}
+				return super.getListCellRendererComponent(list, text, index, selected, focus);
+			}
+		});
+		versionBox.addActionListener(e -> refreshOptions());
 		folderField = new JTextField();
 		folderField.setEditable(false);
 		folderField.putClientProperty("JComponent.roundRect", true);
 		JButton change = new JButton("Change…");
 		change.addActionListener(e -> chooseFolder());
-		folderRow.add(folderField, BorderLayout.CENTER);
-		folderRow.add(change, BorderLayout.EAST);
+		JPanel folder = new JPanel(new BorderLayout(8, 0));
+		folder.setOpaque(false);
+		folder.add(folderField, BorderLayout.CENTER);
+		folder.add(change, BorderLayout.EAST);
+		folderRow.add(versionBox, BorderLayout.WEST);
+		folderRow.add(folder, BorderLayout.CENTER);
 		page.add(folderRow);
 		page.add(gap(4));
 		folderStatus = muted("");
@@ -173,12 +257,17 @@ public final class InstallerWindow extends JPanel {
 	private void refreshOptions() {
 		folderField.setText(minecraftDir.toString());
 		boolean found = MinecraftDirs.hasLauncherProfiles(minecraftDir);
-		folderStatus.setText(found ? "✓  Minecraft Launcher found" : "✕  Open the Minecraft Launcher once, then come back");
-		folderStatus.setForeground(found ? ACCENT : DANGER);
-		boolean installed = Installer.isInstalled(minecraftDir);
+		if (releaseProblem != null) {
+			folderStatus.setText("✕  " + releaseProblem);
+		} else {
+			folderStatus.setText(found ? "✓  Minecraft Launcher found" : "✕  Open the Minecraft Launcher once, then come back");
+		}
+		folderStatus.setForeground(found && releaseProblem == null ? ACCENT : DANGER);
+		versionBox.setEnabled(release != null);
+		boolean installed = release != null && Installer.isInstalled(minecraftDir, selectedEdition());
 		optionsTitle.setText(installed ? "Update JavaHost" : "Install JavaHost");
 		installButton.setText(installed ? "Update" : "Install");
-		installButton.setEnabled(found);
+		installButton.setEnabled(found && release != null && selectedTarget() != null);
 		uninstallButton.setVisible(installed);
 		int worlds = DataImporter.worldCount(minecraftDir);
 		long size = DataImporter.worldsSize(minecraftDir);
@@ -200,18 +289,25 @@ public final class InstallerWindow extends JPanel {
 	}
 
 	private void install() {
-		Installer.Options options = new Installer.Options(minecraftDir, perf.isSelected(), relay.isSelected(), shaders.isSelected(),
+		UpdateManifest build = release.forMinecraft(selectedTarget().minecraft());
+		Installer.Options options = new Installer.Options(minecraftDir, build, perf.isSelected(), relay.isSelected(), shaders.isSelected(),
 				importSettings.isSelected(), importPacks.isSelected(), importWorlds.isSelected());
-		boolean updating = Installer.isInstalled(minecraftDir);
+		Edition edition = options.edition();
+		boolean updating = Installer.isInstalled(minecraftDir, edition);
 		run(updating ? "Updating JavaHost" : "Installing JavaHost", progress -> Installer.install(options, progress),
-				updating ? "JavaHost is up to date!" : "You're all set!",
-				"<html>1. Open the Minecraft Launcher<br>2. Pick the <b>JavaHost</b> profile next to the Play button<br>3. Press Play, then click <b>JavaHost</b> on the title screen</html>",
-				true);
+				updating ? "JavaHost is up to date!" : "You're all set!", doneSteps(edition), true);
+	}
+
+	private static String doneSteps(Edition edition) {
+		return "<html>1. Open the Minecraft Launcher<br>2. Pick the <b>" + edition.profileName() + "</b> profile next to the Play button<br>"
+				+ "3. Press Play, then click <b>JavaHost</b> on the title screen</html>";
 	}
 
 	private void uninstall() {
-		run("Removing JavaHost", progress -> Installer.uninstall(minecraftDir, false, progress), "JavaHost was removed",
-				"<html>The profile is gone from the launcher. JavaHost's folder (with any worlds you<br>played there) was kept at " + MinecraftDirs.gameDir(minecraftDir) + ".</html>",
+		Edition edition = selectedEdition();
+		run("Removing JavaHost", progress -> Installer.uninstall(minecraftDir, edition, false, progress), "JavaHost was removed",
+				"<html>The " + escape(edition.profileName()) + " profile is gone from the launcher. Its folder (with any worlds you<br>played there) was kept at "
+						+ escape(edition.gameDir(minecraftDir).toString()) + ".</html>",
 				false);
 	}
 
@@ -499,7 +595,7 @@ public final class InstallerWindow extends JPanel {
 				add(gap(10));
 			}
 			add(Box.createVerticalGlue());
-			JLabel version = new JLabel("JavaHost " + Installer.MOD_VERSION + "  ·  Minecraft " + Installer.MINECRAFT_VERSION + "  ·  Fabric");
+			JLabel version = new JLabel("JavaHost " + Installer.MOD_VERSION + "  ·  Fabric");
 			version.setForeground(new Color(0x5A6572));
 			version.setFont(version.getFont().deriveFont(11f));
 			version.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -561,6 +657,12 @@ public final class InstallerWindow extends JPanel {
 
 	/** For screenshots: put the done/error pages into a realistic state. */
 	void previewState(String page) {
+		List<UpdateManifest.Target> targets = new java.util.ArrayList<>();
+		for (String[] v : new String[][] {{"26.3"}, {"26.2"}, {"26.1.2", "26.1", "26.1.1"}, {"1.21.11"}, {"1.21.10", "1.21.9"},
+				{"1.21.8", "1.21.6", "1.21.7"}, {"1.21.4"}, {"1.21.1", "1.21"}}) {
+			targets.add(new UpdateManifest.Target(v[0], List.of(v), List.of()));
+		}
+		showRelease(new UpdateManifest(Installer.MOD_VERSION, 3, "26.3", "", "", "0", List.of(), targets));
 		switch (page) {
 			case "progress" -> {
 				progressTitle.setText("Installing JavaHost…");
@@ -569,7 +671,7 @@ public final class InstallerWindow extends JPanel {
 			}
 			case "done" -> {
 				doneTitle.setText("You're all set!");
-				doneText.setText("<html>1. Open the Minecraft Launcher<br>2. Pick the <b>JavaHost</b> profile next to the Play button<br>3. Press Play, then click <b>JavaHost</b> on the title screen</html>");
+				doneText.setText(doneSteps(new Edition("1.21.1")));
 				openLauncher.setVisible(true);
 			}
 			case "error" -> errorText.setText("<html>Couldn't reach Modrinth (HTTP 503). Check your internet connection.</html>");

@@ -6,6 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.Signature;
+import java.util.Base64;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -14,12 +18,17 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.javahost.util.Modrinth;
+import com.javahost.util.UpdateManifest;
 
 /**
  * Installs into a fake Minecraft folder for real (downloads Fabric's version file and mods from Modrinth),
- * then updates and uninstalls, checking that only JavaHost's own entries are touched.
+ * then updates and uninstalls, checking that only JavaHost's own entries are touched. JavaHost itself comes from a
+ * test release signed with a throwaway key, like the real one on GitHub.
  */
 class InstallerTest {
+	private static final String MC = "26.3";
+
 	private static final String ORIGINAL_PROFILES = """
 			{
 			  "profiles": {
@@ -40,8 +49,38 @@ class InstallerTest {
 		}
 	}
 
+	/** A release folder with update.json(.sig) whose 26.3 build is the jar Gradle just built (plus Fabric API). */
+	private static UpdateManifest testRelease(Path dir) throws Exception {
+		Files.createDirectories(dir);
+		Path jar = dir.resolve("javahost-9.9.9+26.3.jar");
+		Files.copy(Path.of(System.getProperty("javahost.test.modJar")), jar);
+		Modrinth.ModFile api = Modrinth.resolve(List.of("fabric-api"), MC, id -> false, step -> {
+		}).getFirst();
+		Path apiJar = dir.resolve(api.fileName());
+		Modrinth.download(api, apiJar);
+		String files = "[" + entry(jar, "javahost-[0-9].*\\\\.jar") + ", " + entry(apiJar, "fabric-api-.*\\\\.jar") + "]";
+		String json = "{\"version\": \"9.9.9\", \"protocol\": 3, \"minecraft\": \"26.3\", \"minimum\": \"0\", \"files\": " + files
+				+ ", \"targets\": [{\"minecraft\": \"26.3\", \"releases\": [\"26.3\"], \"files\": " + files + "}]}";
+		KeyPair keys = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+		Signature signer = Signature.getInstance("Ed25519");
+		signer.initSign(keys.getPrivate());
+		signer.update(json.getBytes());
+		Files.writeString(dir.resolve("update.json"), json);
+		Files.writeString(dir.resolve("update.json.sig"), Base64.getEncoder().encodeToString(signer.sign()));
+		System.setProperty("javahost.installer.updateDir", dir.toString());
+		System.setProperty("javahost.installer.updateKey", Base64.getEncoder().encodeToString(keys.getPublic().getEncoded()));
+		return Releases.latest();
+	}
+
+	private static String entry(Path file, String replaces) throws Exception {
+		return "{\"name\": \"" + file.getFileName() + "\", \"url\": \"" + file.toUri() + "\", \"sha256\": \"" + Releases.sha256(file)
+				+ "\", \"size\": " + Files.size(file) + ", \"replaces\": \"" + replaces + "\"}";
+	}
+
 	@Test
-	void installUpdateUninstall(@TempDir Path mc) throws Exception {
+	void installUpdateUninstall(@TempDir Path mc, @TempDir Path release) throws Exception {
+		UpdateManifest build = testRelease(release).forMinecraft(MC);
+		Edition edition = new Edition(MC);
 		Files.writeString(mc.resolve("launcher_profiles.json"), ORIGINAL_PROFILES);
 		Files.writeString(mc.resolve("options.txt"), "fov:0.5\nkey_key.jump:key.keyboard.space\n");
 		Files.createDirectories(mc.resolve("resourcepacks"));
@@ -49,19 +88,19 @@ class InstallerTest {
 		Files.createDirectories(mc.resolve("saves/My World"));
 		Files.writeString(mc.resolve("saves/My World/level.dat"), "level");
 
-		Installer.install(new Installer.Options(mc, false, true, false, true, true, true),
+		Installer.install(new Installer.Options(mc, build, false, true, false, true, true, true),
 				(fraction, step) -> System.out.println(Math.round(fraction * 100) + "% " + step));
 
 		// Fabric loader version in the launcher's versions folder.
-		JsonObject profile = profiles(mc).getAsJsonObject(LauncherProfiles.PROFILE_KEY);
+		JsonObject profile = profiles(mc).getAsJsonObject(edition.profileKey());
 		String versionId = profile.get("lastVersionId").getAsString();
-		assertTrue(versionId.startsWith("fabric-loader-") && versionId.endsWith("-" + Installer.MINECRAFT_VERSION), versionId);
+		assertTrue(versionId.startsWith("fabric-loader-") && versionId.endsWith("-" + MC), versionId);
 		JsonObject versionJson = JsonParser.parseString(Files.readString(mc.resolve("versions/" + versionId + "/" + versionId + ".json"))).getAsJsonObject();
-		assertEquals(Installer.MINECRAFT_VERSION, versionJson.get("inheritsFrom").getAsString());
+		assertEquals(MC, versionJson.get("inheritsFrom").getAsString());
 		assertTrue(Files.exists(mc.resolve("versions/" + versionId + "/" + versionId + ".jar")));
 
 		// The profile: separate game folder, our icon, more memory, and the player's own profile untouched.
-		assertEquals("JavaHost", profile.get("name").getAsString());
+		assertEquals("JavaHost 26.3", profile.get("name").getAsString());
 		assertEquals(mc.resolve("javahost").toAbsolutePath().toString(), profile.get("gameDir").getAsString());
 		assertTrue(profile.get("icon").getAsString().startsWith("data:image/png;base64,"));
 		assertTrue(profile.get("javaArgs").getAsString().startsWith("-Xmx"));
@@ -72,7 +111,7 @@ class InstallerTest {
 		// Mods: JavaHost itself, Fabric API, and the relay (performance mods were switched off).
 		List<String> mods = mods(mc);
 		System.out.println("Installed mods: " + mods);
-		assertTrue(mods.stream().anyMatch(n -> n.startsWith("javahost-")), mods.toString());
+		assertTrue(mods.contains("javahost-9.9.9+26.3.jar"), mods.toString());
 		assertTrue(mods.stream().anyMatch(n -> n.startsWith("fabric-api-")), mods.toString());
 		assertTrue(mods.stream().anyMatch(n -> n.startsWith("e4mc")), mods.toString());
 		assertFalse(mods.stream().anyMatch(n -> n.startsWith("sodium")), mods.toString());
@@ -85,26 +124,26 @@ class InstallerTest {
 
 		// Updating again doesn't duplicate anything and keeps the original creation time.
 		String created = profile.get("created").getAsString();
-		Installer.install(new Installer.Options(mc, false, true, false, true, true, true), (f, s) -> {
+		Installer.install(new Installer.Options(mc, build, false, true, false, true, true, true), (f, s) -> {
 		});
 		assertEquals(2, profiles(mc).size());
-		assertEquals(created, profiles(mc).getAsJsonObject(LauncherProfiles.PROFILE_KEY).get("created").getAsString());
+		assertEquals(created, profiles(mc).getAsJsonObject(edition.profileKey()).get("created").getAsString());
 		assertEquals(mods, mods(mc));
 
 		// Uninstall: profile and Fabric version gone, the player's profile and JavaHost's worlds kept.
-		Installer.uninstall(mc, false, (f, s) -> {
+		Installer.uninstall(mc, edition, false, (f, s) -> {
 		});
-		assertFalse(profiles(mc).has(LauncherProfiles.PROFILE_KEY));
+		assertFalse(profiles(mc).has(edition.profileKey()));
 		assertTrue(profiles(mc).has("abc123"));
 		assertFalse(Files.exists(mc.resolve("versions/" + versionId)));
 		assertTrue(Files.exists(mc.resolve("javahost/saves/My World/level.dat")));
-		assertFalse(Installer.isInstalled(mc));
+		assertFalse(Installer.isInstalled(mc, edition));
 	}
 
 	@Test
 	void refusesWithoutLauncher(@TempDir Path mc) {
 		Exception e = org.junit.jupiter.api.Assertions.assertThrows(Exception.class,
-				() -> Installer.install(new Installer.Options(mc, false, false, false, false, false, false), (f, s) -> {
+				() -> Installer.install(new Installer.Options(mc, null, false, false, false, false, false, false), (f, s) -> {
 				}));
 		assertTrue(e.getMessage().contains("Open the Minecraft Launcher once"), e.getMessage());
 	}

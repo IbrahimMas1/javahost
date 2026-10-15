@@ -57,6 +57,7 @@ public class FlatSlider extends AbstractSliderButton {
 		int knobSize = hover > 0.5f ? 10 : 8;
 		Draw.roundRect(g, x + filled - knobSize / 2, trackY + 2 - knobSize / 2, knobSize, knobSize, knobSize / 2,
 				active ? Theme.mix(0xFFDDE7EE, 0xFFFFFFFF, hover) : Theme.FAINT);
+		//? if >=1.21.11
 		handleCursor(g);
 	}
 }

@@ -34,13 +34,22 @@ public class ToggleSwitch extends AbstractButton {
 	}
 
 	@Override
+	//? if >=1.21.9 {
 	public void onPress(InputWithModifiers input) {
+	//?} else
+	/*public void onPress() {*/
 		value = !value;
 		onChange.accept(value);
 	}
 
 	@Override
+	//? if >=26.1 {
 	protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	//?} else if >=1.21.11 {
+	/*protected void renderContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	*///?} else {
+	/*protected void renderWidget(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	*///?}
 		knob = Draw.approach(knob, value ? 1 : 0, 0.3f);
 		hover = Draw.approach(hover, active && isHoveredOrFocused() ? 1 : 0, 0.35f);
 		int x = getX();

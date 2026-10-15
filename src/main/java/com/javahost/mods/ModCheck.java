@@ -13,7 +13,6 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ConfigurationTask;
-import net.minecraft.server.players.NameAndId;
 
 /**
  * Before Minecraft compares the game's registries with a joining player's (and fails with "registry mismatch" when
@@ -36,8 +35,7 @@ public final class ModCheck {
 				JavaHost.LOGGER.warn("[Mods] couldn't work out the mod list; joining as usual", error);
 				return new ModManifest("", "", java.util.List.of());
 			}).thenAccept(manifest -> server.execute(() -> {
-				var profile = server.getSingleplayerProfile();
-				ModManifest named = new ModManifest(profile == null ? "" : profile.name(), manifest.pack(), manifest.mods());
+				ModManifest named = new ModManifest(com.javahost.compat.Compat.hostName(server), manifest.pack(), manifest.mods());
 				sender.accept(ServerConfigurationNetworking.createClientboundPacket(new Payloads.ModList(named.toJson())));
 			}));
 		}
@@ -52,10 +50,10 @@ public final class ModCheck {
 		// Ahead of Fabric's own registry check, which runs in the default phase.
 		ServerConfigurationConnectionEvents.BEFORE_CONFIGURE.addPhaseOrdering(EARLY, Event.DEFAULT_PHASE);
 		ServerConfigurationConnectionEvents.BEFORE_CONFIGURE.register(EARLY, (handler, server) -> {
-			JavaHost.LOGGER.info("[Mods] {} is joining: owner={}, has JavaHost 1.9={}, mod list ready={}", handler.getOwner().name(),
-					server.isSingleplayerOwner(new NameAndId(handler.getOwner())), ServerConfigurationNetworking.canSend(handler, Payloads.ModList.TYPE),
+			JavaHost.LOGGER.info("[Mods] {} is joining: owner={}, has JavaHost 1.9={}, mod list ready={}", com.javahost.compat.Compat.name(handler.getOwner()),
+					com.javahost.compat.Compat.isOwner(server, handler.getOwner()), ServerConfigurationNetworking.canSend(handler, Payloads.ModList.TYPE),
 					ModScanner.ready() != null);
-			if (server.isSingleplayerOwner(new NameAndId(handler.getOwner()))
+			if (com.javahost.compat.Compat.isOwner(server, handler.getOwner())
 					|| !ServerConfigurationNetworking.canSend(handler, Payloads.ModList.TYPE)) {
 				return; // the host, or a player without JavaHost 1.9 (Minecraft's own check still applies)
 			}
@@ -69,7 +67,7 @@ public final class ModCheck {
 			if (reply.missing() <= 0) {
 				context.packetListener().completeTask(Task.TYPE);
 			} else {
-				JavaHost.LOGGER.info("[Mods] {} is missing {} mod(s); their game will offer to get them", context.packetListener().getOwner().name(),
+				JavaHost.LOGGER.info("[Mods] {} is missing {} mod(s); their game will offer to get them", com.javahost.compat.Compat.name(context.packetListener().getOwner()),
 						reply.missing());
 				context.packetListener().disconnect(Component.literal("This world needs " + reply.missing() + " mod"
 						+ (reply.missing() == 1 ? "" : "s") + " you don't have yet. JavaHost can download them for you."));

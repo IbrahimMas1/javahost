@@ -6,6 +6,7 @@ import java.util.function.Supplier;
 import com.javahost.client.friends.Screenshots.Thumbnail;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+//? if >=1.21.6
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 
@@ -20,7 +21,13 @@ public class ImageButton extends Button {
 	}
 
 	@Override
+	//? if >=26.1 {
 	protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	//?} else if >=1.21.11 {
+	/*protected void renderContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	*///?} else {
+	/*protected void renderWidget(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	*///?}
 		hover = Draw.approach(hover, isHoveredOrFocused() ? 1 : 0, 0.35f);
 		int x = getX();
 		int y = getY();
@@ -51,6 +58,11 @@ public class ImageButton extends Button {
 			srcH = Math.round(thumb.width() / boxRatio);
 			v = (thumb.height() - srcH) / 2f;
 		}
+		//? if >=1.21.6 {
 		g.blit(RenderPipelines.GUI_TEXTURED, thumb.texture(), x, y, u, v, w, h, srcW, srcH, thumb.width(), thumb.height());
+		//?} else if >=1.21.2 {
+		/*g.blit(net.minecraft.client.renderer.RenderType::guiTextured, thumb.texture(), x, y, u, v, w, h, srcW, srcH, thumb.width(), thumb.height());
+		*///?} else
+		/*g.blit(thumb.texture(), x, y, w, h, u, v, srcW, srcH, thumb.width(), thumb.height());*/
 	}
 }

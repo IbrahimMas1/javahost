@@ -1,6 +1,6 @@
 # JavaHost
 
-A Fabric mod for Minecraft **26.3** (Java Edition).
+A Fabric mod for Minecraft Java Edition: **26.3, 26.2, 26.1.x and 1.21.x** (1.21 to 1.21.11). Pick your version in the installer.
 
 - **Friends and one-click invites.** Add a friend by their Minecraft name. Click **Invite** and their game shows "Alex invited you to play" with a **Join** button. JavaHost opens your world, picks the best connection and falls back automatically. You don't share codes or links. Your Friends tab shows *Sent → Delivered → In your world*.
 - **See who's online.** Friends show as *Online*, *Playing* or *Hosting "World" 2/8*. Click **Join** on anyone hosting; no invite needed. The title screen has a small friends panel too.
@@ -33,15 +33,33 @@ A Fabric mod for Minecraft **26.3** (Java Edition).
 2. Run **JavaHost Installer**:
    - **Mac:** open the `.dmg` and run the app. It's unsigned, so the first time you need to right-click → **Open**.
    - **Windows:** run the `.exe`. If SmartScreen appears, click **More info → Run anyway**.
-3. Choose add-ons and click **Install**.
-4. In the Minecraft Launcher, pick the **JavaHost** profile and press Play.
+3. Pick your **Minecraft version** (the one your mods are made for), choose add-ons and click **Install**.
+4. In the Minecraft Launcher, pick the **JavaHost** profile for that version (e.g. "JavaHost 1.21.1") and press Play.
 
 The installer:
-- installs the official **Fabric loader**, **Fabric API**, JavaHost and the add-ons you picked;
-- puts them in their own **JavaHost** profile with its own folder, so your normal Minecraft is never touched;
+- installs the official **Fabric loader**, **Fabric API**, JavaHost and the add-ons you picked, for the version you chose;
+- gives each Minecraft version its own profile and folder (`javahost` for 26.3, `javahost-1.21.1` and so on), so mods for different versions never mix and your normal Minecraft is never touched;
+- downloads JavaHost from the latest release and checks it against the release's signed list before installing;
 - can copy your settings, packs and worlds into that folder.
 
-Run it again to update or uninstall.
+Run it again to update, add another version, or uninstall.
+
+## Minecraft versions (1.10)
+
+| JavaHost build | Runs on |
+|---|---|
+| 26.3 | 26.3 |
+| 26.2 | 26.2 |
+| 26.1.2 | 26.1, 26.1.1, 26.1.2 |
+| 1.21.11 | 1.21.11 |
+| 1.21.10 | 1.21.9, 1.21.10 |
+| 1.21.8 | 1.21.6, 1.21.7, 1.21.8 |
+| 1.21.4 | 1.21.4 |
+| 1.21.1 | 1.21, 1.21.1 |
+
+- Every version has the same features. Friends, chat, invites and screenshots work between versions; joining a world needs the same Minecraft version, as always in Minecraft. A friend on another version shows "Playing on 1.21.1".
+- Each version updates itself to the next JavaHost release for that same version.
+- Mods for 1.21.1 (The Aether, YUNG's mods and many modpacks) work with the 1.21.1 build, including **Download & restart** for friends who join.
 
 Friends need JavaHost too to get voice and your packs. The easiest way is to send them the installer. Players without mods can still join through the relay address.
 
@@ -69,13 +87,13 @@ Friends need JavaHost too to get voice and your packs. The easiest way is to sen
 
 ## Modded worlds (1.9)
 
-- **Play with mods together.** Host with any Fabric mods for 26.3 (Naturalist, for example). When a friend who's missing some joins, they don't get Minecraft's "registry mismatch" error. Instead they see which mods the world uses, with sizes, and a **Download & restart** button.
+- **Play with mods together.** Host with any Fabric mods for your Minecraft version (Naturalist, for example). When a friend who's missing some joins, they don't get Minecraft's "registry mismatch" error. Instead they see which mods the world uses, with sizes, and a **Download & restart** button.
 - **The very same files.** JavaHost matches each of the host's mods to its exact Modrinth version by hash. Friends download those files from Modrinth, and each one is checked against Modrinth's hash and the host's. Nothing a player sends is ever run. Mods that aren't on Modrinth are listed with a link so friends can get them themselves.
 - **Only what's needed.** Client-only mods (Sodium, Iris, minimaps) and host-side mods (Lithium) aren't asked of friends: only mods that add blocks, items, mobs and so on, plus the libraries they need.
 - **Your own mods are safe.** Downloaded mods are kept as a *mod set*. The switch happens when Minecraft closes: clashing mods are put aside (never deleted) and everything is put back if anything goes wrong. When you press Play again, JavaHost takes you straight back into your friend's world. **Back to my mods** on the new **Mods** tab restores your set.
 - **Modpacks.** The Mods tab searches Modrinth for Fabric modpacks for your Minecraft version and installs them as a mod set (with the pack's settings). Files come only from the hosts Modrinth allows, and every one is hash-checked. Friends who join get the mods they need automatically.
 - Friends see "Hosting "World" · 3/8 · 12 mods", and Discover shows "Modded (12)" on public worlds.
-- Only Fabric works: Forge/NeoForge modpacks and other Minecraft versions can't load JavaHost.
+- Only Fabric works: Forge/NeoForge modpacks can't load JavaHost.
 
 ## Safety (1.7)
 
@@ -98,9 +116,13 @@ Friends need JavaHost too to get voice and your packs. The easiest way is to sen
 
 Requires Java 25.
 
+The mod is built once per Minecraft version from one source tree with [Stonecutter](https://stonecutter.kikugie.dev/). Code for other versions sits in `//? if` comments, and version-specific calls live in `compat/` classes. Versions and their Fabric API are listed in `stonecutter.properties.toml`.
+
 ```bash
-./gradlew build                      # mod jar in build/libs/
-./gradlew runClientGameTest          # in-game tests + UI screenshots
+./gradlew buildAll                   # every version; jars in build/libs/<version>/
+./gradlew :1.21.1:build              # one version
+./gradlew :26.3:runClientGameTest    # in-game tests + UI screenshots (any version from 1.21.4)
+./gradlew :1.21.1:runSmoke           # quick in-game check on 1.21.1 (no Fabric test API there)
 scripts/multiplayer-test.sh          # two real clients: host + guest over LAN, IPv6 and the relay
 scripts/modded-test.sh               # two real clients: the host has Naturalist, the guest gets it when joining
 ./gradlew :installer:test            # installer: real install/update/uninstall into a fake .minecraft

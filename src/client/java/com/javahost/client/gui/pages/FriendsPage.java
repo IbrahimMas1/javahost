@@ -130,9 +130,14 @@ public class FriendsPage extends Page {
 							InviteFlow.invite(friend);
 							screen.refresh();
 						}), width - 96, y + 5);
-				invite.active = canInvite && !busyInviting;
+				String other = Presence.otherMinecraft(friend.id());
+				invite.active = canInvite && !busyInviting && other == null;
 				if (canInvite) {
 					versionTooltip(invite, friend);
+				}
+				if (other != null) {
+					invite.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(friend.name() + " plays Minecraft "
+							+ other + ". Worlds can only be joined from the same Minecraft version.")));
 				}
 				if (!canInvite) {
 					invite.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
@@ -260,6 +265,15 @@ public class FriendsPage extends Page {
 			return "Offline";
 		}
 		Presence.Status s = status.get();
+		String other = Presence.otherMinecraft(friend.id());
+		if (other != null) {
+			// Worlds can only be joined from the same Minecraft version.
+			return switch (s.state()) {
+				case HOSTING -> s.hosting() ? "Hosting \"" + s.world() + "\" on " + other : "Playing on " + other;
+				case PLAYING -> "Playing on " + other;
+				default -> "Online · Minecraft " + other;
+			};
+		}
 		return switch (s.state()) {
 			case HOSTING -> s.hosting() ? "Hosting \"" + s.world() + "\" · " + s.players() + "/" + s.max()
 					+ (Presence.modsOf(s.player()) > 0 ? " · " + Draw.count(Presence.modsOf(s.player()), "mod") : "") : "Online";

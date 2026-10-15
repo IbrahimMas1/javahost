@@ -1029,9 +1029,9 @@ public enum Icons {
 		// Put the drawn pixels' centre on (cx, cy), snapped to whole screen pixels.
 		float ox = Math.round((cx - (useHalf ? smallCentreX : centreX) * unit) * guiScale) / guiScale;
 		float oy = Math.round((cy - (useHalf ? smallCentreY : centreY) * unit) * guiScale) / guiScale;
-		g.pose().pushMatrix();
-		g.pose().translate(ox, oy);
-		g.pose().scale(unit, unit);
+		Draw.push(g);
+		Draw.translate(g, ox, oy);
+		Draw.scale(g, unit, unit);
 		for (int row = 0; row < n; row++) {
 			int col = 0;
 			while (col < n) {
@@ -1047,7 +1047,7 @@ public enum Icons {
 				g.fill(start, row, col, row + 1, color);
 			}
 		}
-		g.pose().popMatrix();
+		Draw.pop(g);
 	}
 
 	/** The JavaHost logo: a green rounded tile with a "J". */

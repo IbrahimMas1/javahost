@@ -23,12 +23,21 @@ public class CardButton extends AbstractButton {
 	}
 
 	@Override
+	//? if >=1.21.9 {
 	public void onPress(InputWithModifiers input) {
+	//?} else
+	/*public void onPress() {*/
 		onPress.accept(this);
 	}
 
 	@Override
+	//? if >=26.1 {
 	protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	//?} else if >=1.21.11 {
+	/*protected void renderContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	*///?} else {
+	/*protected void renderWidget(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	*///?}
 		hover = Draw.approach(hover, active && isHoveredOrFocused() ? 1 : 0, 0.3f);
 		int x = getX();
 		int y = getY();

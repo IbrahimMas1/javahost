@@ -22,7 +22,6 @@ import com.javahost.pack.PackServer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.MinecraftServer.MultiplayerScope;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.packs.repository.Pack;
 
@@ -62,17 +61,17 @@ public final class HostController {
 	public static String start(IntegratedServer server) {
 		Config config = Config.get();
 		if (server.isPublished()) {
-			server.unpublishServer();
+			com.javahost.client.compat.ClientCompat.unpublish(server);
 		}
 		HostState.setVoice(config.voiceEnabledWhenHosting, config.voiceRange);
 		applyHostRules(config);
 		// Guests never get commands through JavaHost, even if Minecraft's own "Open to LAN" allowed them earlier.
-		server.setGuestCommandAccess(false);
+		com.javahost.client.compat.ClientCompat.setGuestCommands(server, false);
 		boolean relayNow = (com.javahost.HostState.publicWorld() || Connectivity.RelayMode.valueOf(config.relayMode) == Connectivity.RelayMode.ALWAYS)
 				&& E4mcCompat.isInstalled();
 		// e4mc would otherwise start its relay on every publish; we decide when it's needed.
 		E4mcCompat.setRelayEnabled(relayNow);
-		if (!server.publishServer(MultiplayerScope.LAN, config.port)) {
+		if (!com.javahost.client.compat.ClientCompat.publish(server, config.port)) {
 			return "Port " + config.port + " is already in use. Pick another port and try again.";
 		}
 		hosting = true;
@@ -92,9 +91,9 @@ public final class HostController {
 			return;
 		}
 		E4mcCompat.setRelayEnabled(true);
-		server.unpublishServer();
-		server.setGuestCommandAccess(false);
-		if (!server.publishServer(MultiplayerScope.LAN, port)) {
+		com.javahost.client.compat.ClientCompat.unpublish(server);
+		com.javahost.client.compat.ClientCompat.setGuestCommands(server, false);
+		if (!com.javahost.client.compat.ClientCompat.publish(server, port)) {
 			JavaHost.LOGGER.warn("Could not reopen the world for the relay");
 		}
 	}
@@ -102,7 +101,7 @@ public final class HostController {
 	public static void stop() {
 		IntegratedServer server = Minecraft.getInstance().getSingleplayerServer();
 		if (server != null && server.isPublished()) {
-			server.unpublishServer();
+			com.javahost.client.compat.ClientCompat.unpublish(server);
 		}
 		cleanup();
 	}
@@ -134,9 +133,9 @@ public final class HostController {
 		server.execute(() -> {
 			List<Guest> snapshot = new ArrayList<>();
 			for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-				if (!server.isSingleplayerOwner(player.nameAndId())) {
+				if (!com.javahost.compat.Compat.isOwner(server, player)) {
 					boolean friend = com.javahost.HostState.isAllowed(player.getUUID());
-					snapshot.add(new Guest(player.getUUID(), player.getPlainTextName(), player.connection.latency(), player.gameMode(),
+					snapshot.add(new Guest(player.getUUID(), com.javahost.compat.Compat.name(player), player.connection.latency(), com.javahost.compat.Compat.gameMode(player),
 							com.javahost.rules.Trust.isVisitor(server, player), !friend && com.javahost.rules.Trust.isTrusted(player.getUUID())));
 				}
 			}
@@ -181,7 +180,7 @@ public final class HostController {
 		}
 		server.execute(() -> {
 			for (ServerPlayer player : List.copyOf(server.getPlayerList().getPlayers())) {
-				String refusal = com.javahost.JoinGate.refusal(server, player.nameAndId());
+				String refusal = com.javahost.JoinGate.refusal(server, player.getUUID(), com.javahost.compat.Compat.isOwner(server, player));
 				// The full-world rule only applies to new arrivals.
 				if (refusal != null && !refusal.startsWith("This world is full")) {
 					player.connection.disconnect(Component.literal(refusal));
@@ -212,7 +211,7 @@ public final class HostController {
 				ServerPlayer player = server.getPlayerList().getPlayer(id);
 				if (player != null) {
 					player.setGameMode(mode);
-					JavaHost.LOGGER.info("Set {}'s game mode to {}", player.getPlainTextName(), mode);
+					JavaHost.LOGGER.info("Set {}'s game mode to {}", com.javahost.compat.Compat.name(player), mode);
 				}
 			});
 		}

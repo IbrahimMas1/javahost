@@ -71,7 +71,7 @@ public final class PackServer {
 
 	private static void offerTo(MinecraftServer server, ServerPlayer player) {
 		List<SharedPack> packs = HostState.sharedPacks();
-		if (packs.isEmpty() || server.isSingleplayerOwner(player.nameAndId())) {
+		if (packs.isEmpty() || com.javahost.compat.Compat.isOwner(server, player)) {
 			return;
 		}
 		if (!ServerPlayNetworking.canSend(player, PackOffer.TYPE)) {
@@ -136,7 +136,7 @@ public final class PackServer {
 			try {
 				pump(player, transfer);
 			} catch (IOException e) {
-				JavaHost.LOGGER.warn("Stopped sending {} to {}", transfer.pack.info().name(), player.getPlainTextName(), e);
+				JavaHost.LOGGER.warn("Stopped sending {} to {}", transfer.pack.info().name(), com.javahost.compat.Compat.name(player), e);
 				entry.getValue().poll();
 			}
 		}

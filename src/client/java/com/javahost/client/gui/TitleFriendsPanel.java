@@ -124,7 +124,13 @@ public final class TitleFriendsPanel extends Button {
 	}
 
 	@Override
+	//? if >=26.1 {
 	protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	//?} else if >=1.21.11 {
+	/*protected void renderContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	*///?} else {
+	/*protected void renderWidget(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	*///?}
 		fade = Draw.approach(fade, 1, 0.12f);
 		int x = getX();
 		int y = getY();
@@ -165,11 +171,15 @@ public final class TitleFriendsPanel extends Button {
 			Draw.roundRect(g, x + 21, y + 17, 4, 4, 2, status.hosting() ? Theme.ACCENT : Theme.INFO);
 			int textW = W - 36 - (status.hosting() ? JOIN_W + 6 : 0);
 			Draw.textFit(g, entry.friend().name(), textW, x + 30, y + 3, Theme.TEXT);
+			String other = Presence.otherMinecraft(entry.friend().id());
 			String line = switch (status.state()) {
 				case HOSTING -> status.hosting() ? status.world() + " " + status.players() + "/" + status.max() : "Playing";
 				case PLAYING -> "Playing";
 				default -> "Online";
 			};
+			if (other != null) {
+				line = (status.state() == Presence.State.MENU ? "Online" : "Playing") + " on " + other;
+			}
 			Draw.textFit(g, line, textW, x + 30, y + 13, status.hosting() ? Theme.ACCENT : Theme.FAINT);
 			y += ROW;
 		}

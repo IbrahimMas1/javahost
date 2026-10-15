@@ -1,6 +1,7 @@
 package com.javahost.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -9,6 +10,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -33,6 +35,37 @@ class UpdateTest {
 		signer.initSign(keys.getPrivate());
 		signer.update(data);
 		return Base64.getEncoder().encodeToString(signer.sign());
+	}
+
+	@Test
+	void picksTheBuildForThisMinecraftVersion() {
+		String json = """
+				{"version": "1.10.0", "protocol": 3, "minecraft": "26.3", "minimum": "1.7.0",
+				 "files": [{"name": "javahost-1.10.0+26.3.jar", "url": "https://github.com/a", "sha256": "aa", "size": 1, "replaces": "javahost-[0-9].*\\\\.jar"}],
+				 "targets": [
+				  {"minecraft": "26.3", "releases": ["26.3"],
+				   "files": [{"name": "javahost-1.10.0+26.3.jar", "url": "https://github.com/a", "sha256": "aa", "size": 1, "replaces": "x"}]},
+				  {"minecraft": "1.21.1", "releases": ["1.21", "1.21.1"],
+				   "files": [{"name": "javahost-1.10.0+1.21.1.jar", "url": "https://github.com/b", "sha256": "bb", "size": 2, "replaces": "x"},
+				             {"name": "fabric-api-0.116.17+1.21.1.jar", "url": "https://cdn.modrinth.com/c", "sha256": "cc", "size": 3, "replaces": "y"}]}]}
+				""";
+		UpdateManifest manifest = UpdateManifest.parse(json);
+		assertEquals(List.of("26.3", "1.21.1"), manifest.minecraftVersions());
+
+		UpdateManifest old = manifest.forMinecraft("1.21");
+		assertEquals("1.21.1", old.minecraft(), "1.21 runs the 1.21.1 build");
+		assertEquals(2, old.files().size());
+		assertEquals("javahost-1.10.0+1.21.1.jar", old.files().getFirst().name());
+		assertEquals("1.10.0", old.version());
+		assertEquals("javahost-1.10.0+26.3.jar", manifest.forMinecraft("26.3").files().getFirst().name());
+		assertNull(manifest.forMinecraft("1.20.1"), "no build for this version: the installer is needed");
+
+		// A release from before 1.10 (no targets) only fits its own Minecraft version.
+		UpdateManifest single = UpdateManifest.parse(JSON);
+		assertEquals(single, single.forMinecraft("26.3"));
+		assertNull(single.forMinecraft("1.21.1"));
+
+		assertThrows(IllegalArgumentException.class, () -> UpdateManifest.parse(json.replace("\"1.21\", \"1.21.1\"", "\"../x\"")));
 	}
 
 	@Test

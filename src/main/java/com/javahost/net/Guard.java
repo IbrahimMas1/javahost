@@ -44,14 +44,14 @@ public final class Guard {
 
 	/** True if this player may send {@code cost} more now; kicks them if they've been flooding for a while. */
 	public static boolean allow(ServerPlayer player, RateLimiter limiter, double cost) {
-		if (player.level().getServer().isSingleplayerOwner(player.nameAndId())) {
+		if (com.javahost.compat.Compat.isOwner(player.level().getServer(), player)) {
 			return true; // the host can't flood their own world
 		}
 		if (limiter.tryTake(player.getUUID(), cost)) {
 			return true;
 		}
 		if (limiter.abusive(player.getUUID(), KICK_AFTER_MS)) {
-			JavaHost.LOGGER.warn("Removed {}: too much JavaHost traffic", player.getPlainTextName());
+			JavaHost.LOGGER.warn("Removed {}: too much JavaHost traffic", com.javahost.compat.Compat.name(player));
 			player.connection.disconnect(Component.literal("Too much traffic from your game. If this keeps happening, update JavaHost."));
 		}
 		return false;

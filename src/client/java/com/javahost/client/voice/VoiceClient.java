@@ -250,7 +250,7 @@ public final class VoiceClient {
 		Map<UUID, String> names = new HashMap<>();
 		for (AbstractClientPlayer player : minecraft.level.players()) {
 			players.put(player.getUUID(), new Position(player.getX(), player.getEyeY(), player.getZ()));
-			names.put(player.getUUID(), player.getPlainTextName());
+			names.put(player.getUUID(), com.javahost.compat.Compat.name(player));
 		}
 		listener = new Listener(minecraft.player.getX(), minecraft.player.getEyeY(), minecraft.player.getZ(),
 				minecraft.player.getYRot(), players, names);

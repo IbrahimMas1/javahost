@@ -59,6 +59,7 @@ keys/
 # written when unit tests load Minecraft classes
 
 /logs/
+versions/*/logs/
 
 # list service local state
 

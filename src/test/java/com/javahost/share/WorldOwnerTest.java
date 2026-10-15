@@ -29,7 +29,10 @@ class WorldOwnerTest {
 		Files.createDirectories(world.resolve("players/data"));
 		CompoundTag data = new CompoundTag();
 		data.putString("LevelName", "Survival");
+		//? if >=1.21.5 {
 		data.store("singleplayer_uuid", UUIDUtil.CODEC, sender);
+		//?} else
+		/*data.putUUID("singleplayer_uuid", sender);*/
 		data.put("Player", new CompoundTag());
 		data.putLong("Time", 1234);
 		CompoundTag root = new CompoundTag();
@@ -44,9 +47,14 @@ class WorldOwnerTest {
 
 		assertEquals(receiver, WorldOwner.ownerOf(world).orElseThrow());
 		assertEquals("Survival (from Alex)", WorldOwner.nameOf(world));
+		//? if >=1.21.5 {
 		CompoundTag after = NbtIo.readCompressed(world.resolve("level.dat"), NbtAccounter.unlimitedHeap()).getCompoundOrEmpty("Data");
-		assertFalse(after.contains("Player"), "an old embedded player would override the receiver");
 		assertEquals(1234, after.getLongOr("Time", 0), "everything else is untouched");
+		//?} else {
+		/*CompoundTag after = NbtIo.readCompressed(world.resolve("level.dat"), NbtAccounter.unlimitedHeap()).getCompound("Data");
+		assertEquals(1234, after.getLong("Time"), "everything else is untouched");
+		*///?}
+		assertFalse(after.contains("Player"), "an old embedded player would override the receiver");
 		assertFalse(Files.exists(world.resolve("level.dat_old")));
 		assertTrue(Files.exists(world.resolve("players/data/" + sender + ".dat")), "the sender's player is kept");
 		assertFalse(Files.exists(world.resolve("javahost/rules.json")), "the sender can't bring co-host rights along");

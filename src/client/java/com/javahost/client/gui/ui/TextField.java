@@ -19,6 +19,7 @@ public class TextField extends EditBox {
 		this.frameWidth = width;
 		setBordered(false);
 		setTextColor(Theme.TEXT);
+		//? if >=1.21.6
 		setTextShadow(false);
 	}
 

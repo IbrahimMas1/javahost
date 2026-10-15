@@ -6,6 +6,7 @@ import java.util.Locale;
 
 /** Where the vanilla Minecraft Launcher keeps things on each operating system. */
 public final class MinecraftDirs {
+	/** JavaHost's own game folders start with this (see {@link Edition#gameDir}). */
 	public static final String GAME_DIR_NAME = "javahost";
 
 	private MinecraftDirs() {
@@ -30,10 +31,6 @@ public final class MinecraftDirs {
 				|| Files.isRegularFile(minecraftDir.resolve("launcher_profiles_microsoft_store.json"));
 	}
 
-	/** JavaHost's own game folder: its own mods, settings and worlds, separate from normal Minecraft. */
-	public static Path gameDir(Path minecraftDir) {
-		return minecraftDir.resolve(GAME_DIR_NAME);
-	}
 
 	/** True if the Minecraft Launcher seems to be running (it may overwrite profile changes when it exits). */
 	public static boolean launcherRunning() {

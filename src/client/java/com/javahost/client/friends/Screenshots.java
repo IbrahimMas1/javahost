@@ -57,7 +57,7 @@ public final class Screenshots {
 		Minecraft minecraft = Minecraft.getInstance();
 		String name = "JavaHost_" + LocalDateTime.now().format(STAMP) + ".png";
 		Path file = dir().resolve(name);
-		Screenshot.grab(minecraft.gameDirectory, name, minecraft.gameRenderer.mainRenderTarget(), 1,
+		com.javahost.client.compat.ClientCompat.screenshot(name,
 				message -> minecraft.execute(() -> {
 					if (Files.exists(file)) {
 						whenSaved.accept(file);
@@ -76,7 +76,7 @@ public final class Screenshots {
 				JavaHost.LOGGER.warn("Couldn't show {} in the file browser", file, e);
 			}
 		}
-		com.mojang.blaze3d.Blaze3D.openPath(file.getParent());
+		com.javahost.client.compat.ClientCompat.openPath(file.getParent());
 	}
 
 	/** Newest first. {@code fromFriends} picks the received folder instead of the player's own screenshots. */
@@ -302,7 +302,10 @@ public final class Screenshots {
 					return;
 				}
 				Identifier id = Identifier.fromNamespaceAndPath(JavaHost.MOD_ID, "thumb/" + (thumbCounter++));
+				//? if >=1.21.5 {
 				Minecraft.getInstance().getTextureManager().register(id, new DynamicTexture(() -> "JavaHost thumbnail", small));
+				//?} else
+				/*Minecraft.getInstance().getTextureManager().register(id, new DynamicTexture(small));*/
 				THUMBS.put(key, new Thumb(id, small.getWidth(), small.getHeight()));
 			}));
 			return null;

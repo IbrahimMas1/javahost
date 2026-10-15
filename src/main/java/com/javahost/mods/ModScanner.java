@@ -69,10 +69,17 @@ public final class ModScanner {
 		Map<String, Set<String>> namespaces = new java.util.TreeMap<>(); // namespace -> synced registries it adds to
 		BuiltInRegistries.REGISTRY.forEach(registry -> {
 			var attributes = net.fabricmc.fabric.api.event.registry.RegistryAttributeHolder.get(registry);
-			if (attributes.hasAttribute(net.fabricmc.fabric.api.event.registry.RegistryAttribute.SYNCED)
-					&& !attributes.hasAttribute(net.fabricmc.fabric.api.event.registry.RegistryAttribute.OPTIONAL)) {
-				registry.keySet().forEach(id -> namespaces.computeIfAbsent(id.getNamespace(), n -> new TreeSet<>())
-						.add(registry.key().identifier().getPath()));
+			//? if >=1.21.4 {
+			boolean checked = attributes.hasAttribute(net.fabricmc.fabric.api.event.registry.RegistryAttribute.SYNCED)
+					&& !attributes.hasAttribute(net.fabricmc.fabric.api.event.registry.RegistryAttribute.OPTIONAL);
+			//?} else
+			/*boolean checked = attributes.hasAttribute(net.fabricmc.fabric.api.event.registry.RegistryAttribute.SYNCED);*/
+			if (checked) {
+				//? if >=1.21.11 {
+				String registryName = registry.key().identifier().getPath();
+				//?} else
+				/*String registryName = registry.key().location().getPath();*/
+				registry.keySet().forEach(id -> namespaces.computeIfAbsent(id.getNamespace(), n -> new TreeSet<>()).add(registryName));
 			}
 		});
 		namespaces.remove("minecraft");

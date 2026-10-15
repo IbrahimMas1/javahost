@@ -18,7 +18,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /** Opening your world to the public: what it's called, what it's about, how many can join, and voice for visitors. */
-public class PublicWorldScreen extends Screen {
+public class PublicWorldScreen extends BaseScreen {
 	private final Screen behind;
 	private final List<String> tags;
 	private TextField titleField;
@@ -150,6 +150,7 @@ public class PublicWorldScreen extends Screen {
 
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+		background(g, mouseX, mouseY, a);
 		g.fill(0, 0, width, height, Theme.SCRIM_GLASS);
 		Draw.glass(g, boxX, boxY, boxW, boxH, 10);
 		Icons.GLOBE.draw(g, boxX + 16, boxY + 13, Theme.ACCENT);

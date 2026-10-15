@@ -31,8 +31,13 @@ public final class WorldOwner {
 	public static void adopt(Path worldDir, UUID owner, String levelName) throws IOException {
 		Path levelDat = worldDir.resolve("level.dat");
 		CompoundTag root = NbtIo.readCompressed(levelDat, NbtAccounter.create(LEVEL_DAT_LIMIT));
+		//? if >=1.21.5 {
 		CompoundTag data = root.getCompoundOrEmpty("Data");
 		data.store(OWNER, UUIDUtil.CODEC, owner);
+		//?} else {
+		/*CompoundTag data = root.getCompound("Data");
+		data.putUUID(OWNER, owner);
+		*///?}
 		data.remove(OLD_PLAYER);
 		data.putString("LevelName", levelName);
 		root.put("Data", data);
@@ -47,15 +52,25 @@ public final class WorldOwner {
 	/** The owner a world's level.dat names, if any. */
 	public static Optional<UUID> ownerOf(Path worldDir) throws IOException {
 		CompoundTag root = NbtIo.readCompressed(worldDir.resolve("level.dat"), NbtAccounter.create(LEVEL_DAT_LIMIT));
+		//? if >=1.21.5 {
 		return root.getCompoundOrEmpty("Data").read(OWNER, UUIDUtil.CODEC);
+		//?} else {
+		/*CompoundTag data = root.getCompound("Data");
+		return data.hasUUID(OWNER) ? Optional.of(data.getUUID(OWNER)) : Optional.empty();
+		*///?}
 	}
 
 	/** The name a world shows in the world list, or the folder name. */
 	public static String nameOf(Path worldDir) {
 		try {
 			CompoundTag root = NbtIo.readCompressed(worldDir.resolve("level.dat"), NbtAccounter.create(LEVEL_DAT_LIMIT));
+			//? if >=1.21.5 {
 			return root.getCompoundOrEmpty("Data").getString("LevelName").filter(s -> !s.isBlank())
 					.orElse(worldDir.getFileName().toString());
+			//?} else {
+			/*String name = root.getCompound("Data").getString("LevelName");
+			return name.isBlank() ? worldDir.getFileName().toString() : name;
+			*///?}
 		} catch (IOException | RuntimeException e) {
 			return worldDir.getFileName().toString();
 		}

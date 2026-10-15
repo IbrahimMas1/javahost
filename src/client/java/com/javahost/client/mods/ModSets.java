@@ -98,13 +98,8 @@ public final class ModSets {
 
 	/** The server being joined (Minecraft keeps it on the connection until we're in the world). */
 	private static net.minecraft.client.multiplayer.ServerData serverOf(net.minecraft.client.multiplayer.ClientCommonPacketListenerImpl listener) {
-		try {
-			var field = net.minecraft.client.multiplayer.ClientCommonPacketListenerImpl.class.getDeclaredField("serverData");
-			field.setAccessible(true);
-			return (net.minecraft.client.multiplayer.ServerData) field.get(listener);
-		} catch (ReflectiveOperationException | RuntimeException e) {
-			return Minecraft.getInstance().getCurrentServer();
-		}
+		var server = ((com.javahost.client.mixin.ClientCommonListenerAccess) listener).javahost$serverData();
+		return server != null ? server : Minecraft.getInstance().getCurrentServer();
 	}
 
 	/** The mods we have: id to version (including mods bundled inside other jars). */

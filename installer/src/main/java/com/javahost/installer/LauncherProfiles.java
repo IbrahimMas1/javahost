@@ -16,11 +16,11 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 /**
- * Adds and removes the "JavaHost" profile in the Minecraft Launcher's profile files. The launcher's own
- * files are backed up once before the first change, and only our profile entry is ever touched.
+ * Adds and removes JavaHost's profiles (one per Minecraft version, see {@link Edition}) in the Minecraft Launcher's
+ * profile files. The launcher's own files are backed up once before the first change, and only our profile entries
+ * are ever touched.
  */
 public final class LauncherProfiles {
-	public static final String PROFILE_KEY = "javahost";
 	private static final String[] FILES = {"launcher_profiles.json", "launcher_profiles_microsoft_store.json"};
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
@@ -39,57 +39,59 @@ public final class LauncherProfiles {
 		return found;
 	}
 
-	public static void addProfile(Path minecraftDir, String versionId, Path gameDir, String iconDataUri) throws IOException {
+	public static void addProfile(Path minecraftDir, Edition edition, String versionId, String iconDataUri) throws IOException {
+		String key = edition.profileKey();
 		for (Path file : files(minecraftDir)) {
 			backupOnce(file);
 			JsonObject root = read(file);
 			JsonObject profiles = root.has("profiles") && root.get("profiles").isJsonObject() ? root.getAsJsonObject("profiles") : new JsonObject();
 			root.add("profiles", profiles);
 
-			JsonObject profile = profiles.has(PROFILE_KEY) ? profiles.getAsJsonObject(PROFILE_KEY) : new JsonObject();
+			JsonObject profile = profiles.has(key) ? profiles.getAsJsonObject(key) : new JsonObject();
 			String now = Instant.now().toString();
 			if (!profile.has("created")) {
 				profile.addProperty("created", now);
 			}
 			profile.addProperty("lastUsed", now); // newest profile is preselected in the launcher
-			profile.addProperty("name", "JavaHost");
+			profile.addProperty("name", edition.profileName());
 			profile.addProperty("type", "custom");
 			profile.addProperty("lastVersionId", versionId);
-			profile.addProperty("gameDir", gameDir.toAbsolutePath().toString());
+			profile.addProperty("gameDir", edition.gameDir(minecraftDir).toAbsolutePath().toString());
 			profile.addProperty("icon", iconDataUri);
 			profile.addProperty("javaArgs", javaArgs());
-			profiles.add(PROFILE_KEY, profile);
+			profiles.add(key, profile);
 			write(file, root);
 		}
 	}
 
 	/** Removes our profile; returns the version id it used, or {@code null}. */
-	public static String removeProfile(Path minecraftDir) throws IOException {
+	public static String removeProfile(Path minecraftDir, Edition edition) throws IOException {
+		String key = edition.profileKey();
 		String version = null;
 		for (Path file : files(minecraftDir)) {
 			JsonObject root = read(file);
-			if (root.has("profiles") && root.getAsJsonObject("profiles").has(PROFILE_KEY)) {
+			if (root.has("profiles") && root.getAsJsonObject("profiles").has(key)) {
 				backupOnce(file);
-				JsonObject profile = root.getAsJsonObject("profiles").getAsJsonObject(PROFILE_KEY);
+				JsonObject profile = root.getAsJsonObject("profiles").getAsJsonObject(key);
 				if (profile.has("lastVersionId")) {
 					version = profile.get("lastVersionId").getAsString();
 				}
-				root.getAsJsonObject("profiles").remove(PROFILE_KEY);
+				root.getAsJsonObject("profiles").remove(key);
 				write(file, root);
 			}
 		}
 		return version;
 	}
 
-	/** Whether any profile other than ours still uses this version (so we must not delete it). */
-	public static boolean versionUsedByOthers(Path minecraftDir, String versionId) throws IOException {
+	/** Whether any profile other than this one still uses this version (so we must not delete it). */
+	public static boolean versionUsedByOthers(Path minecraftDir, Edition edition, String versionId) throws IOException {
 		for (Path file : files(minecraftDir)) {
 			JsonObject root = read(file);
 			if (!root.has("profiles")) {
 				continue;
 			}
 			for (var entry : root.getAsJsonObject("profiles").entrySet()) {
-				if (!entry.getKey().equals(PROFILE_KEY) && entry.getValue().isJsonObject()) {
+				if (!entry.getKey().equals(edition.profileKey()) && entry.getValue().isJsonObject()) {
 					JsonObject p = entry.getValue().getAsJsonObject();
 					if (p.has("lastVersionId") && versionId.equals(p.get("lastVersionId").getAsString())) {
 						return true;
@@ -100,11 +102,11 @@ public final class LauncherProfiles {
 		return false;
 	}
 
-	public static boolean hasProfile(Path minecraftDir) {
+	public static boolean hasProfile(Path minecraftDir, Edition edition) {
 		try {
 			for (Path file : files(minecraftDir)) {
 				JsonObject root = read(file);
-				if (root.has("profiles") && root.getAsJsonObject("profiles").has(PROFILE_KEY)) {
+				if (root.has("profiles") && root.getAsJsonObject("profiles").has(edition.profileKey())) {
 					return true;
 				}
 			}

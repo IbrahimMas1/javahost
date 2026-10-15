@@ -149,7 +149,7 @@ final class Showcase {
 					s.setGameMode(WorldCreationUiState.SelectedGameMode.CREATIVE);
 				}).create();
 				try {
-					world.getConnection().waitForChunksRender();
+					TestCompat.waitForChunks(world);
 				} catch (AssertionError slow) {
 					// far render distances take longer than the default wait; carry on
 				}
@@ -161,13 +161,13 @@ final class Showcase {
 			case "mc" -> world.getServer().runCommand(rest);
 			case "me" -> world.getServer().runCommand("execute as " + self(context) + " at @s run " + rest);
 			case "wait" -> context.waitTicks(Integer.parseInt(a[1]));
-			case "chunks" -> world.getConnection().waitForChunksRender();
+			case "chunks" -> TestCompat.waitForChunks(world);
 			case "window" -> {
 				context.getInput().resizeWindow(Integer.parseInt(a[1]), Integer.parseInt(a[2]));
 				int scale = Integer.parseInt(a[3]);
 				context.runOnClient(mc -> {
 					mc.options.guiScale().set(scale);
-					mc.resizeGui();
+					TestCompat.resizeGui(mc);
 				});
 				context.waitTicks(2);
 			}
@@ -466,7 +466,7 @@ final class Showcase {
 		UUID id = PEOPLE.get(p[1]);
 		Friends.Event event = switch (p[0]) {
 			case "invite" -> new Friends.Event.InviteReceived(new Friends.Invite(id, p[1], p[2],
-					List.of(new Friends.RouteInfo("Relay", "WORKING", "brave-otter.eu.e4mc.link")), "", System.currentTimeMillis() + 600_000));
+					List.of(new Friends.RouteInfo("Relay", "WORKING", "brave-otter.eu.e4mc.link")), "", System.currentTimeMillis() + 600_000, "26.3"));
 			case "request" -> new Friends.Event.RequestReceived(new Friends.Request(id, p[1], "", System.currentTimeMillis(), null, ""));
 			case "chat" -> new Friends.Event.ChatReceived(Friends.friend(id).orElseThrow(), p[2]);
 			default -> throw new IllegalArgumentException(p[0]);
