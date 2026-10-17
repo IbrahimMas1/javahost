@@ -26,20 +26,22 @@ public final class VoiceRelay {
 			}
 		});
 
+		// Who hears a speaker is the world's voice rule, not the speaker's own choice (so everyone is on the same mode).
 		ServerPlayNetworking.registerGlobalReceiver(VoiceUp.TYPE,
-				(payload, context) -> relay(context.player(), payload.sequence(), false, payload.opus()));
+				(payload, context) -> relay(context.player(), payload.sequence(), payload.opus()));
 		ServerPlayNetworking.registerGlobalReceiver(VoiceUp2.TYPE,
-				(payload, context) -> relay(context.player(), payload.sequence(), payload.party(), payload.opus()));
+				(payload, context) -> relay(context.player(), payload.sequence(), payload.opus()));
 	}
 
 	/**
-	 * Party frames go to everyone in the world (any distance or dimension); nearby frames only to players in range.
-	 * Players on JavaHost 1.3 only get nearby frames, in the old format.
+	 * In a party-voice world, frames go to everyone in the world (any distance or dimension); otherwise only to
+	 * players in range. Players on JavaHost 1.3 only get nearby frames, in the old format.
 	 */
-	private static void relay(ServerPlayer speaker, int sequence, boolean party, byte[] opus) {
+	private static void relay(ServerPlayer speaker, int sequence, byte[] opus) {
 		if (!HostState.voiceEnabled() || !com.javahost.net.Guard.allow(speaker, com.javahost.net.Guard.VOICE, 1)) {
 			return;
 		}
+		boolean party = com.javahost.rules.WorldRules.partyVoice();
 		double range = HostState.voiceRange();
 		double rangeSq = range * range;
 		VoiceDown2 frame = new VoiceDown2(speaker.getUUID(), sequence, party, opus);

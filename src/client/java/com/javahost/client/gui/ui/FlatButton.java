@@ -95,6 +95,10 @@ public class FlatButton extends Button {
 			// A brief press-down shade, so clicks feel physical.
 			fill = Theme.mix(fill, 0xFF000000, 0.25f);
 		}
+		if (active && isFocused() && net.minecraft.client.Minecraft.getInstance().getLastInputType().isKeyboard()) {
+			// Moving through buttons with Tab: a ring shows which one Enter presses.
+			Draw.roundRect(g, x - 1, y - 1, w + 2, h + 2, 5, Theme.withAlpha(Theme.ACCENT, 0.8f));
+		}
 		if (style == Style.SECONDARY && active) {
 			Draw.bordered(g, x, y, w, h, 4, fill, Theme.mix(Theme.BORDER, Theme.FAINT, hover));
 		} else {

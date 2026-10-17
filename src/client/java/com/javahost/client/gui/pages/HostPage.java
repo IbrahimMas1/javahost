@@ -588,12 +588,12 @@ public class HostPage extends Page {
 		Route best = Connectivity.recommended();
 		Draw.panel(g, left, top, width, HERO_H, 8, Theme.CARD);
 		Draw.roundRect(g, left, top, 3, HERO_H, 1, best == null ? Theme.INFO : stateColor(best.state()));
-		int textW = width - 130;
+		int textW = width - 132; // keep clear of the buttons on the right
 		if (best == null || best.invite() == null) {
 			statusFit(g, left + 12, top + 10, Theme.INFO, "Getting ready...", textW, Theme.TEXT);
 			Draw.textFit(g, "Finding the best way for friends to join.", textW, left + 12, top + 26, Theme.MUTED);
 		} else {
-			String headline = best.state() != State.WORKING ? "Open; some friends may not reach it" : switch (best.name()) {
+			String headline = best.state() != State.WORKING ? "Some friends may not reach it" : switch (best.name()) {
 				case "Internet", "Relay" -> "Friends anywhere can join";
 				case "IPv6" -> "Friends with IPv6 can join";
 				case "Same Wi-Fi" -> "Only people on your Wi-Fi can join";
@@ -602,7 +602,7 @@ public class HostPage extends Page {
 			statusFit(g, left + 12, top + 9, stateColor(best.state()), headline, textW, Theme.TEXT);
 			String invite = best.invite();
 			Draw.scaledText(g, Draw.fit(invite, (int) ((width - 160) / 1.5f)), left + 12, top + 26, 1.5f, Theme.ACCENT);
-			Draw.textFit(g, "Invites from Friends try every way.", textW, left + 12, top + 44, Theme.FAINT);
+			Draw.textFit(g, "Friend invites try every way in.", textW, left + 12, top + 44, Theme.FAINT);
 		}
 
 		// Players.

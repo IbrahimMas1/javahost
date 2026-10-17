@@ -37,6 +37,14 @@ public final class BoostMods {
 				slug -> FabricLoader.getInstance().isModLoaded(mod.modId()) || pendingJar(slug) != null);
 	}
 
+	/**
+	 * Whether a mod from Modrinth (by its Modrinth name) is loaded or downloaded and waiting for a restart. Mods are
+	 * usually loaded under the same id as their Modrinth name; ones JavaHost downloaded leave a marker either way.
+	 */
+	public static boolean installedSlug(String slug) {
+		return INSTALLED.computeIfAbsent(slug, s -> FabricLoader.getInstance().isModLoaded(s) || pendingJar(s) != null);
+	}
+
 	/** A jar downloaded earlier, waiting for a restart to load. Marker files are written by us and the installer. */
 	private static Path pendingJar(String slug) {
 		Path marker = modsDir().resolve(".javahost-" + slug);

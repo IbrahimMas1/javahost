@@ -66,6 +66,13 @@ dependencies {
 	implementation("io.github.jaredmdobson:concentus:${rootProject.property("concentus_version")}")
 	include("io.github.jaredmdobson:concentus:${rootProject.property("concentus_version")}")
 
+	// Pure-Java WebP decoder for mod icons from Modrinth (most are WebP), bundled inside the mod jar.
+	for (lib in listOf("imageio:imageio-webp", "imageio:imageio-core", "imageio:imageio-metadata",
+			"common:common-lang", "common:common-io", "common:common-image")) {
+		implementation("com.twelvemonkeys.$lib:3.12.0")
+		include("com.twelvemonkeys.$lib:3.12.0")
+	}
+
 	testImplementation("org.junit.jupiter:junit-jupiter:5.14.3")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 

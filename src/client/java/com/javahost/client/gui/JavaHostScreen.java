@@ -216,7 +216,7 @@ public class JavaHostScreen extends BaseScreen {
 		sideW = compact ? 30 : 108;
 		contentX = winX + sideW + 14;
 		contentW = winX + winW - 14 - contentX;
-		contentY = winY + HEADER + 8;
+		contentY = winY + HEADER + 10; // a little air between the header line and the first section
 		contentH = winY + winH - 10 - contentY;
 
 		// Tabs share the height between the logo and the account row, so the sidebar never overflows the window.
@@ -368,6 +368,11 @@ public class JavaHostScreen extends BaseScreen {
 		g.nextStratum();
 		page.drawOverlay(g, contentX, top, mouseX, mouseY);
 		Draw.pop(g);
+		if (tabAnim < 0.99f) {
+			// The new page fades in as it slides.
+			g.nextStratum();
+			g.fill(contentX - 4, contentY, contentX + contentW + 4, contentY + contentH, Theme.withAlpha(Theme.WINDOW, (1 - tabAnim) * 0.9f));
+		}
 		g.disableScissor();
 		Draw.unclip();
 

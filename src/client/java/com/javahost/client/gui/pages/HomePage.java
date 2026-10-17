@@ -55,12 +55,12 @@ public class HomePage extends Page {
 		boolean hosting = HostController.isHosting();
 		CardButton host = add(new CardButton(half, 52, Icons.HOST,
 				Component.literal(hosting ? "You're hosting" : "Host this world"),
-				hosting ? (HostController.guests().isEmpty() ? "Waiting for friends to join" : Draw.count(HostController.guests().size(), "friend") + " in your world") : canHost() ? "Let friends join you" : "Open a singleplayer world first",
+				hosting ? (HostController.guests().isEmpty() ? "Waiting for friends" : Draw.count(HostController.guests().size(), "friend") + " in your world") : canHost() ? "Let friends join you" : "Open a singleplayer world first",
 				b -> screen.switchTo(JavaHostScreen.Tab.HOST)), 0, CARDS_Y);
 		host.active = hosting || canHost();
 		int requests = com.javahost.client.friends.Friends.incoming().size();
 		add(new CardButton(half, 52, Icons.USERS, Component.literal(requests > 0 ? "Friends (" + requests + " new)" : "Friends"),
-				hosting ? "Invite them in with one click" : "Add friends and play together",
+				hosting ? "Invite in one click" : "Add friends and play together",
 				b -> screen.switchTo(JavaHostScreen.Tab.FRIENDS)), width - half, CARDS_Y);
 		reserve(TILES_Y + 68); // tiles and the tip under them
 	}

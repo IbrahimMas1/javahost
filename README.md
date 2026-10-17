@@ -12,7 +12,7 @@ A Fabric mod for Minecraft Java Edition: **26.3, 26.2, 26.1.x and 1.21.x** (1.21
   3. **Relay:** a free relay (e4mc) for when nothing direct works. Anyone can join this way, even without mods.
   4. **Same Wi-Fi:** for people at home.
 - **Proximity voice chat.** Push-to-talk (`V`) or voice activation, mute (`M`). Voices fade with distance and come from the speaker's direction. Set each player's volume or mute them. A ♪ appears on the nametag of whoever is talking.
-- **Party voice.** Press `B` (or use the Voice tab) to talk to everyone in the world, wherever they are, instead of only nearby players.
+- **Party voice.** The host (or a co-host) presses `B`, or uses the Voice tab or World rules, to switch the whole world between nearby voice and party voice, where everyone hears everyone wherever they are. It's one setting for everybody, so nobody is left on a different mode.
 - **Automatic world backups.** When a friend joins your world, JavaHost saves a backup first (at most every 30 minutes, newest 5 kept). Restore one from the Host tab: your current world is kept as a copy, never deleted.
 - **Same-world fast lane.** When you and a friend are in the same world, chat and screenshots go through the game connection: instant, full size, and they don't count toward the daily limit.
 - **Host controls.** Change a guest's game mode, kick or ban them, and set a player limit.
@@ -91,7 +91,7 @@ Friends need JavaHost too to get voice and your packs. The easiest way is to sen
 - **The very same files.** JavaHost matches each of the host's mods to its exact Modrinth version by hash. Friends download those files from Modrinth, and each one is checked against Modrinth's hash and the host's. Nothing a player sends is ever run. Mods that aren't on Modrinth are listed with a link so friends can get them themselves.
 - **Only what's needed.** Client-only mods (Sodium, Iris, minimaps) and host-side mods (Lithium) aren't asked of friends: only mods that add blocks, items, mobs and so on, plus the libraries they need.
 - **Your own mods are safe.** Downloaded mods are kept as a *mod set*. The switch happens when Minecraft closes: clashing mods are put aside (never deleted) and everything is put back if anything goes wrong. When you press Play again, JavaHost takes you straight back into your friend's world. **Back to my mods** on the new **Mods** tab restores your set.
-- **Modpacks.** The Mods tab searches Modrinth for Fabric modpacks for your Minecraft version and installs them as a mod set (with the pack's settings). Files come only from the hosts Modrinth allows, and every one is hash-checked. Friends who join get the mods they need automatically.
+- **Browse mods and modpacks.** The Mods tab browses Modrinth for gameplay mods and modpacks (performance mods and libraries are left out) with their icons, for every Minecraft version. Ones made for your version install with one click (mods go into your mods folder, modpacks become a mod set with the pack's settings); others say where they run, such as "Runs on NeoForge 1.21.1", so you know which version to pick in the installer. Files come only from the hosts Modrinth allows, and every one is hash-checked. Friends who join get the mods they need automatically.
 - Friends see "Hosting "World" · 3/8 · 12 mods", and Discover shows "Modded (12)" on public worlds.
 - Only Fabric works: Forge/NeoForge modpacks can't load JavaHost.
 

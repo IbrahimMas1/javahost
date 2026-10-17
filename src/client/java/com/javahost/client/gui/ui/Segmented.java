@@ -69,7 +69,7 @@ public class Segmented<T> extends AbstractWidget {
 
 	private void select(int index) {
 		T option = options.get(index);
-		if (option != selected) {
+		if (!java.util.Objects.equals(option, selected)) {
 			selected = option;
 			onChange.accept(option);
 		}
@@ -89,7 +89,7 @@ public class Segmented<T> extends AbstractWidget {
 			if (!text.equals(full)) {
 				Draw.truncated(g, x + i * seg, y, seg, getHeight(), full); // full label on hover
 			}
-			boolean isSelected = options.get(i) == selected;
+			boolean isSelected = java.util.Objects.equals(options.get(i), selected);
 			boolean hovered = isHovered() && mouseX >= x + i * seg && mouseX < x + (i + 1) * seg;
 			int color = !active ? Theme.FAINT : isSelected ? Theme.ACCENT : hovered ? Theme.TEXT : Theme.MUTED;
 			Draw.centered(g, text, x + i * seg + seg / 2, y + (getHeight() - 8) / 2 + 1, color);

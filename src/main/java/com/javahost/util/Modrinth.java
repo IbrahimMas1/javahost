@@ -252,6 +252,89 @@ public final class Modrinth {
 		return packs;
 	}
 
+	/** What a {@link #search} is for. */
+	public enum Kind {
+		MOD("mod"), MODPACK("modpack");
+
+		final String projectType;
+
+		Kind(String projectType) {
+			this.projectType = projectType;
+		}
+	}
+
+	/**
+	 * A mod or modpack found by {@link #search}, for any Minecraft version or loader. {@code gameVersions} and
+	 * {@code loaders} say where it runs (see {@link Availability}); {@code iconUrl} is empty or a cdn.modrinth.com URL.
+	 */
+	public record Project(String id, String slug, Kind kind, String title, String description, String author, long downloads,
+			String iconUrl, List<String> gameVersions, List<String> loaders) {
+		public String page() {
+			return "https://modrinth.com/" + kind.projectType + "/" + slug;
+		}
+	}
+
+	/** Loaders as Modrinth lists them in a project's categories. */
+	static final java.util.Set<String> LOADERS = java.util.Set.of("fabric", "forge", "neoforge", "quilt");
+
+	public static final int PAGE = 20;
+
+	/**
+	 * Mods or modpacks on Modrinth for every Minecraft version and loader (most downloaded first, or best match for a
+	 * search), leaving out performance mods and libraries so the list is about gameplay.
+	 */
+	public static List<Project> search(Kind kind, String query, int offset) throws IOException, InterruptedException {
+		String facets = "[[\"project_type:" + kind.projectType + "\"],[\"categories!=optimization\"],[\"categories!=library\"]]";
+		String url = "https://api.modrinth.com/v2/search?limit=" + PAGE + "&offset=" + Math.max(0, offset)
+				+ "&index=" + (query.isBlank() ? "downloads" : "relevance")
+				+ "&query=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&facets=" + URLEncoder.encode(facets, StandardCharsets.UTF_8);
+		return parseSearch(kind, getJson(url).getAsJsonObject());
+	}
+
+	/** Reads search hits; anything malformed is skipped (the response comes from the network). */
+	static List<Project> parseSearch(Kind kind, JsonObject response) {
+		List<Project> projects = new ArrayList<>();
+		JsonArray hits = response.has("hits") ? response.getAsJsonArray("hits") : new JsonArray();
+		for (JsonElement element : hits) {
+			try {
+				JsonObject hit = element.getAsJsonObject();
+				String id = hit.get("project_id").getAsString();
+				String slug = hit.get("slug").getAsString();
+				if (!id.matches("[A-Za-z0-9]{1,16}") || !slug.matches("[A-Za-z0-9._-]{1,64}")) {
+					continue;
+				}
+				List<String> versions = new ArrayList<>();
+				if (hit.has("versions")) {
+					for (JsonElement v : hit.getAsJsonArray("versions")) {
+						String version = v.getAsString();
+						if (version.matches("[0-9A-Za-z.+-]{1,32}") && versions.size() < 400) {
+							versions.add(version);
+						}
+					}
+				}
+				List<String> loaders = new ArrayList<>();
+				if (hit.has("categories")) {
+					for (JsonElement c : hit.getAsJsonArray("categories")) {
+						if (LOADERS.contains(c.getAsString())) {
+							loaders.add(c.getAsString());
+						}
+					}
+				}
+				String icon = hit.has("icon_url") && !hit.get("icon_url").isJsonNull() ? hit.get("icon_url").getAsString() : "";
+				if (!icon.startsWith("https://cdn.modrinth.com/")) {
+					icon = "";
+				}
+				projects.add(new Project(id, slug, kind, Text.clean(hit.get("title").getAsString(), 60),
+						Text.clean(hit.has("description") ? hit.get("description").getAsString() : "", 160),
+						Text.clean(hit.has("author") ? hit.get("author").getAsString() : "", 32),
+						hit.has("downloads") ? hit.get("downloads").getAsLong() : 0, icon, List.copyOf(versions), List.copyOf(loaders)));
+			} catch (RuntimeException e) {
+				// skip a malformed hit
+			}
+		}
+		return projects;
+	}
+
 	/** The newest Fabric .mrpack of a modpack for this game version, or null. */
 	public static ModFile latestPack(String projectId, String gameVersion) throws IOException, InterruptedException {
 		if (!projectId.matches("[A-Za-z0-9]{1,16}")) {
@@ -280,6 +363,44 @@ public final class Modrinth {
 			}
 		}
 		return null;
+	}
+
+	/** Icon URLs (cdn.modrinth.com only) for projects by slug, in one request. */
+	public static java.util.Map<String, String> iconUrls(List<String> slugs) throws IOException, InterruptedException {
+		List<String> safe = slugs.stream().filter(s -> s.matches("[A-Za-z0-9._-]{1,64}")).toList();
+		java.util.Map<String, String> icons = new java.util.HashMap<>();
+		if (safe.isEmpty()) {
+			return icons;
+		}
+		String ids = "[" + String.join(",", safe.stream().map(s -> "\"" + s + "\"").toList()) + "]";
+		for (JsonElement element : getJson("https://api.modrinth.com/v2/projects?ids=" + URLEncoder.encode(ids, StandardCharsets.UTF_8)).getAsJsonArray()) {
+			JsonObject project = element.getAsJsonObject();
+			String icon = project.has("icon_url") && !project.get("icon_url").isJsonNull() ? project.get("icon_url").getAsString() : "";
+			if (icon.startsWith("https://cdn.modrinth.com/")) {
+				icons.put(project.get("slug").getAsString(), icon);
+			}
+		}
+		return icons;
+	}
+
+	/** A project icon from Modrinth's CDN (https only, at most {@code maxBytes}). */
+	public static byte[] icon(String url, int maxBytes) throws IOException, InterruptedException {
+		URI uri = URI.create(url);
+		if (!"https".equals(uri.getScheme()) || !"cdn.modrinth.com".equals(uri.getHost())) {
+			throw new IOException("Icons only come from cdn.modrinth.com");
+		}
+		HttpRequest request = HttpRequest.newBuilder(uri).header("User-Agent", USER_AGENT).timeout(Duration.ofSeconds(20)).build();
+		HttpResponse<java.io.InputStream> response = HTTP.send(request, HttpResponse.BodyHandlers.ofInputStream());
+		try (java.io.InputStream in = response.body()) {
+			if (response.statusCode() != 200) {
+				throw new IOException("HTTP " + response.statusCode() + " for an icon");
+			}
+			byte[] data = in.readNBytes(maxBytes + 1);
+			if (data.length > maxBytes) {
+				throw new IOException("Icon too big");
+			}
+			return data;
+		}
 	}
 
 	public static JsonElement postJson(String url, JsonObject body) throws IOException, InterruptedException {

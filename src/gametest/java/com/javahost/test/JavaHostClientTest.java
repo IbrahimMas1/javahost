@@ -559,6 +559,25 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("__lock", "false"));
 		context.waitFor(mc -> !com.javahost.client.rules.RulesClient.state().locked(), 100);
 		check(context.computeOnClient(mc -> com.javahost.client.rules.RulesClient.state().history().size() >= 3), "changes are kept in the history");
+
+		// Voice reach is one world rule for everyone (1.11): the host switches the whole world to party voice.
+		check("nearby".equals(context.computeOnClient(mc -> com.javahost.client.voice.VoiceClient.worldRule())), "a world starts on nearby voice");
+		context.runOnClient(mc -> com.javahost.client.JavaHostClient.toggleParty());
+		context.waitFor(mc -> "party".equals(com.javahost.client.voice.VoiceClient.worldRule()), 100);
+		check(context.computeOnClient(mc -> com.javahost.rules.WorldRules.partyVoice()), "the host's B key switches the whole world to party voice");
+		context.setScreen(() -> new JavaHostScreen(null, Tab.VOICE));
+		context.waitTicks(8);
+		context.takeScreenshot("ui-voice-world-party");
+		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("__lock", "true"));
+		context.waitFor(mc -> com.javahost.client.rules.RulesClient.state().locked(), 100);
+		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("VOICE", "nearby"));
+		context.waitTicks(20);
+		check(context.computeOnClient(mc -> com.javahost.rules.WorldRules.partyVoice()), "while the rules are locked, voice reach stays as it is");
+		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("__lock", "false"));
+		context.waitFor(mc -> !com.javahost.client.rules.RulesClient.state().locked(), 100);
+		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("VOICE", "nearby"));
+		context.waitFor(mc -> "nearby".equals(com.javahost.client.voice.VoiceClient.worldRule()), 100);
+		check(!context.computeOnClient(mc -> com.javahost.rules.WorldRules.partyVoice()), "back to nearby voice for everyone");
 		context.setScreen(() -> new JavaHostScreen(null, Tab.RULES));
 		context.waitTicks(8);
 		context.takeScreenshot("ui-world-rules");
@@ -936,10 +955,32 @@ public class JavaHostClientTest implements FabricClientGameTest {
 					.allMatch(w -> w.getRight() <= mc.getWindow().getGuiScaledWidth() - 8 && w.getBottom() <= mc.getWindow().getGuiScaledHeight()));
 			check(fits, "the mods-needed screen fits at " + size[0] + "x" + size[1] + " scale " + size[2]);
 			context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-mods-needed");
+			com.javahost.client.gui.pages.ModsPage.showMine(false);
 			context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
-			context.waitTicks(40); // the modpack search answers from Modrinth
+			context.waitTicks(80); // the search answers from Modrinth and icons arrive
 			context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-mods-tab");
+			com.javahost.client.gui.pages.ModsPage.showMine(true);
+			context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
+			context.waitTicks(8);
+			context.takeScreenshot("review-" + size[0] + "-s" + size[2] + "-mods-mine");
+			com.javahost.client.gui.pages.ModsPage.showMine(false);
 		}
+		// Browse finds mods for every version; ones that can't run here say where they run, with no Install.
+		context.getInput().resizeWindow(1710, 1070);
+		context.runOnClient(mc -> {
+			mc.options.guiScale().set(4);
+			TestCompat.resizeGui(mc);
+		});
+		com.javahost.client.gui.pages.ModsPage.showSearch(com.javahost.util.Modrinth.Kind.MOD, "aether");
+		context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
+		context.waitFor(mc -> mc.gui.screen().children().stream().anyMatch(c -> c instanceof com.javahost.client.gui.ui.RowButton), 400);
+		context.waitTicks(60); // icons
+		long cards = context.computeOnClient(mc -> mc.gui.screen().children().stream().filter(c -> c instanceof com.javahost.client.gui.ui.RowButton).count());
+		long installs = context.computeOnClient(mc -> mc.gui.screen().children().stream()
+				.filter(c -> c instanceof com.javahost.client.gui.ui.FlatButton b && b.getMessage().getString().equals("Install")).count());
+		check(cards > 0 && installs < cards, "Browse shows mods for other versions without Install (" + cards + " found, " + installs + " installable)");
+		context.takeScreenshot("review-1710-s4-mods-search-other-versions");
+		com.javahost.client.gui.pages.ModsPage.showSearch(com.javahost.util.Modrinth.Kind.MOD, "");
 		context.setScreen(() -> null);
 	}
 

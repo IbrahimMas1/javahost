@@ -306,11 +306,21 @@ final class MultiplayerTest {
 			int far = VoiceClient.audibleFramesFrom(guestPlayer);
 			context.waitTicks(60);
 			check(VoiceClient.audibleFramesFrom(guestPlayer) - far <= 2, "Guest 600 blocks away is out of nearby voice range");
+			// 1.11: voice reach is one world rule; a guest can't switch it on their own.
 			writeShared("host-wants-party", "ok");
+			waitForShared(context, "guest-tried-party", ONE_MINUTE);
+			int stillFar = VoiceClient.audibleFramesFrom(guestPlayer);
+			context.waitTicks(60);
+			check(VoiceClient.audibleFramesFrom(guestPlayer) - stillFar <= 2, "a guest can't switch the world to party voice on their own");
+			context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("VOICE", "party"));
+			context.waitFor(mc -> com.javahost.rules.WorldRules.partyVoice(), ONE_MINUTE);
+			writeShared("host-party-on", "ok");
 			waitForShared(context, "guest-party-on", ONE_MINUTE);
 			int beforeParty = VoiceClient.audibleFramesFrom(guestPlayer);
 			context.waitFor(mc -> VoiceClient.audibleFramesFrom(guestPlayer) > beforeParty + 25, ONE_MINUTE);
-			check(true, "party voice: the host hears Guest from 600 blocks away");
+			check(true, "party voice for the world: the host hears Guest from 600 blocks away");
+			context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("VOICE", "nearby"));
+			context.waitFor(mc -> !com.javahost.rules.WorldRules.partyVoice(), ONE_MINUTE);
 			writeShared("host-party-ok", "ok");
 			waitForShared(context, "guest-party-off", ONE_MINUTE);
 			runCommand(context, "tp Guest Host");
@@ -934,10 +944,22 @@ final class MultiplayerTest {
 		check(true, "guest got the fast-lane chat and the full-size screenshot, byte-for-byte identical");
 		writeShared("guest-fast-ok", "ok");
 		waitForShared(context, "host-wants-party", 2 * ONE_MINUTE);
-		context.runOnClient(mc -> Config.get().voiceMode = "PARTY");
-		check(context.computeOnClient(mc -> VoiceClient.partyMode()), "guest switched to party voice");
+		// The guest tries every way to switch to party voice: their own setting, B, and asking the server.
+		context.runOnClient(mc -> {
+			Config.get().voiceMode = "PARTY";
+			com.javahost.client.JavaHostClient.toggleParty();
+			com.javahost.client.rules.RulesClient.request("VOICE", "party");
+		});
+		context.waitTicks(20);
+		check(!context.computeOnClient(mc -> VoiceClient.partyMode()), "a guest's own choice doesn't change the world's voice reach");
+		writeShared("guest-tried-party", "ok");
+		waitForShared(context, "host-party-on", ONE_MINUTE);
+		context.waitFor(mc -> VoiceClient.partyMode(), ONE_MINUTE);
+		check(true, "when the host switches the world to party voice, the guest is on it too");
 		writeShared("guest-party-on", "ok");
 		waitForShared(context, "host-party-ok", ONE_MINUTE);
+		context.waitFor(mc -> !VoiceClient.partyMode(), ONE_MINUTE);
+		check(true, "back to nearby voice for everyone when the host switches back");
 		context.runOnClient(mc -> Config.get().voiceMode = "NEARBY");
 		writeShared("guest-party-off", "ok");
 		// ---- 1.5: world rules from the guest's side.

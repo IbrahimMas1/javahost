@@ -52,15 +52,29 @@ public class VoicePage extends Page {
 					config.save();
 					screen.refresh();
 				}), 10, 80);
+		// Who hears whom is one setting for the whole world, chosen by the host and co-hosts (a world rule).
 		String partyKey = JavaHostClient.PARTY_VOICE.getTranslatedKeyMessage().getString();
-		Segmented<String> who = add(new Segmented<>(inner, List.of("NEARBY", "PARTY"), config.voiceMode,
-				mode -> mode.equals("PARTY") ? "Everyone in the world" : "Nearby players", mode -> {
-					config.voiceMode = mode;
-					config.save();
-				}), 10, 108);
-		who.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
-				"Who hears you. Party voice reaches everyone in the world, anywhere (" + partyKey + " in game)."
-						+ (VoiceClient.isAvailable() && !VoiceClient.partyAvailable() ? " This host needs JavaHost 1.4 for party voice." : ""))));
+		String rule = VoiceClient.worldRule();
+		var rules = com.javahost.client.rules.RulesClient.state();
+		boolean worldDecides = rule != null;
+		String selected = worldDecides ? rule : config.voiceMode.toLowerCase(java.util.Locale.ROOT);
+		Segmented<String> who = add(new Segmented<>(inner, List.of("nearby", "party"), selected,
+				mode -> mode.equals("party") ? "Everyone in the world" : "Nearby players", mode -> {
+					if (worldDecides) {
+						com.javahost.client.rules.RulesClient.request("VOICE", mode);
+					} else {
+						config.voiceMode = mode.toUpperCase(java.util.Locale.ROOT);
+						config.save();
+					}
+				}), 10, 104);
+		who.active = !worldDecides || (rules.canEdit() && !rules.locked());
+		who.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(!worldDecides
+				? "Who hears you. Party voice reaches everyone in the world, anywhere (" + partyKey + " in game)."
+						+ (VoiceClient.isAvailable() && !VoiceClient.partyAvailable() ? " This host needs JavaHost 1.4 for party voice." : "")
+				: rules.locked() ? "The world rules are locked."
+				: rules.canEdit() ? "Changes it for everyone in this world (" + partyKey + " in game)."
+				: "The host and co-hosts choose this for everyone in this world.")));
+		rulesVersion = com.javahost.client.rules.RulesClient.version();
 
 		List<String> mics = new ArrayList<>();
 		mics.add(DEFAULT_MIC);
@@ -73,20 +87,20 @@ public class VoicePage extends Page {
 					config.microphone = next == 0 ? "" : mics.get(next);
 					config.save();
 					screen.refresh();
-				}), 10, 156);
+				}), 10, 168);
 
 		int half = (inner - 10) / 2;
-		add(new FlatSlider(half, "Mic boost", config.micGain, 0, 3, v -> config.micGain = v, v -> Math.round(v * 100) + "%"), 10, 184);
+		add(new FlatSlider(half, "Mic boost", config.micGain, 0, 3, v -> config.micGain = v, v -> Math.round(v * 100) + "%"), 10, 196);
 		add(new FlatSlider(half, "Voice volume", config.outputVolume, 0, 2, v -> config.outputVolume = v, v -> Math.round(v * 100) + "%"),
-				20 + half, 184);
+				20 + half, 196);
 		FlatSlider threshold = add(new FlatSlider(inner, "Voice activation level", config.activationThresholdDb, -80, 0,
-				v -> config.activationThresholdDb = v, v -> Math.round(v) + " dB"), 10, 214);
+				v -> config.activationThresholdDb = v, v -> Math.round(v) + " dB"), 10, 226);
 		threshold.active = !config.pushToTalk;
 
 		// People nearby: a volume and mute for each.
 		nearby = new java.util.ArrayList<>(VoiceClient.nearbyPlayers().entrySet());
 		nearbyKey = nearby.toString();
-		int y = 298;
+		int y = 310;
 		for (var entry : nearby) {
 			String id = entry.getKey().toString();
 			add(new FlatSlider(width - 150, "Volume", config.playerVolumes.getOrDefault(id, 1.0), 0, 2,
@@ -103,18 +117,19 @@ public class VoicePage extends Page {
 					}), width - 34, y + 4);
 			y += 30;
 		}
-		problemY = Math.max(y, 328) + 10;
+		problemY = Math.max(y, 340) + 10;
 		reserve(problemY + 40);
 	}
 
 	private java.util.List<java.util.Map.Entry<java.util.UUID, String>> nearby = java.util.List.of();
 	private String nearbyKey = "";
-	private int problemY = 328;
+	private int problemY = 340;
+	private int rulesVersion = -1;
 
 	@Override
 	protected void draw(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY) {
-		sectionLabel(g, "People nearby", left, top + 286);
-		int rowY = top + 298;
+		sectionLabel(g, "People nearby", left, top + 298);
+		int rowY = top + 310;
 		card(g, left, rowY - 2, width, Math.max(1, nearby.size()) * 30 + 4);
 		if (nearby.isEmpty()) {
 			Draw.textFit(g, VoiceClient.isAvailable() ? "Nobody in voice range right now." : "Join a world with voice chat to see people here.", width - 20, left + 10, rowY + 10, Theme.MUTED);
@@ -126,12 +141,17 @@ public class VoicePage extends Page {
 		}
 		Config config = Config.get();
 		sectionLabel(g, "Talking", left, top);
-		card(g, left, top + 12, width, 120);
-		sectionLabel(g, "Microphone", left, top + 142);
-		card(g, left, top + 150, width, 118);
+		card(g, left, top + 12, width, 132);
+		String rule = VoiceClient.worldRule();
+		var rules = com.javahost.client.rules.RulesClient.state();
+		Draw.textFit(g, rule == null ? (minecraftInWorld() ? "This host lets each player choose." : "In a world, the host chooses this for everyone.")
+				: rules.canEdit() ? "You choose this for everyone in the world." : "The host chooses this for everyone in the world.",
+				width - 20, left + 10, top + 128, Theme.FAINT);
+		sectionLabel(g, "Microphone", left, top + 154);
+		card(g, left, top + 162, width, 118);
 
 		// Live level meter under the sliders.
-		int meterY = top + 244;
+		int meterY = top + 256;
 		int x = left + 10;
 		int w = width - 20;
 		float level = Math.max(-80, Math.min(0, VoiceClient.micLevelDb()));
@@ -154,8 +174,16 @@ public class VoicePage extends Page {
 		}
 	}
 
+	private static boolean minecraftInWorld() {
+		return net.minecraft.client.Minecraft.getInstance().level != null;
+	}
+
 	@Override
 	public void tick() {
+		if (com.javahost.client.rules.RulesClient.version() != rulesVersion) {
+			screen.refresh(); // the world's voice mode (or who may change it) changed
+			return;
+		}
 		if (!new java.util.ArrayList<>(VoiceClient.nearbyPlayers().entrySet()).toString().equals(nearbyKey)) {
 			screen.refresh();
 		}

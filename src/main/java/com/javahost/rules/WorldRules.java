@@ -51,7 +51,9 @@ public final class WorldRules {
 		FIRE_SPREAD("Fire spread", List.of("false", "true")),
 		NATURAL_REGEN("Natural regeneration", List.of("false", "true")),
 		COORDINATES("Coordinates shown", List.of("false", "true")),
-		SLEEPING("Sleeping to skip night", List.of("1", "50", "100"));
+		SLEEPING("Sleeping to skip night", List.of("1", "50", "100")),
+		/** Voice chat reaches nearby players only, or everyone in the world ("party"). Stored by JavaHost, not a gamerule. */
+		VOICE("Voice chat reaches", List.of("nearby", "party"));
 
 		public final String label;
 		public final List<String> choices;
@@ -70,6 +72,7 @@ public final class WorldRules {
 		Map<String, String> lockedValues = new LinkedHashMap<>();
 		Map<String, String> coHosts = new LinkedHashMap<>(); // uuid -> name
 		List<HistoryEntry> history = new ArrayList<>();
+		String voiceMode = "nearby";
 	}
 
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -118,6 +121,7 @@ public final class WorldRules {
 			case NATURAL_REGEN -> String.valueOf(rules.get(GameRules.NATURAL_HEALTH_REGENERATION));
 			case COORDINATES -> String.valueOf(!rules.get(GameRules.REDUCED_DEBUG_INFO));
 			case SLEEPING -> sleeping(rules.get(GameRules.PLAYERS_SLEEPING_PERCENTAGE));
+			case VOICE -> saved.voiceMode;
 		};
 		//?} else {
 		/*return switch (rule) {
@@ -134,6 +138,7 @@ public final class WorldRules {
 			case NATURAL_REGEN -> String.valueOf(rules.getBoolean(GameRules.RULE_NATURAL_REGENERATION));
 			case COORDINATES -> String.valueOf(!rules.getBoolean(GameRules.RULE_REDUCEDDEBUGINFO));
 			case SLEEPING -> sleeping(rules.getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE));
+			case VOICE -> saved.voiceMode;
 		};
 		*///?}
 	}
@@ -164,6 +169,7 @@ public final class WorldRules {
 			case NATURAL_REGEN -> rules.set(GameRules.NATURAL_HEALTH_REGENERATION, on, s);
 			case COORDINATES -> rules.set(GameRules.REDUCED_DEBUG_INFO, !on, s);
 			case SLEEPING -> rules.set(GameRules.PLAYERS_SLEEPING_PERCENTAGE, Integer.parseInt(value), s);
+			case VOICE -> saved.voiceMode = value;
 		}
 		//?} else {
 		/*switch (rule) {
@@ -180,6 +186,7 @@ public final class WorldRules {
 			case NATURAL_REGEN -> rules.getRule(GameRules.RULE_NATURAL_REGENERATION).set(on, s);
 			case COORDINATES -> rules.getRule(GameRules.RULE_REDUCEDDEBUGINFO).set(!on, s);
 			case SLEEPING -> rules.getRule(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE).set(Integer.parseInt(value), s);
+			case VOICE -> saved.voiceMode = value;
 		}
 		*///?}
 	}
@@ -189,8 +196,14 @@ public final class WorldRules {
 		return switch (rule) {
 			case DIFFICULTY -> Character.toUpperCase(value.charAt(0)) + value.substring(1);
 			case SLEEPING -> value.equals("1") ? "One" : value.equals("50") ? "Half" : "Everyone";
+			case VOICE -> value.equals("party") ? "Everyone in the world" : "Nearby players";
 			default -> Boolean.parseBoolean(value) ? "On" : "Off";
 		};
+	}
+
+	/** Whether voice chat in this world reaches everyone (party) rather than only nearby players. */
+	public static boolean partyVoice() {
+		return "party".equals(saved.voiceMode);
 	}
 
 	// ---------------------------------------------------------------- permissions and changes
@@ -370,6 +383,9 @@ public final class WorldRules {
 					}
 					if (loaded.history == null) {
 						loaded.history = new ArrayList<>();
+					}
+					if (!Rule.VOICE.choices.contains(loaded.voiceMode)) {
+						loaded.voiceMode = "nearby";
 					}
 					return loaded;
 				}

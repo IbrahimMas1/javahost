@@ -33,8 +33,10 @@ public final class RulesClient {
 
 	public static void register() {
 		ClientPlayNetworking.registerGlobalReceiver(RulesState.TYPE, (payload, context) -> {
+			State previous = state;
 			state = parse(payload.json());
 			version++;
+			announceVoice(previous, state);
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, minecraft) -> state = null);
 	}
@@ -47,6 +49,17 @@ public final class RulesClient {
 	/** Changes whenever new rules arrive (pages use it to know when to redraw). */
 	public static int version() {
 		return version;
+	}
+
+	/** Tells this player when the world's voice mode changes (it changes for everyone at once). */
+	private static void announceVoice(State previous, State now) {
+		String before = previous == null ? null : previous.values().get("VOICE");
+		String after = now.values().get("VOICE");
+		if (before == null || after == null || before.equals(after)) {
+			return;
+		}
+		com.javahost.client.Toasts.show("voice-mode", "party".equals(after) ? "Party voice for everyone" : "Nearby voice for everyone",
+				"party".equals(after) ? "Everyone in this world hears everyone, wherever they are." : "Only players close by hear each other.");
 	}
 
 	public static void request(String rule, String value) {

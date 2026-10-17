@@ -24,7 +24,8 @@ public class RowButton extends Button {
 	*///?}
 		hover = Draw.approach(hover, isHoveredOrFocused() ? 1 : 0, 0.35f);
 		if (hover > 0.01f) {
-			Draw.roundRect(g, getX(), getY(), getWidth(), getHeight(), 5, Theme.withAlpha(Theme.CARD_HOVER, hover));
+			// A light tint, so whatever the row shows stays readable underneath.
+			Draw.roundRect(g, getX(), getY(), getWidth(), getHeight(), 5, Theme.withAlpha(0x14FFFFFF, hover));
 		}
 	}
 }

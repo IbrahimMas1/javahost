@@ -113,9 +113,20 @@ public final class VoiceClient {
 		return serverHasVoice && ClientPlayNetworking.canSend(VoiceUp2.TYPE);
 	}
 
-	/** Talking to everyone in the world rather than just nearby players (only when the host supports it). */
+	/**
+	 * The world's voice rule, "nearby" or "party", set by the host and co-hosts for everyone (JavaHost 1.11+ hosts);
+	 * null when the host doesn't set one, and then each player's own choice applies as before.
+	 */
+	public static String worldRule() {
+		var rules = com.javahost.client.rules.RulesClient.state();
+		return rules == null ? null : rules.values().get("VOICE");
+	}
+
+	/** Everyone in the world hears everyone, rather than just nearby players (only when the host supports it). */
 	public static boolean partyMode() {
-		return "PARTY".equals(Config.get().voiceMode) && partyAvailable();
+		String rule = worldRule();
+		boolean party = rule != null ? "party".equals(rule) : "PARTY".equals(Config.get().voiceMode);
+		return party && partyAvailable();
 	}
 
 	/** Sends one microphone frame, as party or nearby voice, in the format the host understands. */

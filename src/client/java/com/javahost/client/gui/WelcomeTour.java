@@ -39,7 +39,7 @@ final class WelcomeTour {
 				new Step(Tab.HOME, "Welcome to JavaHost", "Play in your own worlds with friends, no server needed. Here's a 30-second tour."),
 				new Step(Tab.FRIENDS, "Add your friends", "Type a friend's Minecraft name to add them. Once they accept, invite them or join their world in one click."),
 				new Step(Tab.HOST, "Host your world", "Open one of your worlds, then press Start hosting. Friends get in through the best connection automatically."),
-				new Step(Tab.VOICE, "Talk while you play", "Hold " + talk + " to talk to players near you. Press " + party + " to talk to everyone in the world."),
+				new Step(Tab.VOICE, "Talk while you play", "Hold " + talk + " to talk to players near you. Hosts press " + party + " to let everyone in the world hear each other."),
 				new Step(Tab.HOME, "Open JavaHost any time", "Press " + menu + " in game, or use the buttons down the right of the title screen and pause menu."));
 	}
 

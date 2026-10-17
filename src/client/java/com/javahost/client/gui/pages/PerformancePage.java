@@ -17,6 +17,9 @@ import net.minecraft.network.chat.Component;
 
 public class PerformancePage extends Page {
 	private static final int ROW = 24;
+	private static final int MOD_ROW = 30;
+	/** Catalog slug to icon URL, fetched once from Modrinth. */
+	private static volatile java.util.Map<String, String> icons;
 	private static volatile String installStatus = "";
 	private static volatile boolean installing;
 	private static volatile boolean needsRestart;
@@ -105,20 +108,30 @@ public class PerformancePage extends Page {
 		}), width - 10 - Math.min(inner - 80, 230), 134);
 		*///?}
 
-		modsY = 56 + 12 + 102 + 16;
+		if (icons == null) {
+			icons = java.util.Map.of();
+			com.javahost.util.IoExecutor.NET.execute(() -> {
+				try {
+					icons = com.javahost.util.Modrinth.iconUrls(BoostMods.MODS.stream().map(BoostMod::slug).toList());
+				} catch (Exception e) {
+					com.javahost.JavaHost.LOGGER.debug("[Perf] couldn't fetch mod icons", e);
+				}
+			});
+		}
+		modsY = 56 + 12 + 92 + 16;
 		boolean allInstalled = recommended().stream().allMatch(BoostMods::isInstalled);
 		FlatButton installAll = add(new FlatButton(104, 16, Component.literal(allInstalled ? "All installed" : "Install all"),
 				FlatButton.Style.PRIMARY, allInstalled ? Icons.CHECK : Icons.BOLT, b -> install(recommended())), width - 104, modsY - 4);
 		installAll.active = !installing && !allInstalled;
 
-		extrasY = modsY + 14 + recommended().size() * ROW + 16;
+		extrasY = modsY + 14 + recommended().size() * MOD_ROW + 16;
 		int y = extrasY + 12;
 		for (BoostMod mod : extras()) {
 			FlatButton button = add(new FlatButton(64, 16, Component.literal("Install"), FlatButton.Style.SECONDARY, null,
-					b -> install(List.of(mod))), width - 72, y + 4);
+					b -> install(List.of(mod))), width - 72, y + 7);
 			button.active = !installing && !BoostMods.isInstalled(mod);
 			setShown(button, !BoostMods.isInstalled(mod));
-			y += ROW;
+			y += MOD_ROW;
 		}
 		reserve(y + 30);
 	}
@@ -162,23 +175,23 @@ public class PerformancePage extends Page {
 
 		// Quick settings card.
 		sectionLabel(g, "Quick settings", left, top + 56);
-		card(g, left, top + 68, width, 102);
+		card(g, left, top + 68, width, 92);
 		Draw.text(g, "Graphics", left + 10, top + 140, Theme.TEXT);
 
 		sectionLabel(g, "FPS mods", left, top + modsY);
 		int y = top + modsY + 14;
-		card(g, left, y - 2, width, recommended().size() * ROW + 4);
+		card(g, left, y - 2, width, recommended().size() * MOD_ROW + 4);
 		for (BoostMod mod : recommended()) {
 			row(g, left, y, mod);
-			y += ROW;
+			y += MOD_ROW;
 		}
 
 		sectionLabel(g, "Extras", left, top + extrasY);
 		y = top + extrasY + 12;
-		card(g, left, y - 2, width, extras().size() * ROW + 4);
+		card(g, left, y - 2, width, extras().size() * MOD_ROW + 4);
 		for (BoostMod mod : extras()) {
 			row(g, left, y, mod);
-			y += ROW;
+			y += MOD_ROW;
 		}
 
 		String status = installStatus.isEmpty()
@@ -196,16 +209,16 @@ public class PerformancePage extends Page {
 	private void row(GuiGraphicsExtractor g, int left, int y, BoostMod mod) {
 		boolean installed = BoostMods.isInstalled(mod);
 		boolean loaded = net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded(mod.modId());
-		(installed ? Icons.CHECK : Icons.PACKAGE).draw(g, left + 9, y + 7, installed ? Theme.ACCENT : Theme.MUTED);
-		Draw.text(g, mod.name(), left + 24, y + 4, Theme.TEXT);
+		com.javahost.client.gui.ui.WebIcons.draw(g, icons == null ? "" : icons.getOrDefault(mod.slug(), ""), mod.name(), left + 7, y + 5, 20);
+		Draw.text(g, mod.name(), left + 34, y + 5, Theme.TEXT);
 		String badge = loaded ? "Active" : "Restart needed";
 		int bw = Draw.font().width(badge) + 10;
 		int reserved = installed ? bw + 16 : 80;
-		Draw.textFit(g, mod.benefit(), width - 24 - reserved, left + 24, y + 14, Theme.MUTED);
+		Draw.textFit(g, mod.benefit(), width - 34 - reserved, left + 34, y + 16, Theme.MUTED);
 		if (installed) {
 			int bx = left + width - bw - 8;
-			Draw.roundRect(g, bx, y + 6, bw, 12, 6, Theme.withAlpha(loaded ? Theme.ACCENT : Theme.WARNING, 0.18f));
-			Draw.text(g, badge, bx + 5, y + 8, loaded ? Theme.ACCENT : Theme.WARNING);
+			Draw.roundRect(g, bx, y + 9, bw, 12, 6, Theme.withAlpha(loaded ? Theme.ACCENT : Theme.WARNING, 0.18f));
+			Draw.text(g, badge, bx + 5, y + 11, loaded ? Theme.ACCENT : Theme.WARNING);
 		}
 	}
 }

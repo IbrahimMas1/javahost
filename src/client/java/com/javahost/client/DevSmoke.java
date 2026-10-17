@@ -37,6 +37,15 @@ public final class DevSmoke {
 			});
 			STEPS.add(() -> shot("tab-" + tab.name().toLowerCase(java.util.Locale.ROOT)));
 		}
+		// Mod icons from Modrinth (mostly WebP) load with the bundled decoder.
+		STEPS.add(() -> {
+			if (mc.gui.screen() instanceof JavaHostScreen screen) {
+				screen.switchTo(JavaHostScreen.Tab.MODS);
+			}
+			wait = 200;
+		});
+		STEPS.add(() -> check(com.javahost.client.gui.ui.WebIcons.loadedCount() > 0, "mod icons from Modrinth load (WebP decoder works)"));
+		STEPS.add(() -> shot("mods-browse"));
 		//? if <26.1 {
 		/*STEPS.add(() -> {
 			mc.gui.setScreen(null);
