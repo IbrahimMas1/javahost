@@ -26,13 +26,41 @@ public final class Draw {
 			return;
 		}
 		g.fill(x, y + r, x + w, y + h - r, color);
+		//? if <1.21.2 {
+		/*// Before 1.21.2 every fill is its own draw call, so corners are drawn in whole GUI pixels there.
 		for (int i = 0; i < r; i++) {
-			// Inset for row i of the corner, approximating a quarter circle.
 			double dy = r - i - 0.5;
 			int inset = (int) Math.round(r - Math.sqrt(Math.max(0, r * r - dy * dy)));
 			g.fill(x + inset, y + i, x + w - inset, y + i + 1, color);
 			g.fill(x + inset, y + h - i - 1, x + w - inset, y + h - i, color);
 		}
+		*///?} else {
+		int scale = Math.max(1, Math.round((float) net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale()));
+		// The curved top and bottom bands are drawn in real screen pixels, with the edge pixel of each row only
+		// partly covered, so corners stay smooth at big GUI scales instead of stepping in whole GUI pixels.
+		push(g);
+		translate(g, x, y);
+		scale(g, 1f / scale, 1f / scale);
+		int radius = r * scale;
+		int width = w * scale;
+		int height = h * scale;
+		for (int i = 0; i < radius; i++) {
+			double dy = radius - i - 0.5;
+			double edge = radius - Math.sqrt(Math.max(0, (double) radius * radius - dy * dy));
+			int full = (int) Math.ceil(edge);
+			g.fill(full, i, width - full, i + 1, color);
+			g.fill(full, height - i - 1, width - full, height - i, color);
+			float cover = (float) (full - edge);
+			if (cover > 0.04f && full > 0) {
+				int soft = Theme.withAlpha(color, cover);
+				g.fill(full - 1, i, full, i + 1, soft);
+				g.fill(width - full, i, width - full + 1, i + 1, soft);
+				g.fill(full - 1, height - i - 1, full, height - i, soft);
+				g.fill(width - full, height - i - 1, width - full + 1, height - i, soft);
+			}
+		}
+		pop(g);
+		//?}
 	}
 
 	/** A soft shadow under a panel. */

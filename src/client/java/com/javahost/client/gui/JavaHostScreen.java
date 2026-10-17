@@ -207,15 +207,18 @@ public class JavaHostScreen extends BaseScreen {
 			page = null;
 		}
 
-		// At most 480x310, and never more than ~88% of the screen, so big GUI scales keep a margin all round.
-		winW = Math.min(480, Math.min(width - 16, Math.round(width * 0.88f)));
+		// At most 480x310, and never more than ~96% of the screen wide, so big GUI scales keep a margin all round
+		// (wide enough on a laptop at GUI scale 3-4 for the sidebar to show names, not just icons).
+		winW = Math.min(480, Math.min(width - 16, Math.round(width * 0.96f)));
 		winH = Math.min(310, Math.min(height - 16, Math.round(height * 0.86f)));
 		winX = (width - winW) / 2;
 		winY = (height - winH) / 2;
-		boolean compact = winW < 380;
+		int pad = winW < 440 ? 10 : 14;
+		// Names in the sidebar when pages still get at least 244 wide; otherwise just icons (names on hover).
+		boolean compact = winW - 108 - pad * 2 < 244;
 		sideW = compact ? 30 : 108;
-		contentX = winX + sideW + 14;
-		contentW = winX + winW - 14 - contentX;
+		contentX = winX + sideW + pad;
+		contentW = winX + winW - pad - contentX;
 		contentY = winY + HEADER + 10; // a little air between the header line and the first section
 		contentH = winY + winH - 10 - contentY;
 
@@ -566,6 +569,10 @@ public class JavaHostScreen extends BaseScreen {
 			super(x, y, w, h, Component.literal(target.label));
 			this.target = target;
 			this.compact = compact;
+			if (compact) {
+				// Only icons fit: the name shows on hover.
+				setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(target == Tab.ACCOUNT ? "Your account" : target.label)));
+			}
 		}
 
 		@Override

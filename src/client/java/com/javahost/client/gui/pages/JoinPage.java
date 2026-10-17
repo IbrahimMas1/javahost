@@ -28,7 +28,7 @@ public class JoinPage extends Page {
 
 	@Override
 	public String subtitle() {
-		return "Paste a code or address from a friend.";
+		return "Paste a friend's code or address.";
 	}
 
 	@Override

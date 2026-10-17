@@ -26,7 +26,7 @@ public class VoicePage extends Page {
 
 	@Override
 	public String subtitle() {
-		return "Talk to players nearby, or the whole world.";
+		return "Talk nearby, or to the whole world.";
 	}
 
 	@Override

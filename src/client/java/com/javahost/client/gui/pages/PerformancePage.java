@@ -85,7 +85,7 @@ public class PerformancePage extends Page {
 		if (!presets.contains(preset)) {
 			presets.add(preset); // e.g. Custom, from changing settings one by one
 		}
-		add(new com.javahost.client.gui.ui.Segmented<>(Math.min(inner - 80, 230), presets, preset, p -> switch (p) {
+		add(new com.javahost.client.gui.ui.Segmented<>(Math.min(inner - 60, 230), presets, preset, p -> switch (p) {
 			case FAST -> "Fast";
 			case FANCY -> "Fancy";
 			case FABULOUS -> "Fabulous";
@@ -93,19 +93,19 @@ public class PerformancePage extends Page {
 		}, p -> {
 			options.applyGraphicsPreset(p);
 			options.save();
-		}), width - 10 - Math.min(inner - 80, 230), 134);
+		}), width - 10 - Math.min(inner - 60, 230), 134);
 		//?} else {
 		/*net.minecraft.client.GraphicsStatus preset = options.graphicsMode().get();
 		List<net.minecraft.client.GraphicsStatus> presets = List.of(net.minecraft.client.GraphicsStatus.FAST, net.minecraft.client.GraphicsStatus.FANCY,
 				net.minecraft.client.GraphicsStatus.FABULOUS);
-		add(new com.javahost.client.gui.ui.Segmented<>(Math.min(inner - 80, 230), presets, preset, p -> switch (p) {
+		add(new com.javahost.client.gui.ui.Segmented<>(Math.min(inner - 60, 230), presets, preset, p -> switch (p) {
 			case FAST -> "Fast";
 			case FANCY -> "Fancy";
 			case FABULOUS -> "Fabulous";
 		}, p -> {
 			options.graphicsMode().set(p);
 			options.save();
-		}), width - 10 - Math.min(inner - 80, 230), 134);
+		}), width - 10 - Math.min(inner - 60, 230), 134);
 		*///?}
 
 		if (icons == null) {

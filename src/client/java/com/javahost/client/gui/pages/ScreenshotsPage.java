@@ -69,7 +69,7 @@ public class ScreenshotsPage extends Page {
 			return selected.getFileName().toString();
 		}
 		String key = JavaHostClient.SCREENSHOT_SHARE.getTranslatedKeyMessage().getString();
-		return "Press " + key + " in game to snap one for friends.";
+		return "Press " + key + " in game to take one.";
 	}
 
 	@Override
@@ -113,8 +113,8 @@ public class ScreenshotsPage extends Page {
 		int tabsW = Math.min(240, width - 110);
 		add(new Segmented<>(tabsW, List.of("MINE", "FRIENDS", "FAVOURITES"), view,
 				v -> switch (v) {
-					case "FRIENDS" -> "From friends";
-					case "FAVOURITES" -> "★ Favourites";
+					case "FRIENDS" -> width < 330 ? "Received" : "From friends";
+					case "FAVOURITES" -> width < 330 ? "★ Faves" : "★ Favourites";
 					default -> "Mine";
 				}, v -> {
 			view = v;

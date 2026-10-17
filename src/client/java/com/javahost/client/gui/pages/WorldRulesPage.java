@@ -30,6 +30,7 @@ public class WorldRulesPage extends Page {
 	private int seen = -1;
 	private boolean confirmUnlock;
 	private int rulesY;
+	private int lockW = 124;
 	private int coHostsY;
 	private List<PlayerInfo> others = List.of();
 	private int historyY;
@@ -41,7 +42,7 @@ public class WorldRulesPage extends Page {
 
 	@Override
 	public String subtitle() {
-		return "Every change is announced to everyone.";
+		return "Everyone sees every change.";
 	}
 
 	@Override
@@ -59,7 +60,8 @@ public class WorldRulesPage extends Page {
 		int y = 0;
 		if (state.host()) {
 			String label = state.locked() ? (confirmUnlock ? "Click again to unlock" : "Unlock rules") : "Lock rules";
-			add(new FlatButton(124, 18, Component.literal(label), state.locked() ? FlatButton.Style.SECONDARY : FlatButton.Style.PRIMARY,
+			lockW = Math.min(124, Draw.font().width(label) + 34);
+			add(new FlatButton(lockW, 18, Component.literal(label), state.locked() ? FlatButton.Style.SECONDARY : FlatButton.Style.PRIMARY,
 					state.locked() ? Icons.UNLOCK : Icons.LOCK, b -> {
 						if (state.locked() && !confirmUnlock) {
 							confirmUnlock = true;
@@ -68,7 +70,7 @@ public class WorldRulesPage extends Page {
 						}
 						confirmUnlock = false;
 						RulesClient.request("__lock", String.valueOf(!state.locked()));
-					}), width - 124, y + 6);
+					}), width - lockW, y + 6);
 		}
 
 		rulesY = y + 40;
@@ -133,10 +135,10 @@ public class WorldRulesPage extends Page {
 		int color = state.locked() ? Theme.WARNING : state.canEdit() ? Theme.ACCENT : Theme.MUTED;
 		String status = state.locked() ? "Locked for a challenge run" : state.host() ? "You're the host" : state.canEdit() ? "You're a co-host" : "Only the host can change these";
 		String detail = state.locked() ? "Nobody can change the rules until the host unlocks them."
-				: state.host() ? "Make friends co-hosts below to let them change rules too." : "Ask the host if you'd like something changed.";
+				: state.host() ? "Co-hosts can change them too." : "Ask the host if you'd like something changed.";
 		icon.draw(g, left, top + 4, color);
-		Draw.textFit(g, status, width - (state.host() ? 150 : 20), left + 16, top + 5, color);
-		Draw.textFit(g, detail, width - (state.host() ? 150 : 20), left + 16, top + 17, Theme.FAINT);
+		Draw.textFit(g, status, width - (state.host() ? lockW + 26 : 20), left + 16, top + 5, color);
+		Draw.textFit(g, detail, width - (state.host() ? lockW + 26 : 20), left + 16, top + 17, Theme.FAINT);
 
 		sectionLabel(g, "Rules", left, top + rulesY);
 		card(g, left, top + rulesY + 12, width, Rule.values().length * ROW + 4);

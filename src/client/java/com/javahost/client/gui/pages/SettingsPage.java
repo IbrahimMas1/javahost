@@ -61,7 +61,7 @@ public class SettingsPage extends Page {
 				}), 10, 72);
 
 		// Friends & sound
-		add(new ToggleSwitch(inner, Component.literal("Always use the host's packs"), "Skip the question when a host shares packs",
+		add(new ToggleSwitch(inner, Component.literal("Always use the host's packs"), "Don't ask when a host shares packs",
 				config.autoAcceptHostPacks, v -> {
 					config.autoAcceptHostPacks = v;
 					config.save();

@@ -45,6 +45,16 @@ public final class BoostMods {
 		return INSTALLED.computeIfAbsent(slug, s -> FabricLoader.getInstance().isModLoaded(s) || pendingJar(s) != null);
 	}
 
+	/** Downloaded for this mod (by Modrinth name) but not loaded yet: it starts working after a restart. */
+	public static boolean waitingForRestart(String slug) {
+		return !FabricLoader.getInstance().isModLoaded(slug) && pendingJar(slug) != null && !LOADED_JARS.contains(pendingJar(slug).getFileName().toString());
+	}
+
+	/** Jar file names Fabric loaded this session (a marker's jar in here is already running under another id). */
+	private static final java.util.Set<String> LOADED_JARS = FabricLoader.getInstance().getAllMods().stream()
+			.flatMap(m -> m.getOrigin().getKind() == net.fabricmc.loader.api.metadata.ModOrigin.Kind.PATH ? m.getOrigin().getPaths().stream() : java.util.stream.Stream.empty())
+			.map(path -> path.getFileName().toString()).collect(java.util.stream.Collectors.toUnmodifiableSet());
+
 	/** A jar downloaded earlier, waiting for a restart to load. Marker files are written by us and the installer. */
 	private static Path pendingJar(String slug) {
 		Path marker = modsDir().resolve(".javahost-" + slug);

@@ -288,7 +288,7 @@ public class FriendsPage extends Page {
 		if (!Identity.canSign()) {
 			card(g, left, top + 12, width, 24);
 			Icons.WARNING.draw(g, left + 8, top + 19, Theme.WARNING);
-			Draw.textFit(g, "Sign in with a Microsoft account to use friends.", width - 30, left + 22, top + 20, Theme.WARNING);
+			Draw.textFit(g, "Sign in with Microsoft to use friends.", width - 30, left + 22, top + 20, Theme.WARNING);
 		} else if (message != null) {
 			Draw.textFit(g, message, width, left, top + 37, messageColor);
 		} else {

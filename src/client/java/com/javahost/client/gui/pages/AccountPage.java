@@ -99,7 +99,7 @@ public class AccountPage extends Page {
 			Draw.textFit(g, "Not signed in", rightW - 14, right + 13, top + 19, Theme.WARNING);
 		}
 		boolean hidden = Config.get().appearOffline;
-		statusFit(g, right, top + 33, hidden ? Theme.FAINT : Theme.ACCENT, "Friends see: " + seenAs(), rightW - 14, Theme.MUTED);
+		statusFit(g, right, top + 33, hidden ? Theme.FAINT : Theme.ACCENT, "Seen as: " + seenAs(), rightW - 14, Theme.MUTED);
 
 		int friends = Friends.friends().size();
 		int online = Presence.onlineFriends().size();

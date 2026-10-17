@@ -69,7 +69,7 @@ public class HostPage extends Page {
 
 	@Override
 	public String subtitle() {
-		return HostController.isHosting() ? "Invite friends, or share the code." : "Your PC is the server. No rental needed.";
+		return HostController.isHosting() ? "Invite friends, or share the code." : "Your PC is the server. No rental.";
 	}
 
 	private boolean canHost() {
@@ -389,7 +389,7 @@ public class HostPage extends Page {
 		Route best = Connectivity.recommended();
 		if (best != null && best.invite() != null) {
 			add(new FlatButton(18, 16, Component.literal("Copy"), FlatButton.Style.GHOST, isCopied(best.invite()) ? Icons.CHECK : Icons.COPY,
-					b -> copy(best.invite())).iconOnly(), 12 + Math.min(width - 160, inviteWidth(best.invite())) + 4, 26);
+					b -> copy(best.invite())).iconOnly(), 12 + inviteWidth(best.invite()) + 4, 26);
 		}
 
 		// Players.
@@ -457,8 +457,14 @@ public class HostPage extends Page {
 		buildBackups(footerY + 24);
 	}
 
-	private static int inviteWidth(String invite) {
-		return (int) (Draw.font().width(invite) * 1.5f);
+	/** The invite code is never cut: it's drawn smaller when the window is narrow, leaving room for the copy button. */
+	private float inviteScale(String invite) {
+		int room = width - 132 - 12 - 24;
+		return Math.max(0.75f, Math.min(1.5f, room / (float) Math.max(1, Draw.font().width(invite))));
+	}
+
+	private int inviteWidth(String invite) {
+		return (int) (Draw.font().width(invite) * inviteScale(invite));
 	}
 
 	private void copy(String value) {
@@ -517,8 +523,8 @@ public class HostPage extends Page {
 		Icons.HOST.draw(g, left + 12, top + 14, ready ? Theme.ACCENT : Theme.FAINT);
 		int textW = width - 128 - 40;
 		Draw.textFit(g, ready ? worldName() : "No world open", textW, left + 30, top + 15, Theme.TEXT);
-		Draw.textFit(g, ready ? "Friends join with one click" : "Open a world to host it", textW, left + 30, top + 27, Theme.MUTED);
-		Draw.textFit(g, ready ? "Stops when you leave the world" : "Then come back here", textW, left + 30, top + 39, Theme.FAINT);
+		Draw.textFit(g, ready ? "Friends join in one click" : "Open a world to host it", textW, left + 30, top + 27, Theme.MUTED);
+		Draw.textFit(g, ready ? "Stops when you leave" : "Then come back here", textW, left + 30, top + 39, Theme.FAINT);
 		if (error != null) {
 			Icons.WARNING.draw(g, left, top + HERO_H + 4, Theme.WARNING);
 			Draw.textFit(g, error, width - 14, left + 14, top + HERO_H + 5, Theme.WARNING);
@@ -593,7 +599,7 @@ public class HostPage extends Page {
 			statusFit(g, left + 12, top + 10, Theme.INFO, "Getting ready...", textW, Theme.TEXT);
 			Draw.textFit(g, "Finding the best way for friends to join.", textW, left + 12, top + 26, Theme.MUTED);
 		} else {
-			String headline = best.state() != State.WORKING ? "Some friends may not reach it" : switch (best.name()) {
+			String headline = best.state() != State.WORKING ? "Friends may not reach it" : switch (best.name()) {
 				case "Internet", "Relay" -> "Friends anywhere can join";
 				case "IPv6" -> "Friends with IPv6 can join";
 				case "Same Wi-Fi" -> "Only people on your Wi-Fi can join";
@@ -601,8 +607,9 @@ public class HostPage extends Page {
 			};
 			statusFit(g, left + 12, top + 9, stateColor(best.state()), headline, textW, Theme.TEXT);
 			String invite = best.invite();
-			Draw.scaledText(g, Draw.fit(invite, (int) ((width - 160) / 1.5f)), left + 12, top + 26, 1.5f, Theme.ACCENT);
-			Draw.textFit(g, "Friend invites try every way in.", textW, left + 12, top + 44, Theme.FAINT);
+			float scale = inviteScale(invite);
+			Draw.scaledText(g, invite, left + 12, top + 26 + Math.round((1.5f - scale) * 4), scale, Theme.ACCENT);
+			Draw.textFit(g, "Invites find a way in.", textW, left + 12, top + 44, Theme.FAINT);
 		}
 
 		// Players.

@@ -35,6 +35,9 @@ public class ModsPage extends Page {
 	private static final int CARD = 40;
 	private static final int MAX_SAVED = 4;
 	private static final int TOP = 26; // below the Browse / My mods switch
+	private static final int BANNER = 30;
+	/** Width of the right-hand column of a card (Install, or where it runs). */
+	private static final int COLUMN = 72;
 
 	private enum View { BROWSE, MINE }
 
@@ -63,7 +66,7 @@ public class ModsPage extends Page {
 
 	@Override
 	public String subtitle() {
-		return "Find mods, and play modded worlds with friends.";
+		return "Find mods, then play them with friends.";
 	}
 
 	/** For tests and links from elsewhere: open Browse with this search (it runs when the page opens). */
@@ -116,34 +119,56 @@ public class ModsPage extends Page {
 
 	// ================================================================ Browse
 
+	/** Narrow windows (big GUI scale): shorter labels and an icon-only Search button. */
+	private boolean narrow() {
+		return width < 330;
+	}
+
 	private void buildBrowse() {
-		int kindW = Math.min(150, width / 3);
-		add(new Segmented<>(kindW, List.of(Modrinth.Kind.MOD, Modrinth.Kind.MODPACK), kind, k -> k == Modrinth.Kind.MOD ? "Mods" : "Modpacks", k -> {
+		int kindW = narrow() ? 92 : Math.min(130, width / 3);
+		add(new Segmented<>(kindW, List.of(Modrinth.Kind.MOD, Modrinth.Kind.MODPACK), kind, k -> k == Modrinth.Kind.MOD ? "Mods" : "Packs", k -> {
 			kind = k;
 			search(false);
 			screen.refresh();
 		}), 0, TOP);
-		int searchW = width - kindW - 6 - 70;
+		int buttonW = narrow() ? 20 : 64;
+		int searchW = width - kindW - 6 - buttonW - 6;
 		searchField = add(new TextField(searchW, Component.literal("Search Modrinth")), kindW + 6, TOP - 1);
 		searchField.setValue(query);
-		searchField.setHint(Component.literal("Search all of Modrinth").withStyle(s -> s.withColor(Theme.FAINT)));
+		searchField.setHint(Component.literal(Draw.fit("Search Modrinth", searchW - 10)).withStyle(s -> s.withColor(Theme.FAINT)));
 		searchField.setResponder(value -> query = value);
-		add(new FlatButton(64, 20, Component.literal("Search"), FlatButton.Style.SECONDARY, Icons.GLOBE, b -> search(false)), width - 64, TOP - 1);
+		FlatButton searchButton = add(new FlatButton(buttonW, 20, Component.literal("Search"), FlatButton.Style.SECONDARY, Icons.GLOBE,
+				b -> search(false)), width - buttonW, TOP - 1);
+		if (narrow()) {
+			searchButton.iconOnly();
+		}
 
 		int y = TOP + 28;
+		// Downloaded mods only start working after a restart (Minecraft loads mods once, at startup).
+		if (STATUS.values().stream().anyMatch(s -> s.startsWith("Restart"))) {
+			add(new FlatButton(98, 16, Component.literal("Close Minecraft"), FlatButton.Style.PRIMARY, null, b -> minecraft.stop()),
+					width - 106, y + 7);
+			y += BANNER;
+		}
 		String minecraft = Modpacks.gameVersion();
 		for (Modrinth.Project project : results) {
 			int rowY = y;
 			// The whole card opens the project's page; the button on the right installs.
-			add(new RowButton(width - 100, CARD - 2, Component.literal(project.title()), b -> ConfirmLinkScreen.confirmLinkNow(screen,
+			add(new RowButton(width - COLUMN - 4, CARD - 2, Component.literal(project.title()), b -> ConfirmLinkScreen.confirmLinkNow(screen,
 					java.net.URI.create(project.page()))), 0, rowY + 1);
 			if (Availability.installable(project, minecraft)) {
 				String status = STATUS.get(project.id());
-				boolean installed = project.kind() == Modrinth.Kind.MOD && BoostMods.installedSlug(project.slug());
-				String label = installed ? "Installed" : status != null && status.startsWith("Restart") ? "Restart" : "Install";
-				FlatButton install = add(new FlatButton(64, 16, Component.literal(label), installed ? FlatButton.Style.SECONDARY : FlatButton.Style.PRIMARY,
-						installed ? Icons.CHECK : null, b -> install(project)), width - 74, rowY + 12);
-				install.active = !installing && !installed && status == null;
+				boolean mod = project.kind() == Modrinth.Kind.MOD;
+				boolean waiting = mod && BoostMods.waitingForRestart(project.slug());
+				boolean installed = mod && !waiting && BoostMods.installedSlug(project.slug());
+				String label = waiting ? "Restart" : installed ? "Installed" : "Install";
+				FlatButton install = add(new FlatButton(COLUMN - 8, 16, Component.literal(label), installed || waiting ? FlatButton.Style.SECONDARY
+						: FlatButton.Style.PRIMARY, installed ? Icons.CHECK : null, b -> install(project)), width - COLUMN, rowY + 11);
+				install.active = !installing && !installed && !waiting && status == null;
+				if (waiting) {
+					install.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+							"Downloaded. Minecraft loads mods when it starts, so close it and press Play to use this.")));
+				}
 			}
 			y += CARD;
 		}
@@ -215,6 +240,12 @@ public class ModsPage extends Page {
 	private void drawBrowse(GuiGraphicsExtractor g, int left, int top) {
 		int y = top + TOP + 28;
 		String minecraft = Modpacks.gameVersion();
+		if (STATUS.values().stream().anyMatch(s -> s.startsWith("Restart"))) {
+			Draw.panel(g, left, y, width, BANNER - 6, 6, Theme.withAlpha(Theme.ACCENT, 0.12f));
+			Icons.CHECK.draw(g, left + 8, y + 8, Theme.ACCENT);
+			Draw.textFit(g, "Installed. Restart Minecraft to use them.", width - 132, left + 24, y + 8, Theme.TEXT);
+			y += BANNER;
+		}
 		if (results.isEmpty()) {
 			String message = searching ? "Searching Modrinth..." : !searchProblem.isEmpty() ? searchProblem : "Nothing on Modrinth matches that.";
 			Draw.textFit(g, message, width, left, y + 4, !searchProblem.isEmpty() ? Theme.WARNING : Theme.FAINT);
@@ -222,37 +253,31 @@ public class ModsPage extends Page {
 		}
 		for (Modrinth.Project project : results) {
 			card(g, left, y, width, CARD - 2);
-			WebIcons.draw(g, project.iconUrl(), project.title(), left + 6, y + 3, 32);
-			int textW = width - 48 - 98;
-			Draw.textFit(g, project.title(), textW, left + 46, y + 5, Theme.TEXT);
-			String meta = (project.author().isEmpty() ? "" : "by " + project.author() + " · ") + downloads(project.downloads());
-			Draw.textFit(g, meta, textW, left + 46, y + 16, Theme.MUTED);
-			Draw.textFit(g, project.description(), textW, left + 46, y + 27, Theme.FAINT);
+			WebIcons.draw(g, project.iconUrl(), project.title(), left + 4, y + 3, 32);
+			int textX = left + 42;
+			int textW = width - 42 - COLUMN - 4;
+			Draw.textFit(g, project.title(), textW, textX, y + 5, Theme.TEXT);
+			// Downloads first, so a narrow card cuts the author rather than the number.
+			String meta = downloads(project.downloads()) + (project.author().isEmpty() ? "" : " · by " + project.author());
+			Draw.textFit(g, meta, textW, textX, y + 16, Theme.MUTED);
+			Draw.textFit(g, project.description(), textW, textX, y + 27, Theme.FAINT);
 			String status = STATUS.get(project.id());
+			int columnX = left + width - COLUMN;
 			if (!Availability.installable(project, minecraft)) {
-				// Where it does run, in the column the Install button would use.
-				Draw.textFit(g, "Runs on", 90, left + width - 96, y + 9, Theme.FAINT);
-				badge(g, Availability.runsOn(project), left + width - 8, y + 21);
-			} else if (status != null && !status.startsWith("Restart")) {
-				Draw.textFit(g, status, 78, left + width - 80, y + 30, status.startsWith("Couldn't") ? Theme.WARNING : Theme.INFO);
+				// Where it does run, in the column the Install button would use: "Runs on" / loader / version.
+				String[] runsOn = Availability.runsOn(project).split(" ", 2);
+				Draw.textFit(g, "Runs on", COLUMN - 6, columnX, y + 5, Theme.FAINT);
+				Draw.textFit(g, runsOn[0], COLUMN - 6, columnX, y + 16, Theme.WARNING);
+				Draw.textFit(g, runsOn.length > 1 ? runsOn[1] : "", COLUMN - 6, columnX, y + 27, Theme.WARNING);
+			} else if (status != null && !status.startsWith("Restart") && !status.startsWith("Ready")) {
+				Draw.textFit(g, status, COLUMN - 6, columnX, y + 29, status.startsWith("Couldn't") ? Theme.WARNING : Theme.INFO);
 			}
 			y += CARD;
 		}
 	}
 
-	/** A small amber pill, right-aligned at {@code right}. */
-	private static void badge(GuiGraphicsExtractor g, String text, int right, int y) {
-		String shown = Draw.fit(text, 86);
-		int w = Draw.font().width(shown) + 10;
-		Draw.roundRect(g, right - w, y - 2, w, 13, 4, Theme.withAlpha(Theme.WARNING, 0.16f));
-		Draw.text(g, shown, right - w + 5, y + 1, Theme.WARNING);
-		if (!shown.equals(text)) {
-			Draw.truncated(g, right - w, y - 2, w, 13, text);
-		}
-	}
-
 	private static String downloads(long n) {
-		return n >= 1_000_000 ? String.format("%.1fM downloads", n / 1e6) : n >= 1000 ? (n / 1000) + "k downloads" : n + " downloads";
+		return n >= 1_000_000 ? String.format("%.0fM downloads", n / 1e6) : n >= 1000 ? (n / 1000) + "k downloads" : n + " downloads";
 	}
 
 	// ================================================================ My mods
