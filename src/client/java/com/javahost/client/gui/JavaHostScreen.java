@@ -28,6 +28,7 @@ import com.javahost.client.gui.pages.VoicePage;
 import com.javahost.client.gui.ui.Draw;
 import com.javahost.client.gui.ui.FlatButton;
 import com.javahost.client.gui.ui.Icons;
+import com.javahost.client.gui.ui.Popover;
 import com.javahost.client.gui.ui.Theme;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
@@ -143,6 +144,9 @@ public class JavaHostScreen extends BaseScreen {
 	}
 
 	public void switchTo(Tab next) {
+		if (!(popover instanceof DownloadsPopover)) {
+			popover = null;
+		}
 		if (tab == Tab.VOICE && next != Tab.VOICE) {
 			com.javahost.client.voice.VoiceClient.setTestingMic(false);
 		}
@@ -249,6 +253,16 @@ public class JavaHostScreen extends BaseScreen {
 				tab == Tab.NOTIFICATIONS ? FlatButton.Style.SECONDARY : FlatButton.Style.GHOST, Icons.BELL,
 				b -> switchTo(tab == Tab.NOTIFICATIONS ? beforeNotifications : Tab.NOTIFICATIONS)).iconOnly();
 		sidebarWidgets.add(addWidget(bell));
+		// Downloads: only while there are some; a ring on it shows how far they've got.
+		downloadsButton = null;
+		if (!com.javahost.client.mods.Downloads.jobs().isEmpty()) {
+			downloadsButton = new FlatButton(winX + winW - 84, winY + 8, 22, 18, Component.literal("Downloads"),
+					popover instanceof DownloadsPopover ? FlatButton.Style.SECONDARY : FlatButton.Style.GHOST, Icons.DOWNLOAD,
+					b -> toggleDownloads()).iconOnly();
+			downloadsButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Downloads")));
+			sidebarWidgets.add(addWidget(downloadsButton));
+		}
+		hadDownloads = downloadsButton != null;
 		FlatButton close = new FlatButton(winX + winW - 32, winY + 8, 22, 18, Component.literal("Close"),
 				FlatButton.Style.GHOST, Icons.CROSS, b -> close()).iconOnly();
 		close.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Close")));
@@ -293,6 +307,13 @@ public class JavaHostScreen extends BaseScreen {
 		if (page != null) {
 			page.tick();
 		}
+		boolean hasDownloads = !com.javahost.client.mods.Downloads.jobs().isEmpty();
+		if (hasDownloads != hadDownloads) {
+			if (!hasDownloads && popover instanceof DownloadsPopover) {
+				popover = null;
+			}
+			rebuildWidgets(); // show or hide the download icon
+		}
 		if (tab == Tab.NOTIFICATIONS) {
 			Notifications.markRead();
 		}
@@ -300,6 +321,9 @@ public class JavaHostScreen extends BaseScreen {
 
 	@Override
 	public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
+		if (popover != null && !(popover instanceof DownloadsPopover)) {
+			popover = null; // it points at something on the page, which is about to move
+		}
 		if (x >= contentX && x < contentX + contentW && y >= contentY && y < contentY + contentH && maxScroll() > 0) {
 			scrollTarget = (float) Math.max(0, Math.min(maxScroll(), scrollTarget - scrollY * 20));
 			return true;
@@ -308,7 +332,10 @@ public class JavaHostScreen extends BaseScreen {
 	}
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+	public void extractRenderState(GuiGraphicsExtractor g, int realMouseX, int realMouseY, float a) {
+		// While a popover is open, only it reacts to the mouse (no hover, no tooltips drawn over it).
+		int mouseX = popover != null ? -1 : realMouseX;
+		int mouseY = popover != null ? -1 : realMouseY;
 		background(g, mouseX, mouseY, a);
 		scroll = Draw.approach(scroll, scrollTarget, 0.4f);
 		openAnim = Draw.approach(openAnim, 1, 0.3f);
@@ -336,7 +363,7 @@ public class JavaHostScreen extends BaseScreen {
 
 		// Page header (shifted right when there's a back button).
 		int titleX = canGoBack() ? contentX + 18 : contentX;
-		int titleW = contentX + contentW - 62 - titleX;
+		int titleW = contentX + contentW - (downloadsButton != null ? 88 : 62) - titleX;
 		String title = Draw.fit(page.title(), (int) (titleW / 1.25f));
 		Draw.scaledText(g, title, titleX, winY + 10, 1.25f, Theme.TEXT);
 		if (!title.equals(page.title())) {
@@ -353,6 +380,15 @@ public class JavaHostScreen extends BaseScreen {
 		int unread = Notifications.unread();
 		if (unread > 0 && tab != Tab.NOTIFICATIONS) {
 			badge(g, winX + winW - 40, winY + 6, unread);
+		}
+		if (downloadsButton != null) {
+			float cx = downloadsButton.getX() + downloadsButton.getWidth() / 2f;
+			float cy = downloadsButton.getY() + downloadsButton.getHeight() / 2f;
+			if (com.javahost.client.mods.Downloads.active()) {
+				Draw.ring(g, cx, cy, 8.5f, 1.5f, com.javahost.client.mods.Downloads.overall(), Theme.ACCENT, Theme.withAlpha(Theme.BORDER, 0.9f));
+			} else if (com.javahost.client.mods.Downloads.unseen() > 0) {
+				Draw.roundRect(g, Math.round(cx) + 5, downloadsButton.getY() + 1, 5, 5, 2, Theme.ACCENT); // done, not looked at yet
+			}
 		}
 
 		// Page contents, clipped to the content area so they can scroll; they slide in when the tab changes.
@@ -400,7 +436,64 @@ public class JavaHostScreen extends BaseScreen {
 				button.extractRenderState(g, mouseX, mouseY, a);
 			}
 		}
+		if (popover != null) {
+			g.nextStratum();
+			placePopover();
+			popover.draw(g, realMouseX, realMouseY);
+		}
 		Draw.pop(g);
+	}
+
+	// ---------------------------------------------------------------- popovers
+
+	private Popover popover;
+	/** What the popover hangs from (x, y, w, h): it opens below, right-aligned, or above when there's no room. */
+	private int[] popoverAnchor;
+	private FlatButton downloadsButton;
+	private boolean hadDownloads;
+
+	/** Opens a popover under {@code anchor} (replacing any open one). */
+	public void openPopover(Popover next, AbstractWidget anchor) {
+		popover = next;
+		popoverAnchor = new int[] {anchor.getX(), anchor.getY(), anchor.getWidth(), anchor.getHeight()};
+		placePopover();
+	}
+
+	public void closePopover() {
+		popover = null;
+	}
+
+	/** For tests: whether a popover is open. */
+	public boolean popoverOpen() {
+		return popover != null;
+	}
+
+	/** For tests: clicks the popover at a point relative to its top-left. */
+	public void clickPopover(int dx, int dy) {
+		if (popover != null && popover.click(popover.x() + dx, popover.y() + dy)) {
+			popover = null;
+		}
+	}
+
+	private void placePopover() {
+		int w = popover.width();
+		int h = popover.height();
+		int x = Math.max(winX + 4, Math.min(popoverAnchor[0] + popoverAnchor[2] - w, winX + winW - 4 - w));
+		int y = popoverAnchor[1] + popoverAnchor[3] + 2;
+		if (y + h > winY + winH - 4 && popoverAnchor[1] - h - 2 >= winY + 4) {
+			y = popoverAnchor[1] - h - 2;
+		}
+		popover.place(x, y);
+	}
+
+	/** Opens (or closes) the download list under the header's download icon. */
+	public void toggleDownloads() {
+		if (popover instanceof DownloadsPopover) {
+			popover = null;
+		} else if (downloadsButton != null) {
+			com.javahost.client.mods.Downloads.markSeen();
+			openPopover(new DownloadsPopover(winW - 8), downloadsButton);
+		}
 	}
 
 	/** A small red count bubble. */
@@ -451,6 +544,10 @@ public class JavaHostScreen extends BaseScreen {
 
 	@Override
 	public void onClose() {
+		if (popover != null) {
+			popover = null; // Esc closes the popover first
+			return;
+		}
 		goBack(); // Esc does the same as the back button, and closes when there's nowhere to go back to
 	}
 
@@ -506,6 +603,14 @@ public class JavaHostScreen extends BaseScreen {
 	@Override
 	//? if >=1.21.9 {
 	public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+		if (popover != null) {
+			// An open popover gets the click; a click outside just closes it.
+			if (popover.contains(event.x(), event.y()) && !popover.click(event.x(), event.y())) {
+				return true;
+			}
+			popover = null;
+			return true;
+		}
 		if (tour != null) {
 			// During the tour only its own buttons respond.
 			for (AbstractWidget button : tour.buttons()) {
@@ -519,6 +624,13 @@ public class JavaHostScreen extends BaseScreen {
 	}
 	//?} else {
 	/*public boolean mouseClicked(double x, double y, int mouseButton) {
+		if (popover != null) {
+			if (popover.contains(x, y) && !popover.click(x, y)) {
+				return true;
+			}
+			popover = null;
+			return true;
+		}
 		if (tour != null) {
 			// During the tour only its own buttons respond.
 			for (AbstractWidget button : tour.buttons()) {

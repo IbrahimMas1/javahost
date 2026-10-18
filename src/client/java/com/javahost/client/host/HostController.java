@@ -145,7 +145,15 @@ public final class HostController {
 
 	/** Everyone connected except the host (refreshed every tick). */
 	public static List<Guest> guests() {
-		return guests;
+		List<Guest> shown = previewGuests;
+		return shown != null ? shown : guests;
+	}
+
+	/** For tests: players to show on the Host tab instead of the real ones (null: the real ones again). */
+	private static volatile List<Guest> previewGuests;
+
+	public static void previewGuests(List<Guest> preview) {
+		previewGuests = preview == null ? null : List.copyOf(preview);
 	}
 
 	/**

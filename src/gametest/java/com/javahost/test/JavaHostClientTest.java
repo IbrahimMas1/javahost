@@ -697,11 +697,11 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.waitFor(mc -> again.isDone(), 60 * 20);
 		check(context.computeOnClient(mc -> com.javahost.client.host.WorldBackups.listAll().size()) == before && zip.equals(again.join()),
 				"a second automatic backup within 30 minutes is skipped");
+		com.javahost.client.gui.pages.HostPage.showSection("backups");
 		context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
-		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40,
-				mc.getWindow().getGuiScaledHeight() / 2.0, 0, -20));
 		context.waitTicks(10);
 		context.takeScreenshot("ui-host-backups");
+		com.javahost.client.gui.pages.HostPage.showSection("settings");
 		context.setScreen(() -> null);
 	}
 
@@ -720,11 +720,11 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		Path saves = context.computeOnClient(mc -> mc.getLevelSource().getBaseDir());
 		check(java.nio.file.Files.exists(saves.resolve(newest.world()).resolve("level.dat")), "restore puts the backup back as " + newest.world());
 		check(aside == null || java.nio.file.Files.exists(saves.resolve(aside)), "the world it replaced is kept as \"" + aside + "\"");
+		com.javahost.client.gui.pages.HostPage.showSection("backups");
 		context.setScreen(() -> new JavaHostScreen(new net.minecraft.client.gui.screens.TitleScreen(), Tab.HOST));
-		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40,
-				mc.getWindow().getGuiScaledHeight() / 2.0, 0, -30));
 		context.waitTicks(12);
 		context.takeScreenshot("ui-backups-no-world");
+		com.javahost.client.gui.pages.HostPage.showSection("settings");
 	}
 
 	/** Everything in the menu can be reached and left with the mouse: ← goes back, ✕ closes. */
@@ -973,7 +973,8 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		});
 		com.javahost.client.gui.pages.ModsPage.showSearch(com.javahost.util.Modrinth.Kind.MOD, "aether");
 		context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
-		context.waitFor(mc -> mc.gui.screen().children().stream().anyMatch(c -> c instanceof com.javahost.client.gui.ui.RowButton), 400);
+		context.waitFor(mc -> !com.javahost.client.gui.pages.ModsPage.searching() && !com.javahost.client.gui.pages.ModsPage.results().isEmpty()
+				&& mc.gui.screen().children().stream().anyMatch(c -> c instanceof com.javahost.client.gui.ui.RowButton), 400);
 		context.waitTicks(60); // icons
 		long cards = context.computeOnClient(mc -> mc.gui.screen().children().stream().filter(c -> c instanceof com.javahost.client.gui.ui.RowButton).count());
 		long installs = context.computeOnClient(mc -> mc.gui.screen().children().stream()
@@ -982,6 +983,177 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.takeScreenshot("review-1710-s4-mods-search-other-versions");
 		com.javahost.client.gui.pages.ModsPage.showSearch(com.javahost.util.Modrinth.Kind.MOD, "");
 		context.setScreen(() -> null);
+	}
+
+	private static void size(ClientGameTestContext context, int w, int h, int scale) {
+		context.getInput().resizeWindow(w, h);
+		context.runOnClient(mc -> {
+			mc.options.guiScale().set(scale);
+			TestCompat.resizeGui(mc);
+		});
+	}
+
+	private static boolean widgetsFit(ClientGameTestContext context) {
+		return context.computeOnClient(mc -> mc.gui.screen().children().stream()
+				.filter(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w && w.visible)
+				.map(c -> (net.minecraft.client.gui.components.AbstractWidget) c)
+				.allMatch(w -> w.getRight() <= mc.getWindow().getGuiScaledWidth() - 8));
+	}
+
+	private static boolean hasButton(ClientGameTestContext context, String label) {
+		return context.computeOnClient(mc -> mc.gui.screen().children().stream().anyMatch(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w
+				&& w.visible && w.getMessage().getString().equals(label)));
+	}
+
+	/** 1.12: Discover by category, a project's page, and installs with progress in the menu's download list. */
+	private static void storeAndDownloads(ClientGameTestContext context) {
+		Path mods = context.computeOnClient(mc -> net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("mods"));
+		java.util.Set<String> before = fileNames(mods);
+		String minecraft = context.computeOnClient(mc -> com.javahost.client.mods.Modpacks.gameVersion());
+		size(context, 1710, 1070, 4);
+		try {
+			// A category.
+			com.javahost.client.gui.pages.ModsPage.showSearch(com.javahost.util.Modrinth.Kind.MOD, "");
+			com.javahost.client.gui.pages.ModsPage.showCategory("magic");
+			context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
+			context.waitFor(mc -> !com.javahost.client.gui.pages.ModsPage.searching() && !com.javahost.client.gui.pages.ModsPage.results().isEmpty(), 400);
+			context.waitTicks(60); // icons
+			check(com.javahost.client.gui.pages.ModsPage.results().stream().allMatch(p -> p.categories().contains("magic")),
+					"the Magic chip shows only magic mods");
+			check(widgetsFit(context), "Discover fits at 1710x1070 scale 4");
+			context.takeScreenshot("review-1710-s4-mods-category");
+
+			// Only ones that run here.
+			com.javahost.client.gui.pages.ModsPage.showCategory("");
+			com.javahost.client.gui.pages.ModsPage.showRunsHere(true);
+			context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
+			context.waitFor(mc -> !com.javahost.client.gui.pages.ModsPage.searching() && !com.javahost.client.gui.pages.ModsPage.results().isEmpty(), 400);
+			check(com.javahost.client.gui.pages.ModsPage.results().stream().allMatch(p -> com.javahost.util.Availability.installable(p, minecraft)),
+					"\"Only ones that run here\" shows only mods for this version");
+			List<com.javahost.util.Modrinth.Project> picks = context.computeOnClient(mc -> com.javahost.client.gui.pages.ModsPage.results().stream()
+					.filter(p -> !com.javahost.client.perf.BoostMods.installedSlug(p.slug())).limit(3).toList());
+			check(picks.size() == 3, "found mods to install");
+
+			// A project's page, then Install from it.
+			for (int[] s : new int[][] {{1280, 800, 3}, {1710, 1070, 4}}) {
+				size(context, s[0], s[1], s[2]);
+				com.javahost.client.gui.pages.ModsPage.showDetail(picks.get(0));
+				context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
+				context.waitTicks(30);
+				check(hasButton(context, "Install") && hasButton(context, "Modrinth"), "a mod's page has Install and Modrinth");
+				check(widgetsFit(context), "a mod's page fits at " + s[0] + "x" + s[1]);
+				context.takeScreenshot("review-" + s[0] + "-s" + s[2] + "-mods-detail");
+			}
+			clickMenu(context, "Install");
+			check(hasButton(context, "Downloads"), "the download icon shows in the menu header");
+			// Back to the list, and queue a second one from its card.
+			clickMenu(context, "Back");
+			check(com.javahost.client.gui.pages.ModsPage.results().size() > 0 && hasButton(context, "Install"), "back to the list");
+			context.runOnClient(mc -> com.javahost.client.mods.Downloads.installMod(picks.get(1).id(), picks.get(1).slug(), picks.get(1).title(),
+					picks.get(1).iconUrl()));
+			context.waitTicks(6);
+			context.takeScreenshot("review-1710-s4-downloads-ring");
+			clickMenu(context, "Downloads");
+			check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).popoverOpen()), "the download list opens");
+			context.takeScreenshot("review-1710-s4-downloads-popover");
+			context.waitFor(mc -> !com.javahost.client.mods.Downloads.active(), 20 * 180);
+			for (int i = 0; i < 2; i++) {
+				var job = com.javahost.client.mods.Downloads.job(picks.get(i).id());
+				check(job != null && job.stage() == com.javahost.client.mods.Downloads.Stage.DONE && job.needsRestart(),
+						picks.get(i).title() + " downloaded in turn and waits for a restart");
+			}
+			context.waitTicks(10);
+			context.takeScreenshot("review-1710-s4-downloads-done");
+			check(context.computeOnClient(mc -> com.javahost.client.friends.Notifications.items().stream()
+					.anyMatch(n -> n.payload() instanceof com.javahost.client.friends.Notifications.Action a && a.label().equals("Close game"))),
+					"a notification says it's ready, with Close game");
+			context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).closePopover());
+			context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
+			context.waitTicks(10);
+			check(hasButton(context, "Restart") && hasButton(context, "Close Minecraft"), "the card says Restart, with Close Minecraft above the list");
+			context.takeScreenshot("review-1710-s4-mods-restart");
+
+			// Cancelling one that's waiting its turn.
+			var third = context.computeOnClient(mc -> {
+				var job = com.javahost.client.mods.Downloads.installMod(picks.get(2).id(), picks.get(2).slug(), picks.get(2).title(), picks.get(2).iconUrl());
+				com.javahost.client.mods.Downloads.cancel(job);
+				return job;
+			});
+			context.waitFor(mc -> !third.active(), 20 * 60);
+			check(third.stage() == com.javahost.client.mods.Downloads.Stage.CANCELLED, "a cancelled download stops");
+
+			// Installed: the downloads and the mods JavaHost put in.
+			for (int[] s : new int[][] {{1710, 1070, 4}, {1280, 800, 3}, {2000, 1250, 3}}) {
+				size(context, s[0], s[1], s[2]);
+				com.javahost.client.gui.pages.ModsPage.showMine(true);
+				context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
+				context.waitTicks(10);
+				check(widgetsFit(context), "Installed fits at " + s[0] + "x" + s[1]);
+				context.takeScreenshot("review-" + s[0] + "-s" + s[2] + "-mods-installed");
+			}
+		} finally {
+			// Leave the test game's mods folder as it was.
+			for (String name : fileNames(mods)) {
+				if (!before.contains(name)) {
+					try {
+						java.nio.file.Files.deleteIfExists(mods.resolve(name));
+					} catch (IOException e) {
+						JavaHost.LOGGER.warn("[JavaHost test] couldn't remove {}", name, e);
+					}
+				}
+			}
+			context.runOnClient(mc -> {
+				com.javahost.client.mods.Downloads.clearFinished();
+				com.javahost.client.friends.Notifications.clear();
+			});
+			com.javahost.client.gui.pages.ModsPage.showRunsHere(false);
+			com.javahost.client.gui.pages.ModsPage.showSearch(com.javahost.util.Modrinth.Kind.MOD, "");
+			context.setScreen(() -> null);
+		}
+	}
+
+	private static java.util.Set<String> fileNames(Path folder) {
+		try (var files = java.nio.file.Files.list(folder)) {
+			return files.map(p -> p.getFileName().toString()).collect(java.util.stream.Collectors.toSet());
+		} catch (IOException e) {
+			return java.util.Set.of();
+		}
+	}
+
+	/** 1.12: the Host tab's sub-tabs while hosting, with sample players, at the review sizes; and a player's menus. */
+	private static void hostTabs(ClientGameTestContext context) {
+		context.runOnClient(mc -> HostController.previewGuests(List.of(
+				new HostController.Guest(java.util.UUID.nameUUIDFromBytes("Steve123".getBytes()), "Steve123", 42, net.minecraft.world.level.GameType.SURVIVAL, false, false),
+				new HostController.Guest(java.util.UUID.nameUUIDFromBytes("AlexPlays".getBytes()), "AlexPlays", 180, net.minecraft.world.level.GameType.CREATIVE, true, false),
+				new HostController.Guest(java.util.UUID.nameUUIDFromBytes("Builder".getBytes()), "Builder_With_A_Long_Name", 0,
+						net.minecraft.world.level.GameType.SURVIVAL, false, true))));
+		try {
+			for (int[] s : new int[][] {{1710, 1070, 4}, {1280, 800, 3}, {2000, 1250, 3}}) {
+				size(context, s[0], s[1], s[2]);
+				for (String section : List.of("players", "settings", "backups")) {
+					com.javahost.client.gui.pages.HostPage.showSection(section);
+					context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
+					context.waitTicks(8);
+					check(hasButton(context, "Invite friends") && hasButton(context, "Stop hosting"), "Invite and Stop stay on top (" + section + ")");
+					check(widgetsFit(context), "Host " + section + " fits at " + s[0] + "x" + s[1] + " scale " + s[2]);
+					context.takeScreenshot("review-" + s[0] + "-s" + s[2] + "-host-" + section);
+				}
+			}
+			size(context, 1710, 1070, 4);
+			com.javahost.client.gui.pages.HostPage.showSection("players");
+			context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
+			context.waitTicks(8);
+			clickMenu(context, "More");
+			check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).popoverOpen()), "a player's More menu opens");
+			context.takeScreenshot("review-1710-s4-host-player-menu");
+			context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).closePopover());
+			clickMenu(context, "Survival");
+			context.takeScreenshot("review-1710-s4-host-game-mode");
+			context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).closePopover());
+		} finally {
+			context.runOnClient(mc -> HostController.previewGuests(null));
+			size(context, 1710, 1070, 4);
+		}
 	}
 
 	private static void setDiscoverSelection(ClientGameTestContext context, java.util.UUID host) {
@@ -1240,6 +1412,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		worldShareScreens(context, alexId);
 		publicWorldScreens(context);
 		modsScreens(context);
+		storeAndDownloads(context);
 		context.runOnClient(mc -> {
 			try {
 				java.lang.reflect.Field dataField = com.javahost.client.friends.Friends.class.getDeclaredField("data");
@@ -1325,6 +1498,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.runOnClient(mc -> com.javahost.client.friends.Notifications.clear());
 		// The Host tab before hosting, at the laptop size: Start hosting must be on screen without scrolling.
 		context.runOnClient(mc -> HostController.stop());
+		com.javahost.client.gui.pages.HostPage.showSection("settings");
 		context.getInput().resizeWindow(1710, 1070);
 		context.runOnClient(mc -> {
 			mc.options.guiScale().set(4);
@@ -1348,6 +1522,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		check(true, "Start hosting from the top of the Host tab works");
 		context.waitTicks(20);
 		context.takeScreenshot("review-1710-s4-host-hosting");
+		hostTabs(context);
 		context.setScreen(() -> null);
 		context.getInput().resizeWindow(854, 480);
 		context.runOnClient(mc -> {

@@ -135,6 +135,29 @@ public final class Modrinth {
 
 	/** As {@link #download(ModFile, Path)}, from any of {@code hosts} (https only). */
 	public static void download(ModFile file, Path target, List<String> hosts) throws IOException, InterruptedException {
+		download(file, target, hosts, (read, total) -> {
+		}, () -> false);
+	}
+
+	/** Bytes downloaded so far of {@code total} ({@code -1} when the server doesn't say). */
+	@FunctionalInterface
+	public interface Progress {
+		void update(long read, long total);
+	}
+
+	/** Thrown when a download is stopped through its cancel check; the partial file is deleted. */
+	public static final class Cancelled extends IOException {
+		public Cancelled() {
+			super("Cancelled");
+		}
+	}
+
+	/**
+	 * As {@link #download(ModFile, Path, List)}, reporting progress as bytes arrive and stopping (with {@link Cancelled})
+	 * as soon as {@code cancelled} says so.
+	 */
+	public static void download(ModFile file, Path target, List<String> hosts, Progress progress, java.util.function.BooleanSupplier cancelled)
+			throws IOException, InterruptedException {
 		if (Files.exists(target) && sha512(target).equalsIgnoreCase(file.sha512())) {
 			return;
 		}
@@ -150,19 +173,37 @@ public final class Modrinth {
 			throw new IOException("Download failed (HTTP " + response.statusCode() + ")");
 		}
 		MessageDigest digest = sha512Digest();
+		long total = response.headers().firstValueAsLong("Content-Length").orElse(-1);
+		progress.update(0, total);
 		try (InputStream in = response.body(); OutputStream out = Files.newOutputStream(temp)) {
-			byte[] buffer = new byte[1 << 16];
-			int read;
-			while ((read = in.read(buffer)) > 0) {
-				digest.update(buffer, 0, read);
-				out.write(buffer, 0, read);
-			}
+			copy(in, out, digest, total, progress, cancelled);
+		} catch (Cancelled e) {
+			Files.deleteIfExists(temp);
+			throw e;
 		}
 		if (!HexFormat.of().formatHex(digest.digest()).equalsIgnoreCase(file.sha512())) {
 			Files.deleteIfExists(temp);
 			throw new IOException("Checksum mismatch for " + file.fileName() + "; download discarded");
 		}
 		Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+	}
+
+	/** Copies {@code in} to {@code out}, hashing and reporting as it goes. Package-visible for tests. */
+	static long copy(InputStream in, OutputStream out, MessageDigest digest, long total, Progress progress,
+			java.util.function.BooleanSupplier cancelled) throws IOException {
+		byte[] buffer = new byte[1 << 16];
+		long done = 0;
+		int read;
+		while ((read = in.read(buffer)) > 0) {
+			if (cancelled.getAsBoolean()) {
+				throw new Cancelled();
+			}
+			digest.update(buffer, 0, read);
+			out.write(buffer, 0, read);
+			done += read;
+			progress.update(done, total);
+		}
+		return done;
 	}
 
 	public static String sha512(Path file) throws IOException {
@@ -268,7 +309,7 @@ public final class Modrinth {
 	 * {@code loaders} say where it runs (see {@link Availability}); {@code iconUrl} is empty or a cdn.modrinth.com URL.
 	 */
 	public record Project(String id, String slug, Kind kind, String title, String description, String author, long downloads,
-			String iconUrl, List<String> gameVersions, List<String> loaders) {
+			String iconUrl, List<String> gameVersions, List<String> loaders, List<String> categories, String imageUrl) {
 		public String page() {
 			return "https://modrinth.com/" + kind.projectType + "/" + slug;
 		}
@@ -284,11 +325,31 @@ public final class Modrinth {
 	 * search), leaving out performance mods and libraries so the list is about gameplay.
 	 */
 	public static List<Project> search(Kind kind, String query, int offset) throws IOException, InterruptedException {
-		String facets = "[[\"project_type:" + kind.projectType + "\"],[\"categories!=optimization\"],[\"categories!=library\"]]";
+		return search(kind, query, "", null, offset);
+	}
+
+	/**
+	 * As {@link #search(Kind, String, int)}, only in {@code category} (a Modrinth category such as "magic"; empty for all),
+	 * and, when {@code runsOn} is a Minecraft version, only Fabric projects for exactly that version.
+	 */
+	public static List<Project> search(Kind kind, String query, String category, String runsOn, int offset) throws IOException, InterruptedException {
+		String facets = facets(kind, category, runsOn);
 		String url = "https://api.modrinth.com/v2/search?limit=" + PAGE + "&offset=" + Math.max(0, offset)
 				+ "&index=" + (query.isBlank() ? "downloads" : "relevance")
 				+ "&query=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&facets=" + URLEncoder.encode(facets, StandardCharsets.UTF_8);
 		return parseSearch(kind, getJson(url).getAsJsonObject());
+	}
+
+	/** The search filter: one AND group per condition, as Modrinth's search API takes them. */
+	static String facets(Kind kind, String category, String runsOn) {
+		StringBuilder facets = new StringBuilder("[[\"project_type:" + kind.projectType + "\"],[\"categories!=optimization\"],[\"categories!=library\"]");
+		if (category != null && category.matches("[a-z-]{1,32}")) {
+			facets.append(",[\"categories:").append(category).append("\"]");
+		}
+		if (runsOn != null && runsOn.matches("[0-9A-Za-z.+-]{1,32}")) {
+			facets.append(",[\"versions:").append(runsOn).append("\"],[\"categories:fabric\"]");
+		}
+		return facets.append("]").toString();
 	}
 
 	/** Reads search hits; anything malformed is skipped (the response comes from the network). */
@@ -313,12 +374,20 @@ public final class Modrinth {
 					}
 				}
 				List<String> loaders = new ArrayList<>();
+				List<String> categories = new ArrayList<>();
 				if (hit.has("categories")) {
 					for (JsonElement c : hit.getAsJsonArray("categories")) {
-						if (LOADERS.contains(c.getAsString())) {
-							loaders.add(c.getAsString());
+						String category = c.getAsString();
+						if (LOADERS.contains(category)) {
+							loaders.add(category);
+						} else if (category.matches("[a-z-]{1,32}") && categories.size() < 8) {
+							categories.add(category);
 						}
 					}
+				}
+				String image = hit.has("featured_gallery") && !hit.get("featured_gallery").isJsonNull() ? hit.get("featured_gallery").getAsString() : "";
+				if (!image.startsWith("https://cdn.modrinth.com/")) {
+					image = "";
 				}
 				String icon = hit.has("icon_url") && !hit.get("icon_url").isJsonNull() ? hit.get("icon_url").getAsString() : "";
 				if (!icon.startsWith("https://cdn.modrinth.com/")) {
@@ -327,7 +396,8 @@ public final class Modrinth {
 				projects.add(new Project(id, slug, kind, Text.clean(hit.get("title").getAsString(), 60),
 						Text.clean(hit.has("description") ? hit.get("description").getAsString() : "", 160),
 						Text.clean(hit.has("author") ? hit.get("author").getAsString() : "", 32),
-						hit.has("downloads") ? hit.get("downloads").getAsLong() : 0, icon, List.copyOf(versions), List.copyOf(loaders)));
+						hit.has("downloads") ? hit.get("downloads").getAsLong() : 0, icon, List.copyOf(versions), List.copyOf(loaders),
+						List.copyOf(categories), image));
 			} catch (RuntimeException e) {
 				// skip a malformed hit
 			}

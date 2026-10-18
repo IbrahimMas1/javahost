@@ -35,9 +35,14 @@ public final class Toasts {
 
 	/** A toast that's also kept, in full, in the notification center (for things worth reading later). */
 	public static void notify(String title, String message) {
+		notify(title, message, null);
+	}
+
+	/** As {@link #notify(String, String)}, with a button on the notice in the notification center. */
+	public static void notify(String title, String message, com.javahost.client.friends.Notifications.Action action) {
 		show(title, message);
 		Minecraft.getInstance().execute(() -> com.javahost.client.friends.Notifications.add(
-				com.javahost.client.friends.Notifications.Kind.INFO, null, title, message, null));
+				com.javahost.client.friends.Notifications.Kind.INFO, null, title, message, action));
 	}
 
 	/** A toast with a player's face, e.g. "Alex joined your world". */

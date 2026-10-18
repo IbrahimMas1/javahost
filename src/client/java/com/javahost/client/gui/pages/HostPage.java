@@ -82,33 +82,65 @@ public class HostPage extends Page {
 		return server == null ? "No world open" : server.getWorldData().getLevelName();
 	}
 
+	private enum Section { PLAYERS, SETTINGS, BACKUPS }
+
+	/** The sub-tab under the hero (remembered while the game runs). */
+	private static Section section = Section.SETTINGS;
+	private Section shown = Section.SETTINGS;
+	private int sectionY;
+
+	/** For tests: open a sub-tab ("players", "settings", "backups"). */
+	public static void showSection(String name) {
+		section = Section.valueOf(name.toUpperCase(java.util.Locale.ROOT));
+	}
+
 	@Override
 	protected void build() {
 		builtHosting = HostController.isHosting();
-		if (builtHosting) {
-			buildHosting();
-		} else {
-			buildSetup();
+		portField = null;
+		guests = HostController.guests();
+		lastSignature = signature();
+		// The hero (the world and Start, or the invite code and Invite / Stop) stays on top; the rest is in sub-tabs.
+		int y = builtHosting ? buildHostingHero() : buildSetupHero();
+		List<Section> sections = builtHosting ? List.of(Section.PLAYERS, Section.SETTINGS, Section.BACKUPS) : List.of(Section.SETTINGS, Section.BACKUPS);
+		shown = sections.contains(section) ? section : Section.SETTINGS;
+		add(new Segmented<>(width, sections, shown, s -> switch (s) {
+			case PLAYERS -> "Players (" + guests.size() + ")";
+			case SETTINGS -> "Settings";
+			case BACKUPS -> "Backups";
+		}, s -> {
+			section = s;
+			screen.refresh();
+		}), 0, y);
+		sectionY = y + 28;
+		switch (shown) {
+			case PLAYERS -> buildPlayers(sectionY);
+			case SETTINGS -> buildSettings(sectionY);
+			case BACKUPS -> buildBackups(sectionY);
 		}
 	}
 
 	// ================================================================ before hosting
 
-	private void buildSetup() {
-		Config config = Config.get();
-		int inner = width - 20;
+	/** The world and the big button. Returns where the sub-tabs go. */
+	private int buildSetupHero() {
 		boolean ready = canHost();
-
-		// Hero: the world and the big button, always at the top.
 		FlatButton start = add(new FlatButton(118, 24, Component.literal("Start hosting"), FlatButton.Style.PRIMARY, Icons.PLAY,
 				b -> start()), width - 128, (HERO_H - 24) / 2);
 		start.active = ready;
 		if (!ready) {
 			start.setTooltip(Tooltip.create(Component.literal("Open one of your singleplayer worlds first")));
 		}
-		int y = HERO_H + (error != null ? 16 : 0) + 10;
+		return HERO_H + (error != null ? 16 : 0) + 10;
+	}
 
-		// Who can join.
+	// ================================================================ settings
+
+	private void buildSettings(int y) {
+		Config config = Config.get();
+		int inner = width - 20;
+
+		// Who can join (applies right away, also while hosting).
 		whoY = y;
 		add(new ToggleSwitch(inner, Component.literal("Only friends can join"), "Others with the code are turned away",
 				config.friendsOnly, v -> {
@@ -161,14 +193,38 @@ public class HostPage extends Page {
 			y += 4;
 		}
 
-		// Advanced: folded away.
+		// The world: public listing and its rules.
 		y = buildPublic(y);
-		// World rules: their own page, visible to everyone in a world (only the host and co-hosts can change them).
 		if (minecraft.level != null) {
 			add(new FlatButton(width, 18, Component.literal("World rules"), FlatButton.Style.SECONDARY, Icons.SHIELD,
 					b -> screen.switchTo(JavaHostScreen.Tab.RULES)), 0, y + 10);
 			y += 24;
 		}
+
+		// How friends can connect (while hosting): folded away, invites pick the best way automatically.
+		connectionY = -1;
+		if (builtHosting) {
+			routes = Connectivity.routes();
+			connectionY = y + 10;
+			add(new FlatButton(width, 18, Component.literal(showConnection ? "Hide connection details" : "Connection details"),
+					FlatButton.Style.GHOST, Icons.GLOBE, b -> {
+						showConnection = !showConnection;
+						screen.refresh();
+					}), 0, connectionY);
+			y = connectionY + 22;
+			if (showConnection) {
+				for (Route route : routes) {
+					if (route.invite() != null && route.state() != State.UNAVAILABLE) {
+						add(new FlatButton(18, 16, Component.literal("Copy " + route.name()), FlatButton.Style.GHOST,
+								isCopied(route.invite()) ? Icons.CHECK : Icons.COPY, b -> copy(route.invite())).iconOnly(), width - 26, y + 3);
+					}
+					y += ROW;
+				}
+				y += 4;
+			}
+		}
+
+		// Advanced: folded away. While hosting these wait for the next time.
 		advancedY = y + 10;
 		add(new FlatButton(width, 18, Component.literal(showAdvanced ? "Hide advanced settings" : "Advanced settings"),
 				FlatButton.Style.GHOST, Icons.GEAR, b -> {
@@ -176,23 +232,27 @@ public class HostPage extends Page {
 					screen.refresh();
 				}), 0, advancedY);
 		y = advancedY + 22;
-		portField = null;
 		if (showAdvanced) {
-			portField = add(new TextField(70, Component.literal("Port")), width - 80, y + 8);
-			portField.setMaxLength(5);
-			portField.setValue(String.valueOf(config.port));
-			add(new ToggleSwitch(inner, Component.literal("Open router port automatically"), "No router setup needed (UPnP)",
+			boolean editable = !builtHosting;
+			if (editable) {
+				portField = add(new TextField(70, Component.literal("Port")), width - 80, y + 8);
+				portField.setMaxLength(5);
+				portField.setValue(String.valueOf(config.port));
+			}
+			ToggleSwitch upnp = add(new ToggleSwitch(inner, Component.literal("Open router port automatically"), "No router setup needed (UPnP)",
 					config.useUpnp, v -> {
 						config.useUpnp = v;
 						config.save();
 					}), 10, y + 34);
-			add(new ToggleSwitch(inner, Component.literal("Allow IPv6 connections"), "Direct, and works behind CGNAT",
+			ToggleSwitch ipv6 = add(new ToggleSwitch(inner, Component.literal("Allow IPv6 connections"), "Direct, and works behind CGNAT",
 					config.useIpv6, v -> {
 						config.useIpv6 = v;
 						config.save();
 					}), 10, y + 62);
+			upnp.active = editable;
+			ipv6.active = editable;
 			if (E4mcCompat.isInstalled()) {
-				add(new Segmented<>(inner, List.of("AUTO", "ALWAYS", "NEVER"), config.relayMode,
+				Segmented<String> relay = add(new Segmented<>(inner, List.of("AUTO", "ALWAYS", "NEVER"), config.relayMode,
 						mode -> switch (mode) {
 							case "ALWAYS" -> "Always";
 							case "NEVER" -> "Never";
@@ -201,18 +261,19 @@ public class HostPage extends Page {
 							config.relayMode = mode;
 							config.save();
 						}), 10, y + 104);
+				relay.active = editable;
 			} else {
 				add(new FlatButton(110, 18, Component.literal("Get relay"), FlatButton.Style.SECONDARY, Icons.CLOUD,
 						b -> screen.switchTo(JavaHostScreen.Tab.PERFORMANCE)), width - 120, y + 98);
 			}
-			add(new Segmented<>(inner - 70, List.of(16, 32, 48, 64, 96, 128), config.voiceRange, String::valueOf, r -> {
+			Segmented<Integer> range = add(new Segmented<>(inner - 70, List.of(16, 32, 48, 64, 96, 128), config.voiceRange, String::valueOf, r -> {
 				config.voiceRange = r;
 				config.save();
 			}), 80, y + 134);
+			range.active = editable;
 			y += 160;
 		}
-
-		buildBackups(y + 10);
+		reserve(y + 10);
 	}
 
 	// ================================================================ public world (beta)
@@ -373,13 +434,9 @@ public class HostPage extends Page {
 
 	// ================================================================ while hosting
 
-	private void buildHosting() {
-		portField = null;
+	/** Status, the invite code, Invite friends and Stop hosting. Returns where the sub-tabs go. */
+	private int buildHostingHero() {
 		routes = Connectivity.routes();
-		guests = HostController.guests();
-		lastSignature = signature();
-
-		// Hero: status, the invite code, and the two main actions, always at the top.
 		add(new FlatButton(100, 18, Component.literal("Invite friends"), FlatButton.Style.PRIMARY, Icons.USERS,
 				b -> screen.switchTo(JavaHostScreen.Tab.FRIENDS)), width - 110, 8);
 		add(new FlatButton(100, 18, Component.literal("Stop hosting"), FlatButton.Style.DANGER, Icons.STOP, b -> {
@@ -391,70 +448,63 @@ public class HostPage extends Page {
 			add(new FlatButton(18, 16, Component.literal("Copy"), FlatButton.Style.GHOST, isCopied(best.invite()) ? Icons.CHECK : Icons.COPY,
 					b -> copy(best.invite())).iconOnly(), 12 + inviteWidth(best.invite()) + 4, 26);
 		}
+		return HERO_H + 10;
+	}
 
-		// Players.
-		playersY = HERO_H + 12;
-		int y = playersY + 12;
+	// ================================================================ players
+
+	private static String modeName(GameType mode) {
+		return switch (mode) {
+			case CREATIVE -> "Creative";
+			case ADVENTURE -> "Adventure";
+			case SPECTATOR -> "Spectator";
+			default -> "Survival";
+		};
+	}
+
+	/** One row per player: face, name, ping, a game-mode button and a "more" menu (trust, send a world, kick, ban). */
+	private void buildPlayers(int y) {
+		playersY = y;
+		y += 2;
+		for (Guest guest : guests) {
+			GameType mode = HostController.gameModeOf(guest.id());
+			GameType current = mode != null ? mode : guest.gameMode() != null ? guest.gameMode() : GameType.SURVIVAL;
+			FlatButton modeButton = add(new FlatButton(70, 18, Component.literal(modeName(current)), FlatButton.Style.SECONDARY, Icons.CHEVRON_DOWN,
+					b -> screen.openPopover(com.javahost.client.gui.ui.Popover.menu(
+							List.of(GameType.SURVIVAL, GameType.CREATIVE, GameType.ADVENTURE, GameType.SPECTATOR).stream()
+									.map(m -> com.javahost.client.gui.ui.Popover.Item.of(modeName(m), null, () -> {
+										HostController.setGameMode(guest.id(), m);
+										screen.refresh();
+									}).selected(m == current)).toList()), b)), width - 100, y + 5);
+			modeButton.setTooltip(Tooltip.create(Component.literal("Game mode for " + guest.name())));
+			FlatButton more = add(new FlatButton(22, 18, Component.literal("More"), FlatButton.Style.GHOST, Icons.MORE,
+					b -> screen.openPopover(com.javahost.client.gui.ui.Popover.menu(playerActions(guest)), b)).iconOnly(), width - 26, y + 5);
+			more.setTooltip(Tooltip.create(Component.literal("More for " + guest.name())));
+			y += PLAYER_ROW;
+		}
 		if (guests.isEmpty()) {
 			y += ROW;
 		}
-		for (Guest guest : guests) {
-			GameType mode = HostController.gameModeOf(guest.id());
-			add(new Segmented<>(112, List.of(GameType.SURVIVAL, GameType.CREATIVE, GameType.ADVENTURE, GameType.SPECTATOR),
-					mode == null ? GameType.SURVIVAL : mode,
-					m -> switch (m) {
-						case CREATIVE -> "C";
-						case ADVENTURE -> "A";
-						case SPECTATOR -> "Sp";
-						default -> "S";
-					}, m -> HostController.setGameMode(guest.id(), m)), width - 200, y + 5);
-			if (guest.visitor() || guest.trusted()) {
-				FlatButton trust = add(new FlatButton(56, 18, Component.literal(guest.visitor() ? "Trust" : "Untrust"),
-						guest.visitor() ? FlatButton.Style.PRIMARY : FlatButton.Style.SECONDARY, null,
-						b -> HostController.trust(guest.id(), guest.name(), guest.visitor())), width - 262, y + 5);
-				trust.setTooltip(Tooltip.create(Component.literal(guest.visitor() ? "Let " + guest.name() + " build in this world"
-						: "Back to visiting: " + guest.name() + " can look around but not build")));
-			}
-			if (com.javahost.client.friends.Friends.friend(guest.id()).isPresent()) {
-				String problem = WorldShare.cannotSendTo(guest.id());
-				FlatButton send = add(new FlatButton(18, 18, Component.literal("Send a world"), FlatButton.Style.GHOST, Icons.UPLOAD,
-						b -> openPicker(com.javahost.client.friends.Friends.friend(guest.id()).orElse(null), null)).iconOnly(), width - 224, y + 5);
-				send.active = problem == null;
-				send.setTooltip(Tooltip.create(Component.literal(problem != null ? problem : "Send " + guest.name() + " a copy of a world")));
-			}
-			add(new FlatButton(40, 18, Component.literal("Kick"), FlatButton.Style.SECONDARY, null,
-					b -> HostController.kick(guest.id())), width - 84, y + 5);
-			add(new FlatButton(36, 18, Component.literal("Ban"), FlatButton.Style.DANGER, null,
-					b -> HostController.ban(guest.id(), guest.name())), width - 40, y + 5);
-			y += PLAYER_ROW;
-		}
-
-		y = buildPublic(y);
-		// World rules: their own page.
-		add(new FlatButton(width, 18, Component.literal("World rules"), FlatButton.Style.SECONDARY, Icons.SHIELD,
-				b -> screen.switchTo(JavaHostScreen.Tab.RULES)), 0, y + 10);
-		y += 24;
-
-		// How friends can connect: folded away (invites pick the best way automatically).
-		connectionY = y + 10;
-		add(new FlatButton(width, 18, Component.literal(showConnection ? "Hide connection details" : "Connection details"),
-				FlatButton.Style.GHOST, Icons.GLOBE, b -> {
-					showConnection = !showConnection;
-					screen.refresh();
-				}), 0, connectionY);
-		y = connectionY + 22;
-		if (showConnection) {
-			for (Route route : routes) {
-				if (route.invite() != null && route.state() != State.UNAVAILABLE) {
-					add(new FlatButton(18, 16, Component.literal("Copy " + route.name()), FlatButton.Style.GHOST,
-							isCopied(route.invite()) ? Icons.CHECK : Icons.COPY, b -> copy(route.invite())).iconOnly(), width - 26, y + 3);
-				}
-				y += ROW;
-			}
-			y += 4;
-		}
 		footerY = y + 8;
-		buildBackups(footerY + 24);
+		reserve(footerY + 20);
+	}
+
+	/** What the host can do about a player, for the row's "more" menu. */
+	private List<com.javahost.client.gui.ui.Popover.Item> playerActions(Guest guest) {
+		List<com.javahost.client.gui.ui.Popover.Item> items = new java.util.ArrayList<>();
+		if (guest.visitor() || guest.trusted()) {
+			items.add(com.javahost.client.gui.ui.Popover.Item.of(guest.visitor() ? "Trust" : "Untrust", Icons.SHIELD,
+					() -> HostController.trust(guest.id(), guest.name(), guest.visitor())));
+		}
+		if (com.javahost.client.friends.Friends.friend(guest.id()).isPresent()) {
+			String problem = WorldShare.cannotSendTo(guest.id());
+			var send = com.javahost.client.gui.ui.Popover.Item.of("Send a world", Icons.UPLOAD,
+					() -> openPicker(com.javahost.client.friends.Friends.friend(guest.id()).orElse(null), null));
+			items.add(problem == null ? send : send.disabled("Can't now"));
+		}
+		items.add(com.javahost.client.gui.ui.Popover.Item.of("Kick", Icons.CROSS, () -> HostController.kick(guest.id())));
+		items.add(com.javahost.client.gui.ui.Popover.Item.danger("Ban", Icons.STOP, () -> HostController.ban(guest.id(), guest.name())));
+		return items;
 	}
 
 	/** The invite code is never cut: it's drawn smaller when the window is narrow, leaving room for the copy button. */
@@ -485,7 +535,8 @@ public class HostPage extends Page {
 			s.append(r.name()).append(r.state()).append(r.invite());
 		}
 		for (Guest guest : HostController.guests()) {
-			s.append(guest.id()).append(WorldShare.cannotSendTo(guest.id())).append(guest.visitor()).append(guest.trusted());
+			s.append(guest.id()).append(WorldShare.cannotSendTo(guest.id())).append(guest.visitor()).append(guest.trusted())
+					.append(HostController.gameModeOf(guest.id()));
 		}
 		s.append(com.javahost.client.discover.PublicHosting.isPublic()).append(com.javahost.client.discover.PublicHosting.listed());
 		s.append(copiedValue != null && System.currentTimeMillis() - copiedAt < 2000);
@@ -495,6 +546,9 @@ public class HostPage extends Page {
 	@Override
 	public void tick() {
 		if (HostController.isHosting() != builtHosting) {
+			if (!builtHosting) {
+				section = Section.PLAYERS; // hosting just started: who's here matters most now
+			}
 			screen.refresh(); // hosting started or stopped
 		} else if (builtHosting) {
 			if (!signature().equals(lastSignature)) {
@@ -509,14 +563,18 @@ public class HostPage extends Page {
 	@Override
 	protected void draw(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY) {
 		if (builtHosting) {
-			drawHosting(g, left, top);
+			drawHostingHero(g, left, top);
 		} else {
-			drawSetup(g, left, top);
+			drawSetupHero(g, left, top);
+		}
+		switch (shown) {
+			case PLAYERS -> drawPlayers(g, left, top);
+			case SETTINGS -> drawSettings(g, left, top);
+			case BACKUPS -> drawBackups(g, left, top);
 		}
 	}
 
-	private void drawSetup(GuiGraphicsExtractor g, int left, int top) {
-		// Hero.
+	private void drawSetupHero(GuiGraphicsExtractor g, int left, int top) {
 		boolean ready = canHost();
 		Draw.panel(g, left, top, width, HERO_H, 8, Theme.CARD);
 		Draw.roundRect(g, left, top, 3, HERO_H, 1, ready ? Theme.ACCENT : Theme.FAINT);
@@ -529,7 +587,9 @@ public class HostPage extends Page {
 			Icons.WARNING.draw(g, left, top + HERO_H + 4, Theme.WARNING);
 			Draw.textFit(g, error, width - 14, left + 14, top + HERO_H + 5, Theme.WARNING);
 		}
+	}
 
+	private void drawSettings(GuiGraphicsExtractor g, int left, int top) {
 		sectionLabel(g, "Who can join", left, top + whoY);
 		card(g, left, top + whoY + 12, width, 64);
 		Draw.text(g, "Player limit", left + 10, top + whoY + 52, Theme.TEXT);
@@ -550,17 +610,100 @@ public class HostPage extends Page {
 		}
 
 		drawPublic(g, left, top);
+		if (connectionY >= 0 && showConnection) {
+			int rowY = top + connectionY + 22;
+			card(g, left, rowY - 2, width, routes.size() * ROW + 4);
+			for (Route route : routes) {
+				Icons icon = switch (route.name()) {
+					case "Relay" -> Icons.CLOUD;
+					case "Same Wi-Fi" -> Icons.HOME;
+					default -> Icons.GLOBE;
+				};
+				icon.draw(g, left + 9, rowY + 6, stateColor(route.state()));
+				Draw.text(g, route.name(), left + 24, rowY + 7, Theme.TEXT);
+				String state = switch (route.state()) {
+					case WORKING -> "Ready";
+					case CHECKING -> "Checking...";
+					case MAYBE -> "Might work";
+					case UNAVAILABLE -> "Not available";
+					case OFF -> "Off";
+				};
+				Draw.text(g, state, left + 84, rowY + 7, stateColor(route.state()));
+				String right = route.invite() != null && route.state() != State.UNAVAILABLE ? route.invite() : route.detail();
+				Draw.textFit(g, right, width - 180, left + 150, rowY + 7, route.invite() != null && route.state() != State.UNAVAILABLE ? Theme.MUTED : Theme.FAINT);
+				rowY += ROW;
+			}
+		}
 		if (showAdvanced) {
 			int y = top + advancedY + 22;
 			card(g, left, y, width, 156);
 			Draw.text(g, "Game port", left + 10, y + 13, Theme.TEXT);
+			if (builtHosting) {
+				Draw.text(g, String.valueOf(Config.get().port), left + width - 10 - Draw.font().width(String.valueOf(Config.get().port)), y + 13, Theme.MUTED);
+				Draw.textFit(g, "Applies next time you host", width - 140, left + 68, y + 13, Theme.FAINT);
+			}
 			Draw.text(g, "Relay, for friends who can't connect directly", left + 10, y + 92, Theme.TEXT);
 			if (!E4mcCompat.isInstalled()) {
 				Draw.text(g, "Not installed", left + 10, y + 103, Theme.FAINT);
 			}
 			Draw.text(g, "Voice range", left + 10, y + 139, Theme.TEXT);
 		}
-		drawBackups(g, left, top);
+	}
+
+	private void drawHostingHero(GuiGraphicsExtractor g, int left, int top) {
+		Route best = Connectivity.recommended();
+		Draw.panel(g, left, top, width, HERO_H, 8, Theme.CARD);
+		Draw.roundRect(g, left, top, 3, HERO_H, 1, best == null ? Theme.INFO : stateColor(best.state()));
+		int textW = width - 132; // keep clear of the buttons on the right
+		if (best == null || best.invite() == null) {
+			statusFit(g, left + 12, top + 10, Theme.INFO, "Getting ready...", textW, Theme.TEXT);
+			Draw.textFit(g, "Finding the best way for friends to join.", textW, left + 12, top + 26, Theme.MUTED);
+		} else {
+			String headline = best.state() != State.WORKING ? "Friends may not reach it" : switch (best.name()) {
+				case "Internet", "Relay" -> "Friends anywhere can join";
+				case "IPv6" -> "Friends with IPv6 can join";
+				case "Same Wi-Fi" -> "Only people on your Wi-Fi can join";
+				default -> "Ready";
+			};
+			statusFit(g, left + 12, top + 9, stateColor(best.state()), headline, textW, Theme.TEXT);
+			String invite = best.invite();
+			float scale = inviteScale(invite);
+			Draw.scaledText(g, invite, left + 12, top + 26 + Math.round((1.5f - scale) * 4), scale, Theme.ACCENT);
+			Draw.textFit(g, "Invites find a way in.", textW, left + 12, top + 44, Theme.FAINT);
+		}
+	}
+
+	private void drawPlayers(GuiGraphicsExtractor g, int left, int top) {
+		int rowY = top + playersY + 2;
+		card(g, left, rowY - 2, width, guests.isEmpty() ? ROW + 4 : guests.size() * PLAYER_ROW + 4);
+		if (guests.isEmpty()) {
+			Icons.USER.draw(g, left + 9, rowY + 6, Theme.FAINT);
+			Draw.textFit(g, "No one yet. Invite friends to play.", width - 34, left + 24, rowY + 7, Theme.MUTED);
+		}
+		for (int i = 0; i < guests.size(); i++) {
+			Guest guest = guests.get(i);
+			if (i > 0) {
+				g.fill(left + 8, rowY - 1, left + width - 8, rowY, Theme.withAlpha(Theme.BORDER, 0.6f));
+			}
+			Faces.draw(g, guest.id(), left + 8, rowY + 5, 18);
+			int textW = width - 32 - 108;
+			Draw.textFit(g, guest.name(), textW, left + 32, rowY + 5, Theme.TEXT);
+			int ping = guest.pingMs();
+			String pingText = ping <= 0 ? "ping —" : ping + " ms";
+			Draw.text(g, pingText, left + 32, rowY + 15,
+					ping <= 0 ? Theme.FAINT : ping < 80 ? Theme.ACCENT : ping < 200 ? Theme.WARNING : Theme.DANGER);
+			if (guest.visitor() || guest.trusted()) {
+				Draw.textFit(g, guest.visitor() ? "· visitor" : "· trusted", textW - Draw.font().width(pingText) - 4,
+						left + 36 + Draw.font().width(pingText), rowY + 15, guest.visitor() ? Theme.WARNING : Theme.MUTED);
+			}
+			rowY += PLAYER_ROW;
+		}
+
+		String packs = HostController.packStatus();
+		if (!packs.isEmpty()) {
+			Icons.PACKAGE.draw(g, left, top + footerY, Theme.MUTED);
+			Draw.textFit(g, packs, width - 14, left + 13, top + footerY + 1, Theme.MUTED);
+		}
 	}
 
 	private static final java.time.format.DateTimeFormatter BACKUP_TIME = java.time.format.DateTimeFormatter.ofPattern("d MMM, HH:mm")
@@ -587,86 +730,6 @@ public class HostPage extends Page {
 		if (backupMessage != null) {
 			Draw.textFit(g, backupMessage, width, left, rowY + 32, backupMessage.startsWith("Couldn't") ? Theme.WARNING : Theme.ACCENT);
 		}
-	}
-
-	private void drawHosting(GuiGraphicsExtractor g, int left, int top) {
-		// Hero: status and the invite code.
-		Route best = Connectivity.recommended();
-		Draw.panel(g, left, top, width, HERO_H, 8, Theme.CARD);
-		Draw.roundRect(g, left, top, 3, HERO_H, 1, best == null ? Theme.INFO : stateColor(best.state()));
-		int textW = width - 132; // keep clear of the buttons on the right
-		if (best == null || best.invite() == null) {
-			statusFit(g, left + 12, top + 10, Theme.INFO, "Getting ready...", textW, Theme.TEXT);
-			Draw.textFit(g, "Finding the best way for friends to join.", textW, left + 12, top + 26, Theme.MUTED);
-		} else {
-			String headline = best.state() != State.WORKING ? "Friends may not reach it" : switch (best.name()) {
-				case "Internet", "Relay" -> "Friends anywhere can join";
-				case "IPv6" -> "Friends with IPv6 can join";
-				case "Same Wi-Fi" -> "Only people on your Wi-Fi can join";
-				default -> "Ready";
-			};
-			statusFit(g, left + 12, top + 9, stateColor(best.state()), headline, textW, Theme.TEXT);
-			String invite = best.invite();
-			float scale = inviteScale(invite);
-			Draw.scaledText(g, invite, left + 12, top + 26 + Math.round((1.5f - scale) * 4), scale, Theme.ACCENT);
-			Draw.textFit(g, "Invites find a way in.", textW, left + 12, top + 44, Theme.FAINT);
-		}
-
-		// Players.
-		sectionLabel(g, "Players (" + guests.size() + ")", left, top + playersY);
-		int rowY = top + playersY + 12;
-		card(g, left, rowY - 2, width, guests.isEmpty() ? ROW + 4 : guests.size() * PLAYER_ROW + 4);
-		if (guests.isEmpty()) {
-			Icons.USER.draw(g, left + 9, rowY + 6, Theme.FAINT);
-			Draw.textFit(g, "No one yet. Invite friends to play.", width - 34, left + 24, rowY + 7, Theme.MUTED);
-		}
-		for (Guest guest : guests) {
-			Faces.draw(g, guest.id(), left + 8, rowY + 5, 18);
-			Draw.textFit(g, guest.name(), width - 264, left + 32, rowY + 5, Theme.TEXT);
-			int ping = guest.pingMs();
-			String pingText = ping <= 0 ? "ping —" : ping + " ms";
-			Draw.text(g, pingText, left + 32, rowY + 15,
-					ping <= 0 ? Theme.FAINT : ping < 80 ? Theme.ACCENT : ping < 200 ? Theme.WARNING : Theme.DANGER);
-			if (guest.visitor() || guest.trusted()) {
-				Draw.text(g, guest.visitor() ? "· visitor" : "· trusted", left + 36 + Draw.font().width(pingText), rowY + 15,
-						guest.visitor() ? Theme.WARNING : Theme.MUTED);
-			}
-			rowY += PLAYER_ROW;
-		}
-
-		drawPublic(g, left, top);
-		// Connection details (folded).
-		if (showConnection) {
-			rowY = top + connectionY + 22;
-			card(g, left, rowY - 2, width, routes.size() * ROW + 4);
-			for (Route route : routes) {
-				Icons icon = switch (route.name()) {
-					case "Relay" -> Icons.CLOUD;
-					case "Same Wi-Fi" -> Icons.HOME;
-					default -> Icons.GLOBE;
-				};
-				icon.draw(g, left + 9, rowY + 6, stateColor(route.state()));
-				Draw.text(g, route.name(), left + 24, rowY + 7, Theme.TEXT);
-				String state = switch (route.state()) {
-					case WORKING -> "Ready";
-					case CHECKING -> "Checking...";
-					case MAYBE -> "Might work";
-					case UNAVAILABLE -> "Not available";
-					case OFF -> "Off";
-				};
-				Draw.text(g, state, left + 84, rowY + 7, stateColor(route.state()));
-				String right = route.invite() != null && route.state() != State.UNAVAILABLE ? route.invite() : route.detail();
-				Draw.textFit(g, right, width - 180, left + 150, rowY + 7, route.invite() != null && route.state() != State.UNAVAILABLE ? Theme.MUTED : Theme.FAINT);
-				rowY += ROW;
-			}
-		}
-
-		String packs = HostController.packStatus();
-		if (!packs.isEmpty()) {
-			Icons.PACKAGE.draw(g, left, top + footerY, Theme.MUTED);
-			Draw.textFit(g, packs, width - 14, left + 13, top + footerY + 1, Theme.MUTED);
-		}
-		drawBackups(g, left, top);
 	}
 
 	static int stateColor(State state) {

@@ -64,6 +64,47 @@ public final class Draw {
 	}
 
 	/** A soft shadow under a panel. */
+	/**
+	 * A progress ring around ({@code cx}, {@code cy}): {@code fraction} of it, clockwise from the top, in {@code color},
+	 * the rest in {@code track}. Drawn in real screen pixels with soft edges. Before 1.21.2 (one draw call per fill)
+	 * it's a short bar under the centre instead.
+	 */
+	public static void ring(GuiGraphicsExtractor g, float cx, float cy, float radius, float thickness, double fraction, int color, int track) {
+		//? if <1.21.2 {
+		/*int w = Math.round(radius * 2);
+		int x = Math.round(cx - radius);
+		int y = Math.round(cy + radius - 2);
+		g.fill(x, y, x + w, y + 2, track);
+		g.fill(x, y, x + (int) Math.round(w * Math.max(0, Math.min(1, fraction))), y + 2, color);
+		*///?} else {
+		int scale = Math.max(1, Math.round((float) net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale()));
+		double r = radius * scale;
+		double half = thickness * scale / 2;
+		double outer = r + half + 1;
+		double sweep = Math.max(0, Math.min(1, fraction)) * Math.PI * 2;
+		push(g);
+		translate(g, cx, cy);
+		scale(g, 1f / scale, 1f / scale);
+		int box = (int) Math.ceil(outer);
+		for (int py = -box; py < box; py++) {
+			for (int px = -box; px < box; px++) {
+				double dx = px + 0.5;
+				double dy = py + 0.5;
+				double cover = half + 0.5 - Math.abs(Math.sqrt(dx * dx + dy * dy) - r);
+				if (cover <= 0.04) {
+					continue;
+				}
+				double angle = Math.atan2(dx, -dy); // 0 at the top, clockwise
+				if (angle < 0) {
+					angle += Math.PI * 2;
+				}
+				g.fill(px, py, px + 1, py + 1, Theme.withAlpha(angle <= sweep ? color : track, (float) Math.min(1, cover)));
+			}
+		}
+		pop(g);
+		//?}
+	}
+
 	public static void shadow(GuiGraphicsExtractor g, int x, int y, int w, int h, int r) {
 		for (int i = 4; i >= 1; i--) {
 			roundRect(g, x - i, y - i + 2, w + i * 2, h + i * 2, r + i, Theme.withAlpha(Theme.SHADOW, 0.25f));
@@ -235,6 +276,9 @@ public final class Draw {
 			}
 		}
 		TRUNCATED.clear();
+		if (net.minecraft.client.Minecraft.getInstance().gui.screen() instanceof com.javahost.client.gui.JavaHostScreen menu && menu.popoverOpen()) {
+			found = null; // nothing under an open popover shows its full text
+		}
 		if (found == null) {
 			hovered = null;
 			return;

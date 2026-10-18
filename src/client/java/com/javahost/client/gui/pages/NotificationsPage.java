@@ -230,7 +230,9 @@ public class NotificationsPage extends Page {
 					})
 					: null;
 			case ACCEPTED -> button("Profile", Icons.USER, FlatButton.Style.SECONDARY, () -> screen.openProfile(item.player()));
-			case INFO -> null;
+			case INFO -> item.payload() instanceof Notifications.Action action
+					? button(action.label(), null, FlatButton.Style.PRIMARY, action.run())
+					: null;
 		};
 	}
 

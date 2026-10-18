@@ -6,7 +6,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import com.javahost.util.ModSwap;
@@ -28,8 +27,8 @@ public final class Modpacks {
 	}
 
 	/** Downloads the pack and everything it lists (hash-checked). Blocking; returns the set folder name. */
-	public static String install(Modrinth.Pack pack, Consumer<String> progress) throws IOException, InterruptedException {
-		progress.accept("Finding " + pack.title() + " for Minecraft " + gameVersion() + "...");
+	public static String install(Modrinth.Pack pack, Downloads.Reporter progress) throws IOException, InterruptedException {
+		progress.status("Finding " + pack.title() + " for Minecraft " + gameVersion() + "...");
 		Modrinth.ModFile file = Modrinth.latestPack(pack.projectId(), gameVersion());
 		if (file == null) {
 			throw new IOException(pack.title() + " has no Fabric version for Minecraft " + gameVersion());
@@ -38,17 +37,27 @@ public final class Modpacks {
 		Path set = ModSets.setDir(folder);
 		Path jars = set.resolve("jars");
 		Path overrides = set.resolve("overrides");
+		boolean existed = Files.exists(set.resolve("set.properties")); // already installed: never removed by a cancel
 		Files.createDirectories(jars);
 		Path mrpack = set.resolve("pack.mrpack");
-		progress.accept("Downloading " + pack.title() + "...");
-		Modrinth.download(file, mrpack);
+		progress.status("Downloading " + pack.title() + "...");
+		Modrinth.download(file, mrpack, List.of("cdn.modrinth.com"), (read, total) -> progress.fraction(total > 0 ? 0.05 * read / total : 0),
+				progress::cancelled);
 		MrPack.Index index = MrPack.readIndex(mrpack);
 		if (!index.minecraft().equals(gameVersion())) {
 			throw new IOException("This pack is for Minecraft " + index.minecraft());
 		}
 		int done = 0;
+		// Progress by bytes when the pack says how big its files are, by file count otherwise.
+		long totalBytes = index.files().stream().mapToLong(MrPack.PackFile::size).sum();
+		long[] doneBytes = {0};
 		for (MrPack.PackFile entry : index.files()) {
-			progress.accept("Downloading " + (++done) + " of " + index.files().size() + "...");
+			progress.status("Downloading " + (++done) + " of " + index.files().size() + "...");
+			int fileNumber = done;
+			long before = doneBytes[0];
+			Modrinth.Progress fileProgress = (read, total) -> progress.fraction(0.05 + 0.9 * (totalBytes > 0
+					? (double) (before + read) / totalBytes
+					: (fileNumber - 1 + (total > 0 ? (double) read / total : 0)) / index.files().size()));
 			String name = entry.path().substring(entry.path().lastIndexOf('/') + 1);
 			Path target = entry.path().startsWith("mods/") && name.endsWith(".jar")
 					? ModSwap.inside(jars, name)
@@ -56,9 +65,15 @@ public final class Modpacks {
 			IOException last = null;
 			for (String url : entry.urls()) {
 				try {
-					Modrinth.download(new Modrinth.ModFile("", "", "", name, url, entry.sha512(), List.of(), ""), target, Modrinth.PACK_HOSTS);
+					Modrinth.download(new Modrinth.ModFile("", "", "", name, url, entry.sha512(), List.of(), ""), target, Modrinth.PACK_HOSTS,
+							fileProgress, progress::cancelled);
 					last = null;
 					break;
+				} catch (Modrinth.Cancelled e) {
+					if (!existed) {
+						deleteSet(set);
+					}
+					throw e;
 				} catch (IOException e) {
 					last = e; // try the next mirror
 				}
@@ -66,8 +81,9 @@ public final class Modpacks {
 			if (last != null) {
 				throw last;
 			}
+			doneBytes[0] += Math.max(0, entry.size());
 		}
-		progress.accept("Unpacking settings...");
+		progress.status("Unpacking settings...");
 		MrPack.extractOverrides(mrpack, overrides);
 		// Jars shipped inside the pack itself count as its mods.
 		Path packMods = overrides.resolve("mods");
@@ -93,5 +109,16 @@ public final class Modpacks {
 		ModSets.write(set.resolve("set.properties"), info);
 		Files.deleteIfExists(mrpack);
 		return folder;
+	}
+
+	/** Removes a half-downloaded pack. */
+	private static void deleteSet(Path set) {
+		try (Stream<Path> files = Files.walk(set)) {
+			for (Path path : files.sorted(java.util.Comparator.reverseOrder()).toList()) {
+				Files.deleteIfExists(path);
+			}
+		} catch (IOException e) {
+			com.javahost.JavaHost.LOGGER.debug("[Mods] couldn't remove {}", set, e);
+		}
 	}
 }

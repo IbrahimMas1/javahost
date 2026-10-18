@@ -1,7 +1,6 @@
 package com.javahost.client.gui.pages;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import com.javahost.client.gui.Page;
 import com.javahost.client.gui.ui.Draw;
@@ -20,9 +19,8 @@ public class PerformancePage extends Page {
 	private static final int MOD_ROW = 30;
 	/** Catalog slug to icon URL, fetched once from Modrinth. */
 	private static volatile java.util.Map<String, String> icons;
-	private static volatile String installStatus = "";
-	private static volatile boolean installing;
-	private static volatile boolean needsRestart;
+	/** The last install started here (it also shows in the menu's download list). */
+	private static volatile com.javahost.client.mods.Downloads.Job job;
 
 	private int modsY;
 
@@ -122,41 +120,38 @@ public class PerformancePage extends Page {
 		boolean allInstalled = recommended().stream().allMatch(BoostMods::isInstalled);
 		FlatButton installAll = add(new FlatButton(104, 16, Component.literal(allInstalled ? "All installed" : "Install all"),
 				FlatButton.Style.PRIMARY, allInstalled ? Icons.CHECK : Icons.BOLT, b -> install(recommended())), width - 104, modsY - 4);
-		installAll.active = !installing && !allInstalled;
+		installAll.active = !installing() && !allInstalled;
 
 		extrasY = modsY + 14 + recommended().size() * MOD_ROW + 16;
 		int y = extrasY + 12;
 		for (BoostMod mod : extras()) {
 			FlatButton button = add(new FlatButton(64, 16, Component.literal("Install"), FlatButton.Style.SECONDARY, null,
 					b -> install(List.of(mod))), width - 72, y + 7);
-			button.active = !installing && !BoostMods.isInstalled(mod);
+			button.active = !installing() && !BoostMods.isInstalled(mod);
 			setShown(button, !BoostMods.isInstalled(mod));
 			y += MOD_ROW;
 		}
 		reserve(y + 30);
 	}
 
+	private static boolean installing() {
+		return job != null && job.active();
+	}
+
 	private void install(List<BoostMod> mods) {
 		List<BoostMod> missing = mods.stream().filter(mod -> !BoostMods.isInstalled(mod)).toList();
-		if (missing.isEmpty() || installing) {
+		if (missing.isEmpty() || installing()) {
 			return;
 		}
-		installing = true;
-		installStatus = "Contacting Modrinth...";
-		CompletableFuture.runAsync(() -> {
-			int count = BoostMods.install(missing, line -> installStatus = line);
-			if (count > 0) {
-				needsRestart = true;
-				installStatus = "Installed " + Draw.count(count, "mod") + ". Restart Minecraft to turn them on.";
-				com.javahost.client.Toasts.notify("Installed " + Draw.count(count, "mod"), "Restart Minecraft to turn them on.");
-			}
-			installing = false;
-		}, com.javahost.util.IoExecutor.NET);
+		String title = missing.size() == 1 ? missing.getFirst().name() : Draw.count(missing.size(), "FPS mod");
+		String icon = missing.size() == 1 && icons != null ? icons.getOrDefault(missing.getFirst().slug(), "") : "";
+		job = com.javahost.client.mods.Downloads.installMods("fps:" + String.join(",", missing.stream().map(BoostMod::slug).toList()), title, icon,
+				missing);
 		screen.refresh();
 	}
 
 	private String signature() {
-		StringBuilder s = new StringBuilder().append(installing).append(QuickTune.isApplied());
+		StringBuilder s = new StringBuilder().append(installing()).append(job == null ? "" : job.stage()).append(QuickTune.isApplied());
 		BoostMods.MODS.forEach(m -> s.append(BoostMods.isInstalled(m)));
 		return s.toString();
 	}
@@ -194,14 +189,19 @@ public class PerformancePage extends Page {
 			y += MOD_ROW;
 		}
 
-		String status = installStatus.isEmpty()
+		var current = job;
+		boolean restart = current != null && current.needsRestart() && current.stage() == com.javahost.client.mods.Downloads.Stage.DONE;
+		String status = current == null || current.stage() == com.javahost.client.mods.Downloads.Stage.CANCELLED
 				? "Downloads come straight from Modrinth, the official mod site, and are checked before installing."
-				: installStatus;
-		int color = needsRestart ? Theme.WARNING : installing ? Theme.INFO : Theme.FAINT;
-		if (installing) {
-			int pulse = (int) ((System.currentTimeMillis() / 8) % (width + 60)) - 60;
+				: current.statusText();
+		int color = restart ? Theme.WARNING : installing() ? Theme.INFO : current != null && current.stage() == com.javahost.client.mods.Downloads.Stage.FAILED
+				? Theme.WARNING : Theme.FAINT;
+		if (installing()) {
 			Draw.roundRect(g, left, y + 8, width, 3, 1, Theme.FIELD);
-			Draw.roundRect(g, left + Math.max(0, pulse), y + 8, Math.min(60, width - Math.max(0, pulse)), 3, 1, Theme.INFO);
+			int filled = (int) Math.round(width * current.progress());
+			if (filled > 0) {
+				Draw.roundRect(g, left, y + 8, Math.max(2, filled), 3, 1, Theme.INFO);
+			}
 		}
 		Draw.textFit(g, status, width, left, y + 16, color);
 	}

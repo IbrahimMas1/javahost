@@ -29,6 +29,17 @@ public final class Availability {
 		return (loader + " " + newest).strip();
 	}
 
+	/** The newest Minecraft releases it supports, newest first (snapshots left out), at most {@code max}. */
+	public static List<String> newestReleases(Modrinth.Project project, int max) {
+		return project.gameVersions().stream().filter(v -> v.matches("[0-9]+\\.[0-9]+(\\.[0-9]+)?")).distinct()
+				.sorted((a, b) -> Versions.compare(b, a)).limit(max).toList();
+	}
+
+	/** Its loaders by name, ours first: "Fabric, Forge". */
+	public static String loaders(Modrinth.Project project) {
+		return String.join(", ", LOADER_ORDER.stream().filter(project.loaders()::contains).map(Availability::loaderName).toList());
+	}
+
 	private static String loaderName(String loader) {
 		return switch (loader) {
 			case "neoforge" -> "NeoForge";

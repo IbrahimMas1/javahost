@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.function.Consumer;
 
 import com.javahost.JavaHost;
 import com.javahost.util.ModCatalog;
@@ -69,6 +68,59 @@ public final class BoostMods {
 		return null;
 	}
 
+	/** A mod JavaHost downloaded (it left a marker): its Modrinth name, a display name, and whether it's running. */
+	public record Installed(String slug, String name, boolean active) {
+	}
+
+	/** Mods JavaHost installed, running or waiting for a restart (at most 30, by name). */
+	public static List<Installed> installedByJavaHost() {
+		List<Installed> found = new java.util.ArrayList<>();
+		try (var markers = Files.list(modsDir())) {
+			for (Path marker : markers.filter(p -> p.getFileName().toString().startsWith(".javahost-")).limit(30).toList()) {
+				String slug = marker.getFileName().toString().substring(".javahost-".length());
+				Path jar = pendingJar(slug);
+				if (jar == null) {
+					continue;
+				}
+				String jarName = jar.getFileName().toString();
+				var loaded = FabricLoader.getInstance().getAllMods().stream()
+						.filter(m -> m.getOrigin().getKind() == net.fabricmc.loader.api.metadata.ModOrigin.Kind.PATH
+								&& m.getOrigin().getPaths().stream().anyMatch(p -> p.getFileName().toString().equals(jarName)))
+						.findFirst();
+				String name = loaded.map(m -> m.getMetadata().getName()).orElseGet(() -> nameInJar(jar, slug));
+				found.add(new Installed(slug, com.javahost.util.Text.clean(name, 48), loaded.isPresent() || FabricLoader.getInstance().isModLoaded(slug)));
+			}
+		} catch (IOException e) {
+			JavaHost.LOGGER.debug("[Mods] couldn't list installed mods", e);
+		}
+		found.sort(java.util.Comparator.comparing(i -> i.name().toLowerCase(java.util.Locale.ROOT)));
+		return found;
+	}
+
+	/** Jar file name to the mod's name inside it (read once per jar). */
+	private static final java.util.Map<String, String> JAR_NAMES = new java.util.concurrent.ConcurrentHashMap<>();
+
+	/** The name in a jar's fabric.mod.json, for a mod that hasn't loaded yet; its Modrinth name if there's none. */
+	private static String nameInJar(Path jar, String fallback) {
+		return JAR_NAMES.computeIfAbsent(jar.getFileName().toString(), key -> {
+			try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(jar.toFile())) {
+				var entry = zip.getEntry("fabric.mod.json");
+				if (entry != null) {
+					try (var in = zip.getInputStream(entry)) {
+						var json = com.google.gson.JsonParser.parseString(new String(in.readNBytes(1 << 20), java.nio.charset.StandardCharsets.UTF_8))
+								.getAsJsonObject();
+						if (json.has("name")) {
+							return json.get("name").getAsString();
+						}
+					}
+				}
+			} catch (IOException | RuntimeException e) {
+				// fall back to the Modrinth name
+			}
+			return fallback;
+		});
+	}
+
 	private static Path modsDir() {
 		return FabricLoader.getInstance().getGameDir().resolve("mods");
 	}
@@ -79,26 +131,50 @@ public final class BoostMods {
 				.orElseThrow();
 	}
 
-	/** Downloads the mods and their dependencies. Blocking; call from a background thread. Returns how many jars were installed. */
-	public static int install(List<BoostMod> mods, Consumer<String> progress) {
+	/**
+	 * Downloads the mods and their dependencies. Blocking; call from a background thread. Returns how many jars were
+	 * installed. A cancelled install removes the jars it already saved, so nothing half-installed loads next time.
+	 */
+	public static int install(List<BoostMod> mods, com.javahost.client.mods.Downloads.Reporter progress) {
+		List<Path> saved = new java.util.ArrayList<>();
 		try {
 			List<ModFile> files = Modrinth.resolve(mods.stream().map(BoostMod::slug).toList(), gameVersion(),
-					projectId -> projectId.equals(Modrinth.FABRIC_API), progress);
+					projectId -> projectId.equals(Modrinth.FABRIC_API), progress::status);
+			progress.fraction(0.05);
+			List<ModFile> needed = files.stream()
+					// Skip dependencies that are already loaded (e.g. Sodium when installing Iris).
+					.filter(file -> MODS.stream().noneMatch(m -> m.slug().equals(file.project()) && FabricLoader.getInstance().isModLoaded(m.modId())))
+					.toList();
 			int installed = 0;
-			for (ModFile file : files) {
-				// Skip dependencies that are already loaded (e.g. Sodium when installing Iris).
-				if (MODS.stream().anyMatch(m -> m.slug().equals(file.project()) && FabricLoader.getInstance().isModLoaded(m.modId()))) {
-					continue;
-				}
-				progress.accept("Downloading " + file.fileName() + "...");
-				Modrinth.download(file, modsDir().resolve(file.fileName()));
-				Files.writeString(modsDir().resolve(".javahost-" + file.project()), file.fileName());
+			for (ModFile file : needed) {
+				int index = installed;
+				progress.status(needed.size() == 1 ? "Downloading " + file.fileName() + "..."
+						: "Downloading " + (index + 1) + " of " + needed.size() + "...");
+				Path target = modsDir().resolve(file.fileName());
+				Modrinth.download(file, target, List.of("cdn.modrinth.com"), (read, total) -> {
+					double share = total > 0 ? (double) read / total : 0;
+					progress.fraction(0.05 + 0.95 * (index + share) / needed.size());
+				}, progress::cancelled);
+				saved.add(target);
+				Path marker = modsDir().resolve(".javahost-" + file.project());
+				Files.writeString(marker, file.fileName());
+				saved.add(marker);
 				installed++;
 			}
 			return installed;
 		} catch (IOException | InterruptedException | RuntimeException e) {
-			JavaHost.LOGGER.warn("Could not install mods", e);
-			progress.accept("Download failed: " + e.getMessage());
+			if (progress.cancelled()) {
+				for (Path path : saved) {
+					try {
+						Files.deleteIfExists(path);
+					} catch (IOException ignored) {
+						// best effort
+					}
+				}
+			} else {
+				JavaHost.LOGGER.warn("Could not install mods", e);
+				progress.status("Download failed: " + e.getMessage());
+			}
 			return 0;
 		} finally {
 			INSTALLED.clear();

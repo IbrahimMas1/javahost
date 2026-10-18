@@ -18,6 +18,10 @@ public final class Notifications {
 	public record Item(Kind kind, UUID player, String name, String text, long time, Object payload) {
 	}
 
+	/** A button on a JavaHost notice (an INFO item's payload), e.g. "Close Minecraft" when a mod is ready. */
+	public record Action(String label, Runnable run) {
+	}
+
 	private static final int MAX = 50;
 	private static final List<Item> ITEMS = new ArrayList<>();
 	private static int unread;
