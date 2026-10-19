@@ -623,8 +623,37 @@ public class ModsPage extends Page {
 			y += BANNER;
 		}
 
-		// Mods JavaHost installed.
+		// Mods JavaHost installed, each with Remove (or Keep, once it's marked to go).
 		installedY = y;
+		java.util.Set<String> removing = com.javahost.client.mods.Removals.pendingJars();
+		int rowY = y + 12;
+		for (BoostMods.Installed mod : installed) {
+			if (removing.contains(mod.jarName())) {
+				FlatButton keep = add(new FlatButton(46, 16, Component.literal("Keep"), FlatButton.Style.SECONDARY, null, b -> {
+					try {
+						com.javahost.client.mods.Removals.keep(mod);
+					} catch (java.io.IOException e) {
+						JavaHost.LOGGER.warn("[Mods] couldn't keep {}", mod.name(), e);
+					}
+					screen.refresh();
+				}), width - 52, rowY + 3);
+				keep.setTooltip(Tooltip.create(Component.literal("Don't remove " + mod.name())));
+			} else {
+				String why = ModSets.staged() ? "Wait until your mod set switch is done" : BoostMods.cannotRemove(mod, installed, removing);
+				FlatButton remove = add(new FlatButton(20, 16, Component.literal("Remove"), FlatButton.Style.GHOST, Icons.TRASH, b -> {
+					try {
+						com.javahost.client.mods.Removals.remove(mod);
+						com.javahost.client.Toasts.show("remove-" + mod.slug(), mod.name() + " will be removed", "When you close Minecraft.");
+					} catch (java.io.IOException e) {
+						JavaHost.LOGGER.warn("[Mods] couldn't remove {}", mod.name(), e);
+					}
+					screen.refresh();
+				}).iconOnly(), width - 26, rowY + 3);
+				remove.active = why == null;
+				remove.setTooltip(Tooltip.create(Component.literal(why != null ? "Can't remove: " + why : "Remove " + mod.name())));
+			}
+			rowY += INSTALLED_ROW;
+		}
 		y += 12 + Math.max(1, installed.size()) * INSTALLED_ROW + 4 + 10;
 
 		mineY = y;
@@ -675,13 +704,16 @@ public class ModsPage extends Page {
 		if (installed.isEmpty()) {
 			Draw.textFit(g, "Mods you install from Discover show up here.", width - 20, left + 10, y + 7, Theme.FAINT);
 		}
+		java.util.Set<String> removing = com.javahost.client.mods.Removals.pendingJars();
 		for (BoostMods.Installed mod : installed) {
+			boolean leaving = removing.contains(mod.jarName());
 			Icons.PACKAGE.draw(g, left + 10, y + 5, Theme.MUTED);
-			String badge = mod.active() ? "Active" : "Restart needed";
+			String badge = leaving ? "Removed on restart" : mod.active() ? "Active" : "Restart needed";
 			int bw = Draw.font().width(badge) + 10;
-			Draw.textFit(g, mod.name(), width - 40 - bw, left + 28, y + 7, Theme.TEXT);
-			int bx = left + width - bw - 8;
-			int tint = mod.active() ? Theme.ACCENT : Theme.WARNING;
+			int buttonW = leaving ? 52 : 28;
+			Draw.textFit(g, mod.name(), width - 40 - bw - buttonW, left + 28, y + 7, leaving ? Theme.MUTED : Theme.TEXT);
+			int bx = left + width - bw - 4 - buttonW;
+			int tint = leaving ? Theme.FAINT : mod.active() ? Theme.ACCENT : Theme.WARNING;
 			Draw.roundRect(g, bx, y + 4, bw, 12, 6, Theme.withAlpha(tint, 0.18f));
 			Draw.text(g, badge, bx + 5, y + 6, tint);
 			y += INSTALLED_ROW;

@@ -129,6 +129,7 @@ public class JavaHostClient implements ClientModInitializer {
 			com.javahost.client.discover.PublicHosting.shutdown();
 			com.javahost.client.update.Updater.launchSwapIfStaged();
 			com.javahost.client.mods.ModSets.launchIfStaged();
+			com.javahost.client.mods.Removals.launchIfAny();
 			Presence.goOffline();
 			E4mcCompat.shutdownForExit();
 		});

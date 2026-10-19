@@ -69,7 +69,11 @@ public final class BoostMods {
 	}
 
 	/** A mod JavaHost downloaded (it left a marker): its Modrinth name, a display name, and whether it's running. */
-	public record Installed(String slug, String name, boolean active) {
+	/**
+	 * A mod JavaHost downloaded (it left a marker): its Modrinth name, a display name, whether it's running, its jar's
+	 * file name, its mod id, and the mod ids it needs.
+	 */
+	public record Installed(String slug, String name, boolean active, String jarName, String modId, java.util.Set<String> needs) {
 	}
 
 	/** Mods JavaHost installed, running or waiting for a restart (at most 30, by name). */
@@ -87,8 +91,11 @@ public final class BoostMods {
 						.filter(m -> m.getOrigin().getKind() == net.fabricmc.loader.api.metadata.ModOrigin.Kind.PATH
 								&& m.getOrigin().getPaths().stream().anyMatch(p -> p.getFileName().toString().equals(jarName)))
 						.findFirst();
-				String name = loaded.map(m -> m.getMetadata().getName()).orElseGet(() -> nameInJar(jar, slug));
-				found.add(new Installed(slug, com.javahost.util.Text.clean(name, 48), loaded.isPresent() || FabricLoader.getInstance().isModLoaded(slug)));
+				JarInfo info = jarInfo(jar, slug);
+				String name = loaded.map(m -> m.getMetadata().getName()).orElse(info.name());
+				String modId = loaded.map(m -> m.getMetadata().getId()).orElse(info.id());
+				found.add(new Installed(slug, com.javahost.util.Text.clean(name, 48), loaded.isPresent() || FabricLoader.getInstance().isModLoaded(slug),
+						jarName, modId, info.needs()));
 			}
 		} catch (IOException e) {
 			JavaHost.LOGGER.debug("[Mods] couldn't list installed mods", e);
@@ -97,27 +104,63 @@ public final class BoostMods {
 		return found;
 	}
 
-	/** Jar file name to the mod's name inside it (read once per jar). */
-	private static final java.util.Map<String, String> JAR_NAMES = new java.util.concurrent.ConcurrentHashMap<>();
+	/** Mods that must never be removed from the menu: JavaHost itself and what it runs on. */
+	private static final java.util.Set<String> ESSENTIAL = java.util.Set.of("fabric-api", "fabricloader", "minecraft", "java", JavaHost.MOD_ID);
 
-	/** The name in a jar's fabric.mod.json, for a mod that hasn't loaded yet; its Modrinth name if there's none. */
-	private static String nameInJar(Path jar, String fallback) {
-		return JAR_NAMES.computeIfAbsent(jar.getFileName().toString(), key -> {
+	/**
+	 * Why {@code mod} can't be removed right now, or null if it can: something else needs it (a loaded mod, or another
+	 * mod JavaHost installed that isn't being removed too), or JavaHost itself runs on it.
+	 */
+	public static String cannotRemove(Installed mod, List<Installed> all, java.util.Set<String> beingRemoved) {
+		if (ESSENTIAL.contains(mod.modId()) || ESSENTIAL.contains(mod.slug())) {
+			return "JavaHost needs it";
+		}
+		for (var other : FabricLoader.getInstance().getAllMods()) {
+			String otherJar = other.getOrigin().getKind() == net.fabricmc.loader.api.metadata.ModOrigin.Kind.PATH
+					? other.getOrigin().getPaths().stream().map(p -> p.getFileName().toString()).findFirst().orElse("") : "";
+			if (otherJar.equals(mod.jarName()) || beingRemoved.contains(otherJar) || other.getContainingMod().isPresent()) {
+				continue;
+			}
+			boolean needs = other.getMetadata().getDependencies().stream()
+					.anyMatch(d -> d.getKind() == net.fabricmc.loader.api.metadata.ModDependency.Kind.DEPENDS && d.getModId().equals(mod.modId()));
+			if (needs) {
+				return other.getMetadata().getName() + " needs it";
+			}
+		}
+		for (Installed other : all) {
+			if (!other.jarName().equals(mod.jarName()) && !other.active() && !beingRemoved.contains(other.jarName()) && other.needs().contains(mod.modId())) {
+				return other.name() + " needs it";
+			}
+		}
+		return null;
+	}
+
+	/** What a jar's fabric.mod.json says: its name, id and the mod ids it depends on. */
+	private record JarInfo(String name, String id, java.util.Set<String> needs) {
+	}
+
+	/** Jar file name to what's inside it (read once per jar). */
+	private static final java.util.Map<String, JarInfo> JAR_INFO = new java.util.concurrent.ConcurrentHashMap<>();
+
+	/** Reads a jar's fabric.mod.json (for a mod that hasn't loaded yet); falls back to its Modrinth name. */
+	private static JarInfo jarInfo(Path jar, String fallback) {
+		return JAR_INFO.computeIfAbsent(jar.getFileName().toString(), key -> {
 			try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(jar.toFile())) {
 				var entry = zip.getEntry("fabric.mod.json");
 				if (entry != null) {
 					try (var in = zip.getInputStream(entry)) {
 						var json = com.google.gson.JsonParser.parseString(new String(in.readNBytes(1 << 20), java.nio.charset.StandardCharsets.UTF_8))
 								.getAsJsonObject();
-						if (json.has("name")) {
-							return json.get("name").getAsString();
-						}
+						java.util.Set<String> needs = json.has("depends") && json.get("depends").isJsonObject()
+								? java.util.Set.copyOf(json.getAsJsonObject("depends").keySet()) : java.util.Set.of();
+						return new JarInfo(json.has("name") ? json.get("name").getAsString() : fallback,
+								json.has("id") ? json.get("id").getAsString() : fallback, needs);
 					}
 				}
 			} catch (IOException | RuntimeException e) {
 				// fall back to the Modrinth name
 			}
-			return fallback;
+			return new JarInfo(fallback, fallback, java.util.Set.of());
 		});
 	}
 
@@ -158,6 +201,7 @@ public final class BoostMods {
 				saved.add(target);
 				Path marker = modsDir().resolve(".javahost-" + file.project());
 				Files.writeString(marker, file.fileName());
+				com.javahost.client.mods.Removals.unmark(file.fileName(), marker.getFileName().toString()); // installed again: keep it
 				saved.add(marker);
 				installed++;
 			}

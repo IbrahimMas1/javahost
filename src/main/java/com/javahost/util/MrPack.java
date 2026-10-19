@@ -22,7 +22,10 @@ import com.google.gson.JsonParser;
  * only come from the hosts Modrinth allows, and sizes are capped. Pure Java (plus Gson), unit-tested.
  */
 public final class MrPack {
-	public static final int MAX_FILES = 600;
+	/** Files a pack may list for download (big Fabric packs list several hundred mods). */
+	public static final int MAX_FILES = 2000;
+	/** Files a pack may unpack from overrides/ (configs, quests and scripts can run into the thousands). */
+	public static final int MAX_OVERRIDE_FILES = 50_000;
 	public static final long MAX_TOTAL_BYTES = 3L * 1024 * 1024 * 1024;
 	/** Folders a pack may put files in, relative to the game folder. */
 	private static final List<String> ALLOWED_ROOTS = List.of("mods/", "config/", "resourcepacks/", "shaderpacks/");
@@ -143,7 +146,7 @@ public final class MrPack {
 				if (relative == null || entry.isDirectory() || !safePath(relative)) {
 					continue;
 				}
-				if (written.size() >= MAX_FILES * 4) {
+				if (written.size() >= MAX_OVERRIDE_FILES) {
 					throw new IOException("Too many files in the pack");
 				}
 				Path out = target.resolve(relative).normalize();

@@ -107,6 +107,36 @@ class ModSyncTest {
 		assertFalse(Files.exists(out.resolve("saves")));
 	}
 
+	@Test
+	void bigPacksWithThousandsOfConfigFilesUnpack(@TempDir Path dir) throws IOException {
+		Path pack = dir.resolve("big.mrpack");
+		try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(pack))) {
+			for (int i = 0; i < 3000; i++) {
+				zip.putNextEntry(new ZipEntry("overrides/config/quests/chapter" + i + ".snbt"));
+				zip.write("{}".getBytes(StandardCharsets.UTF_8));
+				zip.closeEntry();
+			}
+		}
+		assertEquals(3000, MrPack.extractOverrides(pack, dir.resolve("out")).size(), "a pack with 3000 config files isn't turned away");
+	}
+
+	@Test
+	void removedModsAreDeletedAndNothingElse(@TempDir Path dir) throws IOException {
+		Path mods = dir.resolve("mods");
+		write(mods.resolve("modmenu.jar"), "jar");
+		write(mods.resolve(".javahost-modmenu"), "modmenu.jar");
+		write(mods.resolve("keep.jar"), "jar");
+		write(dir.resolve("outside.txt"), "precious");
+		Path list = dir.resolve("remove-on-exit.txt");
+		Files.write(list, List.of("modmenu.jar", ".javahost-modmenu", "../outside.txt", "..", "sub/keep.jar", "missing.jar"));
+		assertEquals(List.of(), RemoveAfterExit.removeAll(mods, list));
+		assertFalse(Files.exists(mods.resolve("modmenu.jar")));
+		assertFalse(Files.exists(mods.resolve(".javahost-modmenu")));
+		assertTrue(Files.exists(mods.resolve("keep.jar")), "only listed files go");
+		assertTrue(Files.exists(dir.resolve("outside.txt")), "names with folders are ignored");
+		assertFalse(Files.exists(list), "the list is gone once it's done");
+	}
+
 	// ================================================================ switching mod sets
 
 	private static void write(Path file, String text) throws IOException {

@@ -1091,7 +1091,26 @@ public class JavaHostClientTest implements FabricClientGameTest {
 				check(widgetsFit(context), "Installed fits at " + s[0] + "x" + s[1]);
 				context.takeScreenshot("review-" + s[0] + "-s" + s[2] + "-mods-installed");
 			}
+
+			// Removing one: it's marked to go when the game closes, and Keep takes that back.
+			size(context, 1710, 1070, 4);
+			context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
+			context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40,
+					mc.getWindow().getGuiScaledHeight() / 2.0, 0, -6));
+			context.waitTicks(12);
+			clickMenu(context, "Remove");
+			check(!com.javahost.client.mods.Removals.pendingJars().isEmpty() && hasButton(context, "Keep"), "Remove marks a mod to go when the game closes");
+			context.takeScreenshot("review-1710-s4-mods-removing");
+			clickMenu(context, "Keep");
+			check(com.javahost.client.mods.Removals.pendingJars().isEmpty(), "Keep takes it off the list");
 		} finally {
+			context.runOnClient(mc -> {
+				try {
+					java.nio.file.Files.deleteIfExists(mc.gameDirectory.toPath().resolve("javahost").resolve("remove-on-exit.txt"));
+				} catch (IOException e) {
+					throw new AssertionError(e);
+				}
+			});
 			// Leave the test game's mods folder as it was.
 			for (String name : fileNames(mods)) {
 				if (!before.contains(name)) {

@@ -21,7 +21,7 @@ import com.google.gson.JsonParser;
  * Pure Java (plus Gson), unit-tested.
  */
 public record ModManifest(String host, String pack, List<Entry> mods) {
-	public static final int MAX_MODS = 400;
+	public static final int MAX_MODS = 1000; // big modpacks run to several hundred mods
 	public static final long MAX_TOTAL_BYTES = 2L * 1024 * 1024 * 1024;
 
 	/**
