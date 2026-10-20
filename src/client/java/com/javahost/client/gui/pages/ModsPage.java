@@ -82,6 +82,8 @@ public class ModsPage extends Page {
 	private List<ModSets.Saved> saved = List.of();
 	private List<BoostMods.Installed> installed = List.of();
 	private List<Downloads.Job> jobs = List.of();
+	/** Jar names marked to be removed when the game closes (read when the page is built, not every frame). */
+	private java.util.Set<String> removing = java.util.Set.of();
 	private int bannerY = -1;
 	private int resultsY;
 	private int installedY;
@@ -192,7 +194,7 @@ public class ModsPage extends Page {
 	private String signature() {
 		// Not the search text: typing searches after a pause, and the new results bump searchVersion.
 		return view + "|" + kind + "|" + category + "|" + runsHere + "|" + searchVersion + "|" + searching + "|" + Downloads.version() + "|" + (detail == null ? "" : detail.id())
-				+ "|" + ModSets.activeLabel() + "|" + ModSets.stagedLabel() + "|" + (ModSets.mine() != null) + "|" + ModSets.saved().size();
+				+ "|" + ModSets.changes() + "|" + (ModSets.mine() != null); // no disk access here: this runs every tick
 	}
 
 	@Override
@@ -625,7 +627,7 @@ public class ModsPage extends Page {
 
 		// Mods JavaHost installed, each with Remove (or Keep, once it's marked to go).
 		installedY = y;
-		java.util.Set<String> removing = com.javahost.client.mods.Removals.pendingJars();
+		removing = com.javahost.client.mods.Removals.pendingJars();
 		int rowY = y + 12;
 		for (BoostMods.Installed mod : installed) {
 			if (removing.contains(mod.jarName())) {
@@ -704,7 +706,6 @@ public class ModsPage extends Page {
 		if (installed.isEmpty()) {
 			Draw.textFit(g, "Mods you install from Discover show up here.", width - 20, left + 10, y + 7, Theme.FAINT);
 		}
-		java.util.Set<String> removing = com.javahost.client.mods.Removals.pendingJars();
 		for (BoostMods.Installed mod : installed) {
 			boolean leaving = removing.contains(mod.jarName());
 			Icons.PACKAGE.draw(g, left + 10, y + 5, Theme.MUTED);
@@ -784,8 +785,7 @@ public class ModsPage extends Page {
 		if (staged != null) {
 			Draw.textFit(g, "Switches to " + staged + " when Minecraft closes", width - 120, left + 28, base + 30, Theme.WARNING);
 		} else {
-			int count = (int) net.fabricmc.loader.api.FabricLoader.getInstance().getAllMods().stream()
-					.filter(m -> m.getContainingMod().isEmpty() && com.javahost.mods.ModScanner.jarOf(m) != null).count();
+			int count = loadedModCount();
 			Draw.textFit(g, Draw.count(count, "mod") + " loaded" + (active == null ? "" : " · your own are kept safe"), width - 150, left + 28,
 					base + 30, Theme.MUTED);
 		}
@@ -825,6 +825,17 @@ public class ModsPage extends Page {
 			y += ROW;
 		}
 	}
+
+	/** Mods loaded from their own jar (not bundled inside another). Fixed for the session, so counted once. */
+	private static int loadedModCount() {
+		if (loadedMods < 0) {
+			loadedMods = (int) net.fabricmc.loader.api.FabricLoader.getInstance().getAllMods().stream()
+					.filter(m -> m.getContainingMod().isEmpty() && com.javahost.mods.ModScanner.jarOf(m) != null).count();
+		}
+		return loadedMods;
+	}
+
+	private static int loadedMods = -1;
 
 	@Override
 	protected void draw(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY) {

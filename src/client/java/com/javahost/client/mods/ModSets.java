@@ -262,16 +262,29 @@ public final class ModSets {
 	}
 
 	public static boolean staged() {
-		return Files.exists(planFile());
+		Boolean staged = stagedCache;
+		if (staged == null) {
+			staged = Files.exists(planFile());
+			stagedCache = staged;
+		}
+		return staged;
 	}
 
 	/** What the waiting switch is to ("AlexPlays's world", "Your own mods"), or null. */
 	public static String stagedLabel() {
-		try {
-			return staged() ? read(planFile()).getProperty("label") : null;
-		} catch (IOException e) {
+		if (!staged()) {
 			return null;
 		}
+		String label = stagedLabelCache;
+		if (label == null) {
+			try {
+				label = read(planFile()).getProperty("label", "");
+			} catch (IOException e) {
+				label = "";
+			}
+			stagedLabelCache = label;
+		}
+		return label.isEmpty() ? null : label;
 	}
 
 	public static void cancelStaged() {
@@ -280,6 +293,7 @@ public final class ModSets {
 		} catch (IOException e) {
 			JavaHost.LOGGER.warn("[Mods] couldn't cancel the switch", e);
 		}
+		changed();
 	}
 
 	/** The set in use ("AlexPlays's world"), or null when it's the player's own mods. */
@@ -303,6 +317,7 @@ public final class ModSets {
 			Path running = dir().resolve("running.properties");
 			write(running, plan);
 			Files.delete(planFile());
+			changed();
 			// Run from a copy of JavaHost, so an update swapping our jar at the same time can't pull it away.
 			List<Path> classpath = new ArrayList<>(FabricLoader.getInstance().getModContainer(JavaHost.MOD_ID).orElseThrow().getOrigin().getPaths());
 			if (classpath.size() == 1 && classpath.getFirst().toString().endsWith(".jar")) {
@@ -344,7 +359,37 @@ public final class ModSets {
 
 	// ================================================================ saved sets
 
+	/**
+	 * Saved mod sets, newest first. Remembered: menus ask every tick, and adding up a modpack's size means looking at
+	 * every one of its files (hundreds of configs). {@link #changed()} forgets it when sets are written or deleted.
+	 */
 	public static List<Saved> saved() {
+		List<Saved> sets = savedCache;
+		if (sets == null) {
+			sets = List.copyOf(listSaved());
+			savedCache = sets;
+		}
+		return sets;
+	}
+
+	private static volatile List<Saved> savedCache;
+	private static volatile Boolean stagedCache;
+	private static volatile String stagedLabelCache;
+	private static volatile int changes;
+
+	/** Goes up whenever a set is added, deleted, or a switch is staged or cancelled (for menus that redraw on change). */
+	public static int changes() {
+		return changes;
+	}
+
+	static void changed() {
+		savedCache = null;
+		stagedCache = null;
+		stagedLabelCache = null;
+		changes++;
+	}
+
+	private static List<Saved> listSaved() {
 		List<Saved> sets = new ArrayList<>();
 		if (!Files.isDirectory(dir())) {
 			return sets;
@@ -378,6 +423,8 @@ public final class ModSets {
 			for (Path p : walk.sorted(Comparator.reverseOrder()).toList()) {
 				Files.deleteIfExists(p);
 			}
+		} finally {
+			changed();
 		}
 	}
 
@@ -418,6 +465,8 @@ public final class ModSets {
 		Files.createDirectories(file.getParent());
 		try (OutputStream out = Files.newOutputStream(file)) {
 			properties.store(out, "JavaHost mod set");
+		} finally {
+			changed(); // a new set, or a staged switch
 		}
 	}
 

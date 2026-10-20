@@ -1131,6 +1131,59 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		}
 	}
 
+	/** 1.12.3: a big modpack (thousands of config files) must not slow the Mods page down (it used to re-count every tick). */
+	private static void bigModSetStaysFast(ClientGameTestContext context) {
+		Path set = context.computeOnClient(mc -> com.javahost.client.mods.ModSets.dir().resolve("pack-showcasetest"));
+		try {
+			Files.createDirectories(set.resolve("overrides/config"));
+			for (int i = 0; i < 3000; i++) {
+				Files.writeString(set.resolve("overrides/config/c" + i + ".json"), "{}");
+			}
+			Files.writeString(set.resolve("set.properties"), "label=Big Test Pack 1.0\nkind=pack\ncreated=1\n");
+			context.runOnClient(mc -> com.javahost.client.mods.ModSets.saved()); // a new set: counted once
+			context.runOnClient(mc -> {
+				try {
+					var write = com.javahost.client.mods.ModSets.class.getDeclaredMethod("changed");
+					write.setAccessible(true);
+					write.invoke(null);
+				} catch (ReflectiveOperationException e) {
+					throw new AssertionError(e);
+				}
+			});
+			check(context.computeOnClient(mc -> com.javahost.client.mods.ModSets.saved().stream().anyMatch(x -> x.label().equals("Big Test Pack 1.0"))),
+					"a new mod set shows up");
+			long took = context.computeOnClient(mc -> {
+				long start = System.nanoTime();
+				for (int i = 0; i < 200; i++) {
+					com.javahost.client.mods.ModSets.saved();
+					com.javahost.client.mods.ModSets.staged();
+					com.javahost.client.mods.ModSets.stagedLabel();
+					com.javahost.client.mods.ModSets.activeLabel();
+				}
+				return (System.nanoTime() - start) / 1_000_000;
+			});
+			check(took < 50, "200 checks of the mod sets take " + took + " ms (no files read each tick)");
+			com.javahost.client.gui.pages.ModsPage.showMine(true);
+			context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
+			context.waitTicks(10);
+			check(context.computeOnClient(mc -> mc.gui.screen().children().stream().anyMatch(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w
+					&& w.getMessage().getString().equals("Use"))), "the big set is listed in Installed");
+		} catch (IOException e) {
+			throw new AssertionError(e);
+		} finally {
+			context.runOnClient(mc -> {
+				try {
+					com.javahost.client.mods.ModSets.delete(com.javahost.client.mods.ModSets.saved().stream()
+							.filter(x -> x.folder().equals("pack-showcasetest")).findFirst().orElseThrow());
+				} catch (IOException | RuntimeException e) {
+					JavaHost.LOGGER.warn("[JavaHost test] couldn't remove the test set", e);
+				}
+			});
+			com.javahost.client.gui.pages.ModsPage.showMine(false);
+			context.setScreen(() -> null);
+		}
+	}
+
 	private static java.util.Set<String> fileNames(Path folder) {
 		try (var files = java.nio.file.Files.list(folder)) {
 			return files.map(p -> p.getFileName().toString()).collect(java.util.stream.Collectors.toSet());
@@ -1432,6 +1485,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		publicWorldScreens(context);
 		modsScreens(context);
 		storeAndDownloads(context);
+		bigModSetStaysFast(context);
 		context.runOnClient(mc -> {
 			try {
 				java.lang.reflect.Field dataField = com.javahost.client.friends.Friends.class.getDeclaredField("data");

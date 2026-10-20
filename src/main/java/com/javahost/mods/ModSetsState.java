@@ -23,16 +23,24 @@ public final class ModSetsState {
 
 	/** The active set's details, or empty properties when the player's own mods are in use. */
 	public static Properties active() {
-		Properties state = new Properties();
-		if (Files.exists(stateFile())) {
-			try (InputStream in = Files.newInputStream(stateFile())) {
-				state.load(in);
-			} catch (IOException ignored) {
-				// Treat as the player's own mods.
+		// The file only changes while the game is closed (the swap helper writes it), so it's read once per session;
+		// menus ask for it every frame.
+		Properties state = cached;
+		if (state == null) {
+			state = new Properties();
+			if (Files.exists(stateFile())) {
+				try (InputStream in = Files.newInputStream(stateFile())) {
+					state.load(in);
+				} catch (IOException ignored) {
+					// Treat as the player's own mods.
+				}
 			}
+			cached = state;
 		}
-		return state;
+		return (Properties) state.clone();
 	}
+
+	private static volatile Properties cached;
 
 	/** The modpack in use ("Fabulously Optimized 7.1"), or "" if none. */
 	public static String packName() {
