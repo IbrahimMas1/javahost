@@ -1,0 +1,16 @@
+name: Idea or feature request
+description: Suggest something that would make JavaHost better.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: Describe the idea, and what you'd use it for with your friends.
+    validations:
+      required: true
+  - type: textarea
+    id: now
+    attributes:
+      label: How do you do it today?
+      description: Optional. What you do now, or what gets in the way.

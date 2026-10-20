@@ -1,0 +1,46 @@
+name: Bug report
+description: Something in JavaHost doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! Please don't include IP addresses, invite codes or other players' names.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: javahost
+    attributes:
+      label: JavaHost version
+      placeholder: "1.12.3 (shown on the title screen)"
+    validations:
+      required: true
+  - type: dropdown
+    id: minecraft
+    attributes:
+      label: Minecraft version
+      options: ["26.3", "26.2", "26.1.x", "1.21.11", "1.21.9 – 1.21.10", "1.21.6 – 1.21.8", "1.21.4", "1.21 – 1.21.1"]
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Computer
+      options: [Windows, Mac, Linux]
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Debug report
+      description: In game, open **Settings → Copy debug report** and paste it here. It leaves out addresses and names.
+      render: text
+  - type: textarea
+    id: mods
+    attributes:
+      label: Other mods or modpack
+      description: Any mods besides the ones the installer added.
