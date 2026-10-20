@@ -101,7 +101,9 @@ public final class Modpacks {
 			ids.add(id == null ? "" : id);
 		}
 		Properties info = new Properties();
-		info.setProperty("label", index.name() + (index.version().isEmpty() ? "" : " " + index.version()));
+		// The pack's Modrinth title: the name inside some .mrpack files is generic (e.g. "Fabric 26.3").
+		String name = pack.title().isBlank() ? index.name() : pack.title();
+		info.setProperty("label", name + (index.version().isEmpty() ? "" : " " + index.version()));
 		info.setProperty("kind", "pack");
 		info.setProperty("created", String.valueOf(System.currentTimeMillis()));
 		ModSwap.store(info, "jar", names);

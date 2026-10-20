@@ -346,6 +346,9 @@ public class HostPage extends Page {
 		}
 		String problem = HostController.start(server);
 		error = problem;
+		if (problem == null) {
+			section = Section.PLAYERS; // who's here matters most now
+		}
 		screen.refresh();
 	}
 
