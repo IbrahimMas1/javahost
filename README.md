@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/media/wordmark-dark.png">
-    <img src="docs/media/wordmark-light.png" alt="JavaHost" width="300">
-  </picture>
+  <img src="docs/media/banner.jpg" alt="JavaHost: host your world from your own PC">
 </p>
 
 <p align="center">
@@ -21,10 +18,6 @@
   <a href="https://github.com/IbrahimMas1/javahost/releases/latest"><img src="https://img.shields.io/github/v/release/IbrahimMas1/javahost?label=release&color=3ddc84" alt="Latest release"></a>
   <a href="https://github.com/IbrahimMas1/javahost/releases"><img src="https://img.shields.io/github/downloads/IbrahimMas1/javahost/total?color=3ddc84" alt="Downloads"></a>
   <a href="#supported-versions"><img src="https://img.shields.io/badge/Minecraft-1.21%20to%2026.3-5a8f3c" alt="Minecraft 1.21 to 26.3"></a>
-</p>
-
-<p align="center">
-  <img src="docs/media/hero.jpg" alt="The JavaHost menu in game, showing the Friends tab">
 </p>
 
 ---
@@ -61,8 +54,12 @@ The installer puts Fabric, Fabric API and JavaHost in a separate profile and fol
 
 <table>
 <tr>
-<td width="50%"><img src="docs/media/host.jpg" alt="Host tab while hosting"><p align="center"><sub>Host tab: one invite code for every route</sub></p></td>
-<td width="50%"><img src="docs/media/mods.jpg" alt="Mods tab"><p align="center"><sub>Mods tab: Modrinth mods and modpacks</sub></p></td>
+<td width="50%"><img src="docs/media/host.jpg" alt="Host tab while hosting"><p align="center"><sub>Host: one invite code for every route</sub></p></td>
+<td width="50%"><img src="docs/media/friends.jpg" alt="Friends tab"><p align="center"><sub>Friends: see who's online and invite them</sub></p></td>
+</tr>
+<tr>
+<td><img src="docs/media/mods.jpg" alt="Mods tab"><p align="center"><sub>Mods: Modrinth mods and modpacks</sub></p></td>
+<td><img src="docs/media/modpack.jpg" alt="Better Adventures+ installed from the Mods tab"><p align="center"><sub>A whole modpack, installed in one click</sub></p></td>
 </tr>
 <tr>
 <td><img src="docs/media/voice.jpg" alt="Friends talking in game"><p align="center"><sub>Proximity voice in game</sub></p></td>
