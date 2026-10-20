@@ -4,7 +4,10 @@ name: Build
 
 on:
   push:
+    # The website deploys on its own (pages.yml). Tag pushes ignore path filters, so releases still build.
+    paths-ignore: ["website/**", ".github/workflows/pages.yml"]
   pull_request:
+    paths-ignore: ["website/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 jobs:

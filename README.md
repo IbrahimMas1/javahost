@@ -7,6 +7,7 @@
 </p>
 
 <p align="center">
+  <a href="https://ibrahimmas1.github.io/javahost/">Website</a> ·
   <a href="#install">Install</a> ·
   <a href="#features">Features</a> ·
   <a href="#demo">Demo</a> ·

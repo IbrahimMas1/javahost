@@ -1,0 +1,2042 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JavaHost: host your Minecraft world from your own PC</title>
+    <meta
+      name="description"
+      content="Invite friends into your Minecraft Java world from your own PC. Friends, proximity voice, shared packs and shaders, a built-in mod store and modded worlds. Free, open source, Fabric, Minecraft 1.21 to 26.3."
+    />
+    <meta name="theme-color" content="#0d1116" />
+    <meta property="og:title" content="JavaHost: your world, together." />
+    <meta
+      property="og:description"
+      content="Host your Minecraft world from your own PC. Friends, voice, mods and shared adventures. No rented server."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ibrahimmas1.github.io/javahost/" />
+    <meta property="og:image" content="https://ibrahimmas1.github.io/javahost/media/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="JavaHost: host your Minecraft world from your own PC, shown over a cherry grove in game" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://ibrahimmas1.github.io/javahost/" />
+    <link rel="icon" href="media/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="media/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Pixelify+Sans:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="preload" as="image" href="media/showcase/hero.jpg" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0d1116;
+        --bg2: #11171e;
+        --window: #161b22;
+        --card: #1e252e;
+        --card2: #252d38;
+        --field: #0d1116;
+        --border: #2c3540;
+        --text: #e8edf2;
+        --muted: #a0aab6;
+        --faint: #6b7684;
+        --accent: #3ddc84;
+        --hover: #60e29a;
+        --dark: #1e5d3f;
+        --on: #092114;
+        --glow: 61, 220, 132;
+        --warn: #f2b33d;
+        --danger: #ef5350;
+        --pixel: "Pixelify Sans", "JetBrains Mono", ui-monospace, monospace;
+        --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 84px;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 15px/1.7 "JetBrains Mono", ui-monospace, monospace;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+      }
+      p {
+        color: var(--muted);
+        margin: 0 0 16px;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: var(--pixel);
+        font-weight: 600;
+        line-height: 1.08;
+        margin: 0 0 18px;
+        letter-spacing: 0.005em;
+      }
+      h2 {
+        font-size: clamp(32px, 5vw, 54px);
+      }
+      h3 {
+        font-size: 21px;
+        margin-bottom: 8px;
+      }
+      img,
+      video {
+        max-width: 100%;
+        display: block;
+      }
+      svg {
+        display: block;
+      }
+      ::selection {
+        background: var(--accent);
+        color: var(--on);
+      }
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 4px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      .skip {
+        position: absolute;
+        left: 12px;
+        top: -60px;
+        z-index: 100;
+        background: var(--accent);
+        color: var(--on);
+        padding: 10px 14px;
+        font-weight: 700;
+      }
+      .skip:focus {
+        top: 12px;
+      }
+      .wrap {
+        width: min(1160px, calc(100% - 48px));
+        margin: 0 auto;
+      }
+      .center {
+        text-align: center;
+      }
+      .accent {
+        color: var(--accent);
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 18px;
+      }
+      .eyebrow::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        background: var(--accent);
+        box-shadow: 0 0 12px rgba(var(--glow), 0.7);
+      }
+      .sub {
+        font-size: 16px;
+        max-width: 640px;
+      }
+      .center .sub {
+        margin-inline: auto;
+      }
+      .ico {
+        width: 20px;
+        height: 20px;
+        flex: none;
+      }
+
+      /* ---------------------------------------------------------------- blocky buttons */
+      .btn {
+        --face: var(--card2);
+        --edge: #12171d;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 20px 14px;
+        font-weight: 600;
+        font-size: 14px;
+        border: 2px solid #0a0d11;
+        background: var(--face);
+        box-shadow:
+          inset 0 2px 0 rgba(255, 255, 255, 0.14),
+          inset 0 -4px 0 var(--edge);
+        transition:
+          transform 0.12s var(--ease),
+          filter 0.15s;
+        white-space: nowrap;
+      }
+      .btn:hover {
+        filter: brightness(1.12);
+      }
+      .btn:active {
+        transform: translateY(2px);
+        box-shadow:
+          inset 0 2px 0 rgba(255, 255, 255, 0.08),
+          inset 0 -2px 0 var(--edge);
+      }
+      .btn.primary {
+        --face: var(--accent);
+        --edge: var(--dark);
+        color: var(--on);
+      }
+      .btn svg {
+        width: 18px;
+        height: 18px;
+      }
+      .btn.small {
+        padding: 8px 14px 10px;
+        font-size: 13px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 12px;
+        border: 1px solid var(--border);
+        background: rgba(13, 17, 22, 0.6);
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        background: var(--accent);
+        box-shadow: 0 0 10px rgba(var(--glow), 0.8);
+      }
+
+      /* ---------------------------------------------------------------- nav */
+      .nav {
+        position: fixed;
+        inset: 0 0 auto;
+        z-index: 50;
+        background: rgba(13, 17, 22, 0.72);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border-bottom: 1px solid rgba(44, 53, 64, 0.6);
+      }
+      .nav .wrap {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        height: 68px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--pixel);
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .logo {
+        width: 32px;
+        height: 32px;
+        color: var(--accent);
+      }
+      .logo .ink {
+        fill: var(--on);
+      }
+      .nav-links {
+        display: flex;
+        gap: 22px;
+        margin-left: auto;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .nav-links a:hover {
+        color: var(--text);
+      }
+      .palette {
+        display: flex;
+        gap: 6px;
+      }
+      .swatch {
+        width: 16px;
+        height: 16px;
+        border: 2px solid #0a0d11;
+        background: var(--swatch);
+        padding: 0;
+      }
+      .swatch[aria-pressed="true"] {
+        outline: 2px solid var(--text);
+        outline-offset: 2px;
+      }
+      .mobile-menu {
+        display: none;
+        margin-left: auto;
+        background: none;
+        border: 2px solid var(--border);
+        padding: 6px 10px;
+      }
+
+      /* ---------------------------------------------------------------- hero */
+      .hero {
+        position: relative;
+        min-height: min(920px, 100svh);
+        display: grid;
+        align-items: center;
+        padding: 120px 0 120px;
+        overflow: hidden;
+        isolation: isolate;
+      }
+      .hero-media {
+        position: absolute;
+        inset: 0;
+        z-index: -2;
+        background: #2a4a6b url("media/showcase/hero.jpg") center / cover;
+      }
+      .hero-media video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background:
+          radial-gradient(ellipse 70% 60% at 50% 45%, rgba(13, 17, 22, 0.55), rgba(13, 17, 22, 0.15) 70%),
+          linear-gradient(180deg, rgba(13, 17, 22, 0.7) 0%, rgba(13, 17, 22, 0.25) 35%, rgba(13, 17, 22, 0.35) 70%, var(--bg) 100%);
+      }
+      .hero .wrap {
+        text-align: center;
+      }
+      .badge {
+        margin-bottom: 26px;
+        background: rgba(13, 17, 22, 0.7);
+        color: var(--text);
+      }
+      .hero h1 {
+        font-size: clamp(46px, 8.4vw, 104px);
+        text-shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+        margin-bottom: 24px;
+      }
+      .hero h1 .accent {
+        display: block;
+      }
+      .scroll-cue {
+        position: absolute;
+        left: 50%;
+        bottom: 44px;
+        transform: translateX(-50%);
+        width: 26px;
+        height: 26px;
+        display: grid;
+        place-items: center;
+        color: rgba(232, 237, 242, 0.7);
+        animation: bob 2.4s ease-in-out infinite;
+      }
+      .scroll-cue svg {
+        width: 22px;
+        height: 22px;
+        transform: rotate(90deg);
+      }
+      @keyframes bob {
+        50% {
+          transform: translate(-50%, 6px);
+        }
+      }
+      .lede {
+        max-width: 660px;
+        margin: 0 auto 32px;
+        font-size: 17px;
+        color: #dbe3ea;
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+      }
+      .actions {
+        display: flex;
+        gap: 14px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .hero-foot {
+        margin-top: 34px;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        color: #c7d1db;
+        text-transform: uppercase;
+        text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+      }
+      .footage-note {
+        position: absolute;
+        right: 16px;
+        bottom: 56px;
+        font-size: 11px;
+        color: rgba(232, 237, 242, 0.65);
+      }
+
+      /* Pixel-art grass edge between sections (drawn by script into a tile). */
+      .grass {
+        height: 24px;
+        background-repeat: repeat-x;
+        background-size: auto 24px;
+        image-rendering: pixelated;
+        position: relative;
+        z-index: 2;
+        box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+      }
+      .hero .grass {
+        position: absolute;
+        inset: auto 0 0;
+      }
+
+      /* ---------------------------------------------------------------- sections */
+      .section {
+        padding: 84px 0;
+        position: relative;
+      }
+      .section.alt {
+        background: var(--bg2);
+      }
+      .dots-bg {
+        background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        background-size: 22px 22px;
+      }
+      .reveal {
+        opacity: 0;
+        transform: translateY(24px);
+        transition:
+          opacity 0.7s var(--ease),
+          transform 0.7s var(--ease);
+      }
+      .reveal.in {
+        opacity: 1;
+        transform: none;
+      }
+
+      /* ---------------------------------------------------------------- showcase */
+      .showcase-head {
+        margin-bottom: 34px;
+      }
+      .game {
+        border: 2px solid #0a0d11;
+        background: var(--window);
+        box-shadow:
+          0 0 0 1px var(--border),
+          0 30px 80px rgba(0, 0, 0, 0.55),
+          0 0 120px rgba(var(--glow), 0.08);
+      }
+      .game-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 14px;
+        border-bottom: 2px solid #0a0d11;
+        font-size: 12px;
+        color: var(--muted);
+        background: #12171e;
+      }
+      .game-bar .logo {
+        width: 18px;
+        height: 18px;
+      }
+      #clip-label {
+        margin-left: auto;
+        color: var(--faint);
+      }
+      .screen {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        background: #0a0d11;
+      }
+      .screen video,
+      .screen img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .screen .play {
+        position: absolute;
+        inset: 0;
+        margin: auto;
+        width: 84px;
+        height: 84px;
+        border: 2px solid #0a0d11;
+        background: var(--accent);
+        color: var(--on);
+        display: grid;
+        place-items: center;
+        box-shadow: inset 0 -5px 0 var(--dark);
+      }
+      .screen .play svg {
+        width: 34px;
+        height: 34px;
+      }
+      /* XP-bar style progress */
+      .xp {
+        height: 10px;
+        background: #0a0d11;
+        border-top: 2px solid #0a0d11;
+        position: relative;
+        overflow: hidden;
+      }
+      .xp i {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 0;
+        background: linear-gradient(180deg, #a8f07a, #5fc23b 55%, #3e8f22);
+      }
+      .xp::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(90deg, transparent 0 calc(5.55% - 2px), #0a0d11 calc(5.55% - 2px) 5.55%);
+      }
+      .showcase-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 22px;
+        margin-top: 22px;
+        align-items: start;
+      }
+      .hotbar {
+        display: flex;
+        justify-content: center;
+        gap: 0;
+        margin: 0 auto;
+        padding: 4px;
+        width: fit-content;
+        background: rgba(10, 13, 17, 0.85);
+        border: 2px solid #0a0d11;
+        box-shadow: 0 0 0 1px var(--border);
+      }
+      .slot {
+        position: relative;
+        width: 64px;
+        height: 64px;
+        display: grid;
+        place-items: center;
+        border: 0;
+        background: #3a3f46;
+        box-shadow:
+          inset 2px 2px 0 #23272c,
+          inset -2px -2px 0 #565c64;
+        margin: 2px;
+        color: #e8edf2;
+      }
+      .slot svg {
+        width: 30px;
+        height: 30px;
+        filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.45));
+      }
+      .slot .num {
+        position: absolute;
+        right: 5px;
+        bottom: 1px;
+        font: 600 13px var(--pixel);
+        text-shadow: 1px 1px 0 #000;
+      }
+      .slot[aria-selected="true"] {
+        outline: 4px solid #f2f4f6;
+        outline-offset: 0;
+        z-index: 1;
+        background: #4a5059;
+        color: var(--accent);
+      }
+      .slot:hover {
+        background: #474d55;
+      }
+      /* Like switching items in game: the name shows above the hotbar, then fades. */
+      .hotbar-wrap {
+        position: relative;
+        width: fit-content;
+        margin: 0 auto;
+      }
+      .item-name {
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 10px);
+        transform: translateX(-50%);
+        white-space: nowrap;
+        font: 600 18px var(--pixel);
+        color: #fff;
+        text-shadow: 2px 2px 0 #3f3f3f;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.6s;
+      }
+      .item-name.show {
+        opacity: 1;
+        transition: none;
+      }
+      .slot:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .caption {
+        text-align: center;
+        min-height: 92px;
+      }
+      .caption h3 {
+        font-size: 26px;
+        margin: 4px 0 6px;
+      }
+      .caption p {
+        max-width: 700px;
+        margin: 0 auto;
+      }
+      .caption .count {
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        color: var(--faint);
+      }
+
+      /* ---------------------------------------------------------------- inventory features */
+      .inventory {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 40px;
+      }
+      .more-items {
+        display: none;
+      }
+      .item {
+        display: flex;
+        gap: 16px;
+        padding: 18px;
+        background: var(--card);
+        border: 2px solid #0a0d11;
+        box-shadow:
+          inset 2px 2px 0 rgba(255, 255, 255, 0.05),
+          inset -2px -2px 0 rgba(0, 0, 0, 0.35);
+        transition:
+          transform 0.2s var(--ease),
+          background 0.2s;
+      }
+      .item:hover {
+        transform: translateY(-3px);
+        background: var(--card2);
+      }
+      .item-slot {
+        width: 52px;
+        height: 52px;
+        flex: none;
+        display: grid;
+        place-items: center;
+        background: #3a3f46;
+        box-shadow:
+          inset 2px 2px 0 #23272c,
+          inset -2px -2px 0 #565c64;
+        color: var(--accent);
+      }
+      .item-slot svg {
+        width: 26px;
+        height: 26px;
+        filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.4));
+      }
+      .item h3 {
+        font-size: 18px;
+        margin-bottom: 4px;
+      }
+      .item p {
+        font-size: 13px;
+        line-height: 1.6;
+        margin: 0;
+      }
+      .tag {
+        display: inline-block;
+        margin-top: 8px;
+        font-size: 11px;
+        padding: 2px 8px;
+        color: var(--accent);
+        border: 1px solid rgba(var(--glow), 0.35);
+        background: rgba(var(--glow), 0.08);
+      }
+
+      /* ---------------------------------------------------------------- split media sections */
+      .split {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        gap: 56px;
+        align-items: center;
+      }
+      /* Text on the right: the screenshot (now first) keeps the wider column. */
+      .split.flip {
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      }
+      .split.flip > :first-child {
+        order: 2;
+      }
+      .shot {
+        border: 2px solid #0a0d11;
+        box-shadow:
+          0 0 0 1px var(--border),
+          0 24px 60px rgba(0, 0, 0, 0.5);
+        background: #0a0d11;
+        cursor: zoom-in;
+        padding: 0;
+        width: 100%;
+      }
+      .shot img {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 16 / 9;
+        object-fit: cover;
+      }
+      .checks {
+        list-style: none;
+        padding: 0;
+        margin: 22px 0 0;
+        display: grid;
+        gap: 10px;
+      }
+      .checks li {
+        display: flex;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .checks li::before {
+        content: "";
+        flex: none;
+        width: 10px;
+        height: 10px;
+        margin-top: 7px;
+        background: var(--accent);
+        box-shadow: 2px 2px 0 var(--dark);
+      }
+
+      /* ---------------------------------------------------------------- routes */
+      .routes {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 44px;
+      }
+      .route {
+        padding: 22px;
+        background: var(--card);
+        border: 2px solid #0a0d11;
+        position: relative;
+      }
+      .route .item-slot {
+        width: 44px;
+        height: 44px;
+        margin-bottom: 14px;
+      }
+      .route .item-slot svg {
+        width: 22px;
+        height: 22px;
+      }
+      .route b {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        color: var(--accent);
+      }
+      .route h3 {
+        margin-top: 10px;
+      }
+      .route p {
+        font-size: 13.5px;
+        margin: 0;
+      }
+      .route-line {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 26px;
+        justify-content: center;
+        color: var(--faint);
+        font-size: 12px;
+        letter-spacing: 0.12em;
+      }
+      .route-line i {
+        flex: 1;
+        max-width: 280px;
+        height: 4px;
+        background: repeating-linear-gradient(90deg, var(--accent) 0 8px, transparent 8px 16px);
+        opacity: 0.7;
+      }
+
+      /* ---------------------------------------------------------------- made-up reviews */
+      .review-rows {
+        display: grid;
+        gap: 16px;
+        margin-top: 44px;
+        overflow: hidden;
+        mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+        -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+      }
+      .review-track {
+        display: flex;
+        gap: 16px;
+        width: max-content;
+        animation: drift 70s linear infinite;
+      }
+      .review-track.reverse {
+        animation-direction: reverse;
+      }
+      .review-rows:hover .review-track,
+      .paused .review-track {
+        animation-play-state: paused;
+      }
+      @keyframes drift {
+        to {
+          transform: translateX(-50%);
+        }
+      }
+      /* An oak sign: planks, a darker frame, and a post. */
+      .sign {
+        position: relative;
+        width: 300px;
+        flex: none;
+        padding: 16px 18px 18px;
+        margin-bottom: 26px;
+        text-align: left;
+        color: #2a1a0c;
+        background:
+          repeating-linear-gradient(180deg, transparent 0 22px, rgba(60, 35, 15, 0.22) 22px 24px),
+          linear-gradient(180deg, #b8894f, #a87a43);
+        border: 3px solid #5d3c1c;
+        box-shadow:
+          inset 0 3px 0 rgba(255, 230, 180, 0.35),
+          inset 0 -3px 0 rgba(60, 35, 15, 0.35),
+          0 10px 0 -4px #1a120a;
+      }
+      .sign::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: -29px;
+        width: 12px;
+        height: 26px;
+        margin-left: -6px;
+        background: linear-gradient(90deg, #6e4a24, #5a3b1c);
+        border: 2px solid #3c2510;
+        border-top: 0;
+      }
+      .sign blockquote {
+        margin: 0 0 12px;
+        font: 500 16px/1.35 var(--pixel);
+        color: #2a1a0c;
+      }
+      .sign .who {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+        color: #4a2f15;
+      }
+      .sign .who b {
+        display: block;
+        font-weight: 700;
+        color: #2a1a0c;
+      }
+      .sign .stars {
+        margin-left: auto;
+        font: 600 14px var(--pixel);
+        color: #ffe066;
+        text-shadow: 1px 1px 0 #5d3c1c;
+        letter-spacing: 1px;
+      }
+      .face {
+        width: 32px;
+        height: 32px;
+        flex: none;
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        border: 2px solid #3c2510;
+        image-rendering: pixelated;
+      }
+      .face i {
+        display: block;
+      }
+      dialog.lightbox {
+        border: 2px solid #0a0d11;
+        padding: 0;
+        background: var(--window);
+        max-width: min(1400px, 94vw);
+        box-shadow: 0 0 0 1px var(--border);
+      }
+      dialog.lightbox::backdrop {
+        background: rgba(5, 7, 10, 0.85);
+      }
+      dialog.lightbox img {
+        width: 100%;
+      }
+      dialog.lightbox .bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 14px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      dialog.lightbox button {
+        background: none;
+        border: 2px solid var(--border);
+        padding: 4px 12px;
+      }
+
+      /* ---------------------------------------------------------------- privacy */
+      .privacy-card {
+        padding: 44px;
+        background: linear-gradient(135deg, rgba(var(--glow), 0.08), transparent 60%), var(--card);
+        border: 2px solid #0a0d11;
+        box-shadow: 0 0 0 1px var(--border);
+      }
+      .chips {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 18px;
+      }
+
+      /* ---------------------------------------------------------------- install */
+      .install-card {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 48px;
+        background: var(--window);
+        border: 2px solid #0a0d11;
+        box-shadow:
+          0 0 0 1px var(--border),
+          0 30px 80px rgba(0, 0, 0, 0.45);
+      }
+      .tabs {
+        display: inline-flex;
+        margin: 10px 0 24px;
+        border: 2px solid #0a0d11;
+        background: var(--field);
+      }
+      .tabs button {
+        padding: 9px 22px;
+        background: none;
+        border: 0;
+        color: var(--muted);
+      }
+      .tabs button[aria-selected="true"] {
+        background: var(--card2);
+        color: var(--accent);
+        box-shadow: inset 0 -3px 0 var(--accent);
+      }
+      .steps {
+        text-align: left;
+        counter-reset: s;
+        list-style: none;
+        padding: 0;
+        margin: 0 auto 28px;
+        max-width: 600px;
+        display: grid;
+        gap: 12px;
+      }
+      .steps li {
+        counter-increment: s;
+        position: relative;
+        padding: 2px 0 0 44px;
+        min-height: 30px;
+        color: var(--muted);
+      }
+      .steps li::before {
+        content: counter(s);
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        font: 600 15px var(--pixel);
+        color: var(--on);
+        background: var(--accent);
+        box-shadow: inset 0 -3px 0 var(--dark);
+      }
+      .steps strong {
+        color: var(--text);
+      }
+      .install-note {
+        font-size: 13px;
+        margin: 24px auto 0;
+        max-width: 620px;
+      }
+      .versions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-top: 22px;
+      }
+      .codeblock {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 12px;
+        padding: 12px 12px 12px 16px;
+        background: var(--field);
+        border: 2px solid #0a0d11;
+        text-align: left;
+      }
+      .codeblock {
+        align-items: flex-start;
+      }
+      .codeblock code {
+        flex: 1;
+        min-width: 0;
+        font-size: 12.5px;
+        line-height: 1.9;
+        color: var(--muted);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .codeblock code b {
+        color: var(--accent);
+        font-weight: 500;
+        user-select: none;
+      }
+      .build-label {
+        margin-top: 34px;
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        color: var(--faint);
+      }
+
+      /* ---------------------------------------------------------------- faq */
+      .faq-list {
+        max-width: 820px;
+        margin: 40px auto 0;
+        display: grid;
+        gap: 10px;
+      }
+      details {
+        background: var(--card);
+        border: 2px solid #0a0d11;
+      }
+      summary {
+        cursor: pointer;
+        padding: 18px 22px;
+        font-weight: 600;
+        list-style: none;
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      summary::-webkit-details-marker {
+        display: none;
+      }
+      summary::after {
+        content: "+";
+        font: 600 20px var(--pixel);
+        color: var(--accent);
+        line-height: 1;
+      }
+      details[open] summary::after {
+        content: "−";
+      }
+      details p {
+        padding: 0 22px 18px;
+        margin: 0;
+      }
+
+      /* ---------------------------------------------------------------- footer */
+      footer {
+        padding: 70px 0 48px;
+        background: #0a0d11;
+        font-size: 13px;
+        color: var(--faint);
+      }
+      .footer-top {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        flex-wrap: wrap;
+        justify-content: space-between;
+      }
+      .footer-links {
+        display: flex;
+        gap: 20px;
+      }
+      .footer-links a:hover {
+        color: var(--text);
+      }
+      .legal {
+        margin-top: 36px;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        line-height: 1.8;
+      }
+      .legal a {
+        text-decoration: underline;
+      }
+      /* Pause / play for the moving parts, right where they move. */
+      .motion {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        background: rgba(13, 17, 22, 0.75);
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .motion:hover {
+        color: var(--text);
+        border-color: var(--faint);
+      }
+      .hero .motion {
+        position: absolute;
+        left: 16px;
+        bottom: 46px;
+      }
+      .game-bar .motion {
+        margin-left: 10px;
+        padding: 2px 8px;
+      }
+
+      /* ---------------------------------------------------------------- responsive */
+      @media (max-width: 980px) {
+        .split {
+          grid-template-columns: 1fr;
+          gap: 34px;
+        }
+        .split.flip > :first-child {
+          order: 0;
+        }
+        .routes {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .inventory {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .split.flip {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 860px) {
+        .nav-links {
+          position: absolute;
+          top: 68px;
+          left: 0;
+          right: 0;
+          flex-direction: column;
+          gap: 0;
+          background: rgba(13, 17, 22, 0.97);
+          border-bottom: 1px solid var(--border);
+          display: none;
+        }
+        .nav-links a {
+          padding: 14px 24px;
+        }
+        .nav.open .nav-links {
+          display: flex;
+        }
+        .mobile-menu {
+          display: block;
+        }
+        .nav .palette,
+        .nav .btn.ghost {
+          display: none;
+        }
+      }
+      @media (max-width: 640px) {
+        .wrap {
+          width: calc(100% - 32px);
+        }
+        .section {
+          padding: 64px 0;
+        }
+        .slot {
+          width: 39px;
+          height: 39px;
+          margin: 1px;
+        }
+        .slot svg {
+          width: 20px;
+          height: 20px;
+        }
+        .slot[aria-selected="true"] {
+          outline-width: 3px;
+        }
+        .hotbar {
+          padding: 3px;
+        }
+        .slot .num {
+          font-size: 11px;
+        }
+        .routes {
+          grid-template-columns: 1fr;
+        }
+        /* Phones: one swipeable row of signs, no moving rows. */
+        .review-rows {
+          mask-image: none;
+          -webkit-mask-image: none;
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          padding: 0 16px 8px;
+          scrollbar-width: none;
+        }
+        .review-rows::-webkit-scrollbar {
+          display: none;
+        }
+        .review-track {
+          animation: none;
+          width: auto;
+        }
+        .review-track.reverse,
+        .review-track [data-copy] {
+          display: none;
+        }
+        .sign {
+          width: min(290px, 82vw);
+          scroll-snap-align: center;
+        }
+        .install-card,
+        .privacy-card {
+          padding: 28px 20px;
+        }
+        .nav .btn.primary {
+          display: none;
+        }
+        .hero {
+          min-height: auto;
+          padding: 108px 0 84px;
+        }
+        .hero h1 {
+          font-size: clamp(30px, 9.6vw, 44px);
+          margin-bottom: 18px;
+        }
+        .hero h1 .accent {
+          font-size: 0.86em;
+        }
+        .lede {
+          font-size: 15px;
+        }
+        .hero .motion {
+          bottom: 34px;
+        }
+        .scroll-cue,
+        .hero-foot {
+          display: none;
+        }
+        /* The game window's title bar: no room for the clip name next to Pause. */
+        #clip-label {
+          display: none;
+        }
+        .game-bar .motion {
+          margin-left: auto;
+        }
+        /* Phones: the first six items, then a button for the rest. */
+        .inventory {
+          grid-template-columns: 1fr;
+        }
+        .inventory.collapsed .item:nth-child(n + 7) {
+          display: none;
+        }
+        .more-items {
+          display: block;
+          margin: 16px auto 0;
+        }
+        .inventory:not(.collapsed) + .more-items {
+          display: none;
+        }
+        .footage-note,
+        .hide-sm {
+          display: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        .reveal {
+          opacity: 1;
+          transform: none;
+          transition: none;
+        }
+        .item,
+        .btn {
+          transition: none;
+        }
+        .review-track {
+          animation: none;
+        }
+        .review-rows {
+          overflow-x: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a href="#main" class="skip">Skip to content</a>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <symbol id="jh" viewBox="0 0 32 32">
+          <rect width="32" height="32" rx="8" fill="currentColor" />
+          <path d="M8 0h16a8 8 0 0 1 8 8v8H0V8a8 8 0 0 1 8-8" fill="#fff" opacity=".12" />
+          <path class="ink" d="M13 7h11v4h-4v11h-3v3H9v-3H6v-6h5v5h5V11h-3z" />
+        </symbol>
+      </defs>
+    </svg>
+
+    <nav class="nav" aria-label="Main navigation">
+      <div class="wrap">
+        <a class="brand" href="#" aria-label="JavaHost home"
+          ><svg class="logo" aria-hidden="true"><use href="#jh" /></svg>JavaHost</a
+        >
+        <div class="nav-links" id="nav-links">
+          <a href="#showcase">See it</a><a href="#features">Features</a><a href="#reviews">Reviews</a><a href="#install">Install</a
+          ><a href="#faq">FAQ</a>
+        </div>
+        <a class="btn small ghost" href="https://github.com/IbrahimMas1/javahost">GitHub ↗</a>
+        <a class="btn small primary" href="#install"
+          ><svg aria-hidden="true"><use href="media/icons.svg#download" /></svg>Download</a
+        >
+        <button class="mobile-menu" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">☰</button>
+      </div>
+    </nav>
+
+    <main id="main">
+      <header class="hero" id="top">
+        <div class="hero-media" aria-hidden="true">
+          <video id="hero-video" muted loop playsinline preload="none" poster="media/showcase/hero.jpg">
+            <source data-src="media/showcase/hero.mp4" type="video/mp4" />
+          </video>
+        </div>
+        <div class="wrap">
+          <div class="pill badge">
+            <span class="dot"></span><span id="version">JavaHost 1.12.1</span> <span aria-hidden="true">·</span> Minecraft 1.21 – 26.3
+            <span class="hide-sm"><span aria-hidden="true">·</span> Fabric</span>
+          </div>
+          <h1>Host your world<span class="accent">from your own PC.</span></h1>
+          <p class="lede">
+            Your singleplayer world, with your friends in it. One-click invites, proximity voice, shared packs and shaders, and mods that
+            install themselves. No rented server.
+          </p>
+          <div class="actions">
+            <a class="btn primary" href="#install"
+              ><svg aria-hidden="true"><use href="media/icons.svg#download" /></svg>Download the installer</a
+            ><a class="btn" href="#showcase"
+              ><svg aria-hidden="true"><use href="media/icons.svg#play" /></svg>See it in game</a
+            >
+          </div>
+          <p class="hero-foot">Free &amp; open source · Windows &amp; Mac · Java Edition</p>
+        </div>
+        <span class="footage-note">Real in-game footage</span>
+        <button class="motion" data-motion aria-pressed="false">Ⅱ Pause</button>
+        <a class="scroll-cue" href="#showcase" aria-label="Scroll to the showcase"><svg aria-hidden="true"><use href="media/icons.svg#arrow-right" /></svg></a>
+        <div class="grass" aria-hidden="true"></div>
+      </header>
+
+      <section class="section dots-bg" id="showcase">
+        <div class="wrap">
+          <div class="center showcase-head reveal">
+            <span class="eyebrow">See it in game</span>
+            <h2>Everything lives<br />behind <span class="accent">J</span>.</h2>
+            <p class="sub">
+              Real footage from Minecraft with JavaHost. Pick a slot, or press <strong>1</strong>–<strong>8</strong> like your hotbar.
+            </p>
+          </div>
+          <div class="game reveal">
+            <div class="game-bar">
+              <svg class="logo" aria-hidden="true"><use href="#jh" /></svg><span>JavaHost</span><span id="clip-label">Host your world</span><button class="motion" data-motion aria-pressed="false">Ⅱ Pause</button>
+            </div>
+            <div class="screen" id="screen">
+              <video id="clip" muted playsinline preload="none" aria-describedby="clip-text"></video>
+              <button class="play" id="play" aria-label="Play the clip" hidden>
+                <svg aria-hidden="true"><use href="media/icons.svg#play" /></svg>
+              </button>
+            </div>
+            <div class="xp" aria-hidden="true"><i id="xp"></i></div>
+          </div>
+          <div class="showcase-row">
+            <div class="hotbar-wrap">
+              <span class="item-name" id="item-name" aria-hidden="true"></span>
+              <div class="hotbar" role="tablist" aria-label="Choose a clip" id="hotbar"></div>
+            </div>
+            <div class="caption" aria-live="polite">
+              <span class="count" id="clip-count">1 / 8</span>
+              <h3 id="clip-title">Host in one click</h3>
+              <p id="clip-text"></p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="grass" aria-hidden="true"></div>
+
+      <section class="section alt" id="features">
+        <div class="wrap">
+          <div class="center reveal">
+            <span class="eyebrow">Your inventory</span>
+            <h2>One mod.<br />The whole multiplayer kit.</h2>
+            <p class="sub">Started as a way to play with friends without renting a server. It kept going.</p>
+          </div>
+          <div class="inventory collapsed" id="inventory"></div>
+          <button class="btn small more-items" id="more-items">Show all 12</button>
+        </div>
+      </section>
+
+      <section class="section" id="friends">
+        <div class="wrap split">
+          <div class="reveal">
+            <span class="eyebrow">Friends, without a server</span>
+            <h2>Click Invite.<br />They click Join.<br /><span class="accent">That's it.</span></h2>
+            <p class="sub">
+              Add a friend by their Minecraft name. See who's online, who's hosting and which world they're in. Invites pop up in game
+              with a Join button, and JavaHost finds the way in.
+            </p>
+            <ul class="checks">
+              <li>Online status, chat and screenshots between friends</li>
+              <li>Join a friend's open world without waiting for an invite</li>
+              <li>Or find new people: browse public worlds in Discover, or list yours</li>
+            </ul>
+          </div>
+          <div class="reveal">
+            <button class="shot" data-full="media/showcase/stills/friends.jpg" data-caption="The Friends tab">
+              <img src="media/showcase/stills/friends.jpg" alt="The JavaHost Friends tab: friends in your world and online, with Invite" loading="lazy" width="1600" height="900" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section alt" id="connections">
+        <div class="wrap">
+          <div class="center reveal">
+            <span class="eyebrow">Connection, handled</span>
+            <h2>It tries every door<br />until one opens.</h2>
+            <p class="sub">Your PC is the server. JavaHost checks how friends can reach you and picks the best way automatically.</p>
+          </div>
+          <div class="routes reveal">
+            <article class="route">
+              <span class="item-slot" aria-hidden="true"><svg><use href="media/icons.svg#wifi" /></svg></span>
+              <b>01 / DIRECT</b>
+              <h3>Internet</h3>
+              <p>Your router opens the port automatically with UPnP.</p>
+            </article>
+            <article class="route">
+              <span class="item-slot" aria-hidden="true"><svg><use href="media/icons.svg#globe" /></svg></span>
+              <b>02 / DIRECT</b>
+              <h3>IPv6</h3>
+              <p>A direct route, even behind CGNAT when IPv6 is available.</p>
+            </article>
+            <article class="route">
+              <span class="item-slot" aria-hidden="true"><svg><use href="media/icons.svg#cloud" /></svg></span>
+              <b>03 / FALLBACK</b>
+              <h3>Free relay</h3>
+              <p>e4mc gets friends in when direct connections don't work.</p>
+            </article>
+            <article class="route">
+              <span class="item-slot" aria-hidden="true"><svg><use href="media/icons.svg#home" /></svg></span>
+              <b>04 / LOCAL</b>
+              <h3>Same Wi-Fi</h3>
+              <p>For the friends already on your sofa.</p>
+            </article>
+          </div>
+          <div class="route-line reveal"><span>YOUR PC</span><i></i><span>ONE INVITE CODE</span><i></i><span>YOUR FRIEND</span></div>
+        </div>
+      </section>
+
+      <section class="section" id="voice">
+        <div class="wrap split flip">
+          <div class="reveal">
+            <span class="eyebrow">Proximity voice</span>
+            <h2>Hear who's close.<br />Not who's across<br />the map.</h2>
+            <p class="sub">
+              Voices fade with distance and come from the speaker's direction. The host can switch the whole world to everyone hearing
+              everyone, for a party.
+            </p>
+            <ul class="checks">
+              <li>Push to talk (V) or voice activation, mute with M</li>
+              <li>Per-player volume, and who's talking on screen</li>
+              <li>Nearby or everyone, set for the whole world</li>
+            </ul>
+          </div>
+          <div class="reveal">
+            <button class="shot" data-full="media/showcase/stills/voice.jpg" data-caption="Friends talking nearby">
+              <img src="media/showcase/stills/voice.jpg" alt="Friends talking in game, with JavaHost's speaking indicators" loading="lazy" width="1600" height="900" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section alt" id="mods">
+        <div class="wrap split">
+          <div class="reveal">
+            <span class="eyebrow">Mods, sorted</span>
+            <h2>A mod store.<br />Built in.</h2>
+            <p class="sub">
+              Browse Modrinth by category, open a mod's page and install it with one click. Mods for other versions say where they run.
+              Join a friend's modded world and JavaHost fetches exactly the mods it needs.
+            </p>
+            <ul class="checks">
+              <li>Downloads queue up with progress, and tell you when they're ready</li>
+              <li>Play a modpack and invite friends: they get the same mods, downloaded for them</li>
+              <li>Every file checked against Modrinth's hash</li>
+            </ul>
+          </div>
+          <div class="reveal">
+            <button class="shot" data-full="media/showcase/stills/mods.jpg" data-caption="The Mods tab">
+              <img src="media/showcase/stills/mods.jpg" alt="A mod's page in the JavaHost Mods tab, with Install and Modrinth" loading="lazy" width="1600" height="900" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="reviews">
+        <div class="wrap center reveal">
+          <span class="eyebrow">Reviews from the server</span>
+          <h2>Players have opinions.</h2>
+          <p class="sub">Made-up reviews, written for fun. No real players (or creepers) were asked.</p>
+        </div>
+        <div class="review-rows reveal" id="review-rows" aria-label="Made-up reviews"></div>
+      </section>
+
+      <section class="section alt" id="privacy">
+        <div class="wrap">
+          <div class="privacy-card reveal">
+            <span class="eyebrow">Private by design</span>
+            <h2>Your conversations.<br /><span class="accent">Between friends.</span></h2>
+            <p>
+              There's no JavaHost-operated messaging server. Requests and invites travel through ntfy.sh, a free public relay. Requests are
+              signed with your Mojang-certified chat key; invites, chat and screenshots are end-to-end encrypted with a key only you and
+              that friend share.
+            </p>
+            <p>
+              Online status has a separate key for each friend. Updates are signed and checked before they install. Friends use their
+              Microsoft-account Minecraft login.
+            </p>
+            <div class="chips">
+              <span class="pill">Signed requests</span><span class="pill">End-to-end encrypted</span><span class="pill">Per-friend keys</span
+              ><span class="pill">Signed updates</span><span class="pill">Friends-only by default</span>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="grass" aria-hidden="true"></div>
+
+      <section class="section dots-bg" id="install">
+        <div class="wrap">
+          <div class="install-card center reveal">
+            <span class="eyebrow">Get started</span>
+            <h2>JavaHost is yours.</h2>
+            <p class="sub">Free and open source. No account to make, no server to rent.</p>
+            <div class="tabs" role="tablist" aria-label="Your computer">
+              <button role="tab" id="tab-win" aria-selected="true" aria-controls="install-panel" data-os="win">Windows</button
+              ><button role="tab" id="tab-mac" aria-selected="false" aria-controls="install-panel" data-os="mac" tabindex="-1">Mac</button>
+            </div>
+            <div id="install-panel" role="tabpanel" aria-labelledby="tab-win" tabindex="0">
+              <ol class="steps">
+                <li>Open the <strong>Minecraft Launcher</strong> once, then close it.</li>
+                <li id="run-step">
+                  Run the <strong>JavaHost Installer .exe</strong>. If SmartScreen appears, choose <strong>More info → Run anyway</strong>.
+                </li>
+                <li>Pick your <strong>Minecraft version</strong> and add-ons, then click <strong>Install</strong>.</li>
+                <li>In the launcher, choose the <strong>JavaHost</strong> profile and press <strong>Play</strong>.</li>
+              </ol>
+            </div>
+            <a class="btn primary" id="download" href="https://github.com/IbrahimMas1/javahost/releases/latest"
+              ><svg aria-hidden="true"><use href="media/icons.svg#download" /></svg><span id="download-label">Download for Windows</span></a
+            >
+            <div class="versions" aria-label="Supported Minecraft versions">
+              <span class="pill">26.3</span><span class="pill">26.2</span><span class="pill">26.1.x</span><span class="pill">1.21.11</span
+              ><span class="pill">1.21.9–10</span><span class="pill">1.21.6–8</span><span class="pill">1.21.4</span
+              ><span class="pill">1.21–1.21.1</span>
+            </div>
+            <p class="install-note">
+              Fabric, Fabric API, JavaHost and your add-ons get their own launcher profile and folder for each Minecraft version. Your
+              normal Minecraft stays untouched. JavaHost updates itself when you close the game.
+            </p>
+            <p class="build-label">PREFER TO BUILD FROM SOURCE? · REQUIRES JAVA 25</p>
+            <div class="codeblock">
+              <code id="build-command"><b aria-hidden="true">$ </b>git clone https://github.com/IbrahimMas1/javahost.git
+<b aria-hidden="true">$ </b>cd javahost
+<b aria-hidden="true">$ </b>./gradlew buildAll</code
+              ><button class="btn small" id="copy">Copy</button>
+            </div>
+            <span id="copy-status" class="sr-only" role="status"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section alt" id="faq">
+        <div class="wrap">
+          <div class="center reveal">
+            <span class="eyebrow">Good to know</span>
+            <h2>Before your friends ask.</h2>
+          </div>
+          <div class="faq-list reveal">
+            <details>
+              <summary>Do my friends need JavaHost too?</summary>
+              <p>
+                For one-click invites, voice, shared packs and modded worlds, yes: send them the installer. Players without mods can still
+                join through the relay address.
+              </p>
+            </details>
+            <details>
+              <summary>Which Minecraft versions work?</summary>
+              <p>
+                Java Edition 26.3, 26.2, 26.1.x and 1.21 to 1.21.11, with Fabric. Pick one in the installer; each gets its own profile.
+                Friends need the same version to play together.
+              </p>
+            </details>
+            <details>
+              <summary>Can we play with mods?</summary>
+              <p>
+                Yes. Install mods or modpacks from the Mods tab. When a friend joins a modded world, JavaHost downloads the exact mods from
+                Modrinth, restarts their game and takes them back in. Their own mods are kept safe.
+              </p>
+            </details>
+            <details>
+              <summary>Does it touch my normal Minecraft?</summary>
+              <p>No. The installer creates a separate JavaHost profile and folder. It can copy your settings, packs and worlds over.</p>
+            </details>
+            <details>
+              <summary>What if my router blocks everything?</summary>
+              <p>
+                JavaHost checks every route and falls back to the free e4mc relay when direct connections don't work. The Host tab shows
+                which ways work.
+              </p>
+            </details>
+            <details>
+              <summary>Is chat private?</summary>
+              <p>
+                Invites, chat and screenshots are end-to-end encrypted with a key only you and that friend share. Requests are signed.
+                Delivery uses ntfy.sh, a public relay, not a JavaHost server.
+              </p>
+            </details>
+            <details>
+              <summary>Why is my microphone silent on Mac?</summary>
+              <p>Give the Minecraft Launcher microphone access in System Settings → Privacy &amp; Security → Microphone.</p>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <div class="footer-top">
+          <a class="brand" href="#"><svg class="logo" aria-hidden="true"><use href="#jh" /></svg>JavaHost</a>
+          <span>© 2026 JavaHost · MIT licence</span>
+          <div class="footer-links">
+            <a href="https://github.com/IbrahimMas1/javahost">Source ↗</a><a href="https://github.com/IbrahimMas1/javahost/releases">Releases ↗</a
+            ><a href="#faq">FAQ</a>
+          </div>
+          <div class="palette" role="group" aria-label="Choose website accent colour"></div>
+        </div>
+        <p class="legal">
+          NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.<br />
+          Footage and screenshots recorded in Minecraft with JavaHost; player names are made up. Icons:
+          <a href="https://github.com/halfmage/pixelarticons">Pixelarticons</a> by Gerrit Halfmann (MIT).
+        </p>
+      </div>
+    </footer>
+
+    <dialog class="lightbox" id="lightbox" aria-label="Screenshot">
+      <img alt="" id="lightbox-img" />
+      <div class="bar"><span id="lightbox-caption"></span><button id="lightbox-close">Close</button></div>
+    </dialog>
+
+    <script>
+      (() => {
+        "use strict";
+        const $ = (s) => document.querySelector(s);
+        const $$ = (s) => [...document.querySelectorAll(s)];
+        const reducedQuery = matchMedia("(prefers-reduced-motion: reduce)");
+        const saveData = navigator.connection && navigator.connection.saveData;
+        let paused = reducedQuery.matches || Boolean(saveData);
+        const icon = (name) => `<svg aria-hidden="true"><use href="media/icons.svg#${name}"/></svg>`;
+
+        // ------------------------------------------------------------ accent colours (as in the mod's Settings)
+        const themes = { Green: "#3DDC84", Blue: "#4F9DF7", Purple: "#A77BF3", Orange: "#F59E3B", Pink: "#F06BAA" };
+        const rgb = (hex) => hex.match(/[\da-f]{2}/gi).map((v) => parseInt(v, 16));
+        const mix = (a, b, t) =>
+          "#" + rgb(a).map((v, i) => Math.round(v + (rgb(b)[i] - v) * t).toString(16).padStart(2, "0")).join("");
+        function applyTheme(name) {
+          const accent = themes[name] || themes.Green;
+          const root = document.documentElement.style;
+          root.setProperty("--accent", accent);
+          root.setProperty("--hover", mix(accent, "#ffffff", 0.18));
+          root.setProperty("--dark", mix(accent, "#0b0f14", 0.55));
+          root.setProperty("--on", mix(accent, "#000000", 0.85));
+          root.setProperty("--glow", rgb(accent).join(","));
+          $$("[data-theme]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.theme === name)));
+          try {
+            localStorage.setItem("javahost-accent", name);
+          } catch {}
+          drawGrass();
+        }
+        $$(".palette").forEach((p) =>
+          Object.entries(themes).forEach(([name, color]) => {
+            const b = document.createElement("button");
+            b.className = "swatch";
+            b.dataset.theme = name;
+            b.style.setProperty("--swatch", color);
+            b.setAttribute("aria-label", name + " accent");
+            b.title = name;
+            b.onclick = () => applyTheme(name);
+            p.append(b);
+          }),
+        );
+
+        // ------------------------------------------------------------ pixel-art grass edge (original, drawn here)
+        function drawGrass() {
+          // A 64x12 strip like a grass block's side: a shaded grass top with an uneven edge, then dirt with specks.
+          const c = document.createElement("canvas");
+          const w = 64;
+          const h = 12;
+          c.width = w;
+          c.height = h;
+          const g = c.getContext("2d");
+          let seed = 11;
+          const rand = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+          const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#3ddc84";
+          const base = mix(accent, "#4f9a35", 0.55);
+          const grass = [base, mix(base, "#000000", 0.18), mix(base, "#ffffff", 0.1), mix(base, "#000000", 0.08)];
+          const dirt = ["#7a5636", "#6a4a2e", "#86613f", "#5e4229"];
+          const specks = ["#7a5a3a", "#3a2716", "#857057"];
+          for (let x = 0; x < w; x++) {
+            const depth = 3 + Math.floor(rand() * 3);
+            for (let y = 0; y < h; y++) {
+              let color;
+              if (y < depth) {
+                color = y === 0 ? mix(grass[2], "#ffffff", 0.05) : grass[Math.floor(rand() * grass.length)];
+              } else if (y === depth) {
+                color = mix(grass[1], dirt[0], 0.5); // the shadowed lip under the grass
+              } else {
+                color = rand() < 0.1 ? specks[Math.floor(rand() * specks.length)] : dirt[Math.floor(rand() * dirt.length)];
+                color = mix(color, "#0d1116", Math.max(0, (y - 8) / 5)); // fades into the page below
+              }
+              g.fillStyle = color;
+              g.fillRect(x, y, 1, 1);
+            }
+          }
+          const url = c.toDataURL();
+          $$(".grass").forEach((el) => (el.style.backgroundImage = `url(${url})`));
+        }
+
+        let saved = "Green";
+        try {
+          saved = localStorage.getItem("javahost-accent") || saved;
+        } catch {}
+        applyTheme(themes[saved] ? saved : "Green");
+
+        // ------------------------------------------------------------ navigation
+        $(".mobile-menu").onclick = () => {
+          const open = $(".nav").classList.toggle("open");
+          $(".mobile-menu").setAttribute("aria-expanded", String(open));
+        };
+        $$(".nav-links a").forEach((a) =>
+          a.addEventListener("click", () => {
+            $(".nav").classList.remove("open");
+            $(".mobile-menu").setAttribute("aria-expanded", "false");
+          }),
+        );
+
+        // ------------------------------------------------------------ inventory of features
+        const features = [
+          ["wifi", "Host from your own PC", "Open your singleplayer world. JavaHost tries your router, IPv6, a free relay and your Wi-Fi.", "No rented server"],
+          ["users", "Friends & one-click invites", "Add a Minecraft name, see who's online and where, send an invite. They click Join.", "No codes to share"],
+          ["mic", "Proximity voice", "Push to talk or voice activation, with direction, distance and per-player volume.", ""],
+          ["image", "A shared look", "Share your resource packs and Iris shader settings, with permission first.", ""],
+          ["package", "A mod store", "Browse Modrinth by category and install with one click, with download progress.", "New in 1.12"],
+          ["download", "Modded worlds", "Join a friend's modded world: the exact mods download, the game restarts and you're back in.", ""],
+          ["globe", "Public worlds", "List your world in Discover. Strangers visit as guests until you trust them.", "Beta"],
+          ["shield", "World rules", "Difficulty, keep inventory, PvP and more. Every change is announced; lock them for a challenge.", ""],
+          ["folder", "Backups & sharing", "A backup when friends join, restore in one click, or send a friend a copy of a world.", ""],
+          ["zap", "More frames", "Quick Tune for FPS-friendly settings, and five proven FPS mods in one click.", ""],
+          ["sliders", "Every version", "Minecraft 1.21 to 26.3. Pick yours in the installer; each gets its own profile.", ""],
+          ["reload", "Updates itself", "New versions install when you close the game, signed and checked first.", ""],
+        ];
+        $("#more-items").onclick = () => $("#inventory").classList.remove("collapsed");
+        $("#inventory").innerHTML = features
+          .map(
+            ([name, title, text, tag]) =>
+              `<article class="item reveal"><span class="item-slot">${icon(name)}</span><div><h3>${title}</h3><p>${text}</p>${
+                tag ? `<span class="tag">${tag}</span>` : ""
+              }</div></article>`,
+          )
+          .join("");
+
+        // ------------------------------------------------------------ made-up reviews, on oak signs
+        // Faces are tiny original 8x8 pixel drawings (one colour letter per pixel).
+        const palette = { s: "#c58c62", d: "#8d5a3a", h: "#4a2f1a", y: "#e0b25a", g: "#5fbf3a", G: "#2f7d32", k: "#111", w: "#fff", b: "#3b6fd1", p: "#7a3fb0", r: "#b33", t: "#a3c3c9", o: "#7d5a3c", n: "#2c2c2c" };
+        const faces = {
+          builder: "hhhhhhhh hhhhhhhh hssssssh ssssssss swkssswk ssssssss ssdddsss ssssssss",
+          creeper: "gGgggGgg ggGgggGg gkkggkkg gkkggkkg gggkkggg ggkkkkgg ggkggkgg gGggggGg",
+          villager: "oooooooo oooooooo ssssssss skkssskk ssssssss sssdssss sssdssss ssssssss",
+          miner: "nnnnnnnn nnnnnnnn ssssssss swbsswbs ssssssss sssddsss ssssssss ssssssss",
+          redstone: "rrrrrrrr rrrrrrrr ssssssss swksswks ssssssss ssssssss ssdddsss ssssssss",
+          enderman: "kkkkkkkk kkkkkkkk kkkkkkkk kpppkppp kkkkkkkk kkkkkkkk kkkkkkkk kkkkkkkk",
+          router: "tttttttt twttttwt tttttttt tggtgggt tttttttt tbtbtbtt tttttttt tttttttt",
+          sheep: "wwwwwwww wwwwwwww wssssssw wkssskkw wssssssw wssddssw wssssssw wwwwwwww",
+        };
+        const reviews = [
+          ["builder", "xX_Builder_Xx", "Spent three hours on a castle, then pressed Invite. My friends were in before I finished the drawbridge.", 5],
+          ["creeper", "Ssssteve", "Couldn't sneak up on anyone. Proximity voice. Everyone heard me hissing from 30 blocks away.", 1],
+          ["villager", "Hrrm_Trader", "Hrrm. Many new customers since the host opened the world. Prices have been adjusted accordingly.", 5],
+          ["miner", "DeepslateDave", "Joined a stranger's world from Discover, ended up building a subway with them. 10/10 would dig again.", 5],
+          ["redstone", "RedstoneRay", "Asked for 'just one mod'. The modpack installed itself on my friend's game too. I have no excuses left.", 4],
+          ["router", "Your_Router", "I was not asked about port forwarding. JavaHost found another way. I feel unnecessary.", 2],
+          ["enderman", "TallGuyNoEyeContact", "Someone looked at me during the hosting tutorial. Otherwise a pleasant world.", 3],
+          ["sheep", "Baaa_Builds", "The host changed my game mode to Creative. I have become a castle. Highly recommend.", 5],
+        ];
+        const face = (key) =>
+          `<span class="face" aria-hidden="true">${faces[key].replace(/ /g, "").split("").map((c) => `<i style="background:${palette[c]}"></i>`).join("")}</span>`;
+        const sign = ([key, name, text, stars], copy) =>
+          `<figure class="sign"${copy ? ' data-copy aria-hidden="true"' : ""}><blockquote>“${text}”</blockquote><figcaption class="who">${face(key)}<span><b>${name}</b>made-up player</span><span class="stars" aria-label="${stars} out of 5 stars">${"★".repeat(stars)}${"☆".repeat(5 - stars)}</span></figcaption></figure>`;
+        const half = Math.ceil(reviews.length / 2);
+        const rows = [reviews.slice(0, half), reviews.slice(half)];
+        $("#review-rows").innerHTML = rows
+          .map(
+            (row, i) =>
+              `<div class="review-track${i ? " reverse" : ""}">${row.map((r) => sign(r, false)).join("")}${row.map((r) => sign(r, true)).join("")}</div>`,
+          )
+          .join("");
+
+        const box = $("#lightbox");
+        $$(".shot").forEach((b) =>
+          b.addEventListener("click", () => {
+            $("#lightbox-img").src = b.dataset.full;
+            $("#lightbox-img").alt = b.dataset.caption;
+            $("#lightbox-caption").textContent = b.dataset.caption;
+            box.showModal();
+          }),
+        );
+        $("#lightbox-close").onclick = () => box.close();
+        box.addEventListener("click", (e) => {
+          if (e.target === box) box.close();
+        });
+
+        // ------------------------------------------------------------ showcase: clips switched by the hotbar
+        const clips = [
+          ["host", "wifi", "Host in one click", "Press J, open Host, click Start hosting. JavaHost finds the best way in and gives you one invite code."],
+          ["invite", "users", "Invite a friend", "Click Invite. It arrives in your friend's game, and a moment later they walk into your world."],
+          ["voice", "mic", "Hear who's close", "Friends talking nearby show on screen. As host, you can switch the whole world to everyone hearing everyone."],
+          ["players", "user", "Your world, your rules", "Everyone who joined, in one list. Change a game mode, or open a player's menu to send a world, kick or ban."],
+          ["discover", "globe", "Play with anyone", "Browse public worlds and join one. Visitors look around until the host trusts them. Listing your own takes a few clicks."],
+          ["modpack", "sparkles", "Modpack worlds", "Install a modpack and invite friends. They get exactly the same mods, downloaded for them, and join you."],
+          ["mods", "package", "A mod store, built in", "Pick a category, open a mod's page, Install, and watch the download ring fill."],
+          ["performance", "zap", "More frames", "Quick Tune applies FPS-friendly settings and can undo them. FPS mods install in one click."],
+        ];
+        const video = $("#clip");
+        let current = 0;
+        let started = false;
+        $("#hotbar").innerHTML = clips
+          .map(
+            ([id, ico, title], i) =>
+              `<button class="slot" role="tab" aria-selected="${i === 0}" aria-label="${title}" title="${title}" tabindex="${i === 0 ? 0 : -1}" data-i="${i}">${icon(ico)}<span class="num">${i + 1}</span></button>`,
+          )
+          .join("");
+        const slots = $$(".slot");
+        function show(i, play) {
+          current = (i + clips.length) % clips.length;
+          const [id, , title, text] = clips[current];
+          slots.forEach((s, k) => {
+            s.setAttribute("aria-selected", String(k === current));
+            s.tabIndex = k === current ? 0 : -1;
+          });
+          $("#clip-title").textContent = title;
+          $("#clip-text").textContent = text;
+          $("#clip-label").textContent = title;
+          $("#clip-count").textContent = `${current + 1} / ${clips.length}`;
+          if (play) {
+            // Like switching items in game: the name above the hotbar, fading out.
+            const label = $("#item-name");
+            label.textContent = title;
+            label.classList.add("show");
+            clearTimeout(label.timer);
+            label.timer = setTimeout(() => label.classList.remove("show"), 1600);
+          }
+          video.poster = `media/showcase/${id}.jpg`;
+          video.src = `media/showcase/${id}.mp4`;
+          $("#xp").style.width = "0";
+          if (play && !paused) {
+            video.play().catch(() => ($("#play").hidden = false));
+          } else {
+            $("#play").hidden = false;
+          }
+        }
+        slots.forEach((s) => {
+          s.addEventListener("click", () => {
+            started = true;
+            show(Number(s.dataset.i), true);
+          });
+          s.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+              e.preventDefault();
+              show(current + (e.key === "ArrowRight" ? 1 : -1), true);
+              slots[current].focus();
+            }
+          });
+        });
+        video.addEventListener("timeupdate", () => {
+          if (video.duration) $("#xp").style.width = (100 * video.currentTime) / video.duration + "%";
+        });
+        video.addEventListener("ended", () => show(current + 1, true));
+        video.addEventListener("play", () => ($("#play").hidden = true));
+        $("#play").onclick = () => {
+          started = true;
+          $("#play").hidden = true;
+          video.play();
+        };
+        video.addEventListener("click", () => (video.paused ? video.play() : video.pause()));
+        // Number keys pick a slot, like the hotbar, while the showcase is on screen.
+        let showcaseVisible = false;
+        document.addEventListener("keydown", (e) => {
+          if (!showcaseVisible || e.ctrlKey || e.metaKey || e.altKey || /input|textarea/i.test(document.activeElement.tagName)) return;
+          const n = Number(e.key);
+          if (n >= 1 && n <= clips.length) {
+            started = true;
+            show(n - 1, true);
+          }
+        });
+        show(0, false);
+        new IntersectionObserver(
+          (entries) =>
+            entries.forEach((entry) => {
+              showcaseVisible = entry.isIntersecting;
+              if (entry.isIntersecting && !paused) {
+                video.play().catch(() => ($("#play").hidden = false));
+              } else if (!entry.isIntersecting) {
+                video.pause();
+              }
+            }),
+          { threshold: 0.35 },
+        ).observe($("#screen"));
+
+        // ------------------------------------------------------------ hero footage: loads after the page, never with reduced motion or Save-Data
+        const hero = $("#hero-video");
+        function startHero() {
+          if (paused) return;
+          const source = hero.querySelector("source");
+          if (!source.src) {
+            source.src = source.dataset.src;
+            hero.load();
+          }
+          hero.play().catch(() => {});
+        }
+        new IntersectionObserver((entries) => entries.forEach((e) => (e.isIntersecting ? startHero() : hero.pause()))).observe(hero);
+
+        // ------------------------------------------------------------ pause motion
+        function setPaused(value) {
+          paused = value;
+          $$("[data-motion]").forEach((b) => {
+            b.setAttribute("aria-pressed", String(value));
+            b.textContent = value ? "▶ Play" : "Ⅱ Pause";
+            b.setAttribute("aria-label", value ? "Play the videos and moving signs" : "Pause the videos and moving signs");
+          });
+          $("#review-rows").classList.toggle("paused", value);
+          if (value) {
+            hero.pause();
+            video.pause();
+          } else {
+            startHero();
+          }
+        }
+        $$("[data-motion]").forEach((b) => (b.onclick = () => setPaused(!paused)));
+        setPaused(paused);
+        reducedQuery.addEventListener("change", (e) => setPaused(e.matches));
+
+        // ------------------------------------------------------------ reveal on scroll
+        const io = new IntersectionObserver(
+          (entries) =>
+            entries.forEach((e) => {
+              if (e.isIntersecting) {
+                e.target.classList.add("in");
+                io.unobserve(e.target);
+              }
+            }),
+          { threshold: 0.12 },
+        );
+        $$(".reveal").forEach((el) => io.observe(el));
+
+        // ------------------------------------------------------------ install tabs and download links
+        const steps = {
+          win: 'Run the <strong>JavaHost Installer .exe</strong>. If SmartScreen appears, choose <strong>More info → Run anyway</strong>.',
+          mac: 'Open the <strong>JavaHost Installer .dmg</strong> and run the installer. If macOS warns you, right-click it and choose <strong>Open</strong>.',
+        };
+        const downloads = { win: null, mac: null };
+        function pickOs(os) {
+          $$(".tabs button").forEach((b) => {
+            const on = b.dataset.os === os;
+            b.setAttribute("aria-selected", String(on));
+            b.tabIndex = on ? 0 : -1;
+          });
+          $("#install-panel").setAttribute("aria-labelledby", os === "win" ? "tab-win" : "tab-mac");
+          $("#run-step").innerHTML = steps[os];
+          $("#download-label").textContent = os === "win" ? "Download for Windows" : "Download for Mac";
+          $("#download").href = downloads[os] || "https://github.com/IbrahimMas1/javahost/releases/latest";
+          $("#download").dataset.os = os;
+        }
+        $$(".tabs button").forEach((b) => {
+          b.onclick = () => pickOs(b.dataset.os);
+          b.onkeydown = (e) => {
+            if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+              const next = b.dataset.os === "win" ? "mac" : "win";
+              pickOs(next);
+              $(`.tabs [data-os="${next}"]`).focus();
+            }
+          };
+        });
+        pickOs(/Mac/i.test(navigator.platform || navigator.userAgent) ? "mac" : "win");
+        // The newest release's installers and version, when GitHub answers (the links work without it).
+        fetch("https://api.github.com/repos/IbrahimMas1/javahost/releases/latest")
+          .then((r) => (r.ok ? r.json() : Promise.reject()))
+          .then((release) => {
+            const tag = String(release.tag_name || "").replace(/^v/, "");
+            if (/^[\d.]+$/.test(tag)) $("#version").textContent = "JavaHost " + tag;
+            for (const asset of release.assets || []) {
+              if (/\.exe$/i.test(asset.name)) downloads.win = asset.browser_download_url;
+              if (/\.dmg$/i.test(asset.name)) downloads.mac = asset.browser_download_url;
+            }
+            pickOs($("#download").dataset.os);
+          })
+          .catch(() => {});
+
+        // ------------------------------------------------------------ copy the build command
+        $("#copy").onclick = async () => {
+          const text = $("#build-command").textContent.replace(/^\$ /gm, "").split("\n").join(" && ");
+          try {
+            await navigator.clipboard.writeText(text);
+            $("#copy").textContent = "Copied";
+            $("#copy-status").textContent = "Build command copied.";
+          } catch {
+            const range = document.createRange();
+            range.selectNodeContents($("#build-command"));
+            getSelection().removeAllRanges();
+            getSelection().addRange(range);
+            $("#copy-status").textContent = "Selected. Press Ctrl+C or Cmd+C to copy.";
+          }
+          setTimeout(() => ($("#copy").textContent = "Copy"), 1800);
+        };
+      })();
+    </script>
+  </body>
+</html>
