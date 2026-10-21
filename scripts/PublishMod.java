@@ -124,6 +124,8 @@ public class PublishMod {
 					+ "\"game_versions\":" + jsonList(b.releases()) + ","
 					+ "\"version_type\":\"release\","
 					+ "\"loaders\":[\"fabric\"],"
+					// Everyone playing needs it; a server without JavaHost still works.
+					+ "\"environment\":\"client_only_server_optional\","
 					+ "\"featured\":" + (b == builds.get(0)) + ","
 					+ "\"project_id\":" + json(project) + ","
 					+ "\"file_parts\":[\"file\"],"
