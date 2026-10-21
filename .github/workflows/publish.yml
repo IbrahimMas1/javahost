@@ -16,9 +16,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      # The script and version list come from main; the jars and notes come from the release.
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.tag }}
       - uses: actions/setup-java@v6
         with:
           distribution: temurin

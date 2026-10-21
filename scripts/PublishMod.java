@@ -31,6 +31,8 @@ public class PublishMod {
 	static final String MODRINTH = "https://api.modrinth.com/v2";
 	static final String CURSEFORGE = "https://minecraft.curseforge.com/api";
 	static final String MODRINTH_FABRIC_API = "P7dR8mSH";
+	/** e4mc: the relay JavaHost uses when nothing direct works (optional). */
+	static final String MODRINTH_E4MC = "qANg5Jrr";
 	static final HttpClient HTTP = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
 
 	record Build(String node, List<String> releases, String java, Path jar) {
@@ -97,8 +99,16 @@ public class PublishMod {
 	// ---------------------------------------------------------------- Modrinth
 
 	static void modrinth(List<Build> builds, String version, String notes, String token, String project, boolean dryRun) throws Exception {
-		String existing = dryRun ? "[]" : send(HttpRequest.newBuilder(URI.create(MODRINTH + "/project/" + project + "/version"))
-				.header("Authorization", token).GET(), "Modrinth versions");
+		String existing = "[]";
+		if (!dryRun) {
+			try {
+				existing = send(HttpRequest.newBuilder(URI.create(MODRINTH + "/project/" + project + "/version"))
+						.header("Authorization", token).GET(), "Modrinth versions");
+			} catch (IOException e) {
+				// A token that can only create versions may not read a draft project's list: upload everything.
+				System.out.println("Modrinth: couldn't list existing versions (" + e.getMessage() + "), uploading all");
+			}
+		}
 		for (Build b : builds) {
 			String number = version + "+" + b.node();
 			if (existing.contains("\"version_number\":\"" + number + "\"")) {
@@ -109,7 +119,8 @@ public class PublishMod {
 					+ "\"name\":" + json("JavaHost " + version + " for " + label(b.releases())) + ","
 					+ "\"version_number\":" + json(number) + ","
 					+ "\"changelog\":" + json(notes) + ","
-					+ "\"dependencies\":[{\"project_id\":\"" + MODRINTH_FABRIC_API + "\",\"dependency_type\":\"required\"}],"
+					+ "\"dependencies\":[{\"project_id\":\"" + MODRINTH_FABRIC_API + "\",\"dependency_type\":\"required\"},"
+					+ "{\"project_id\":\"" + MODRINTH_E4MC + "\",\"dependency_type\":\"optional\"}],"
 					+ "\"game_versions\":" + jsonList(b.releases()) + ","
 					+ "\"version_type\":\"release\","
 					+ "\"loaders\":[\"fabric\"],"
@@ -161,7 +172,8 @@ public class PublishMod {
 					+ "\"displayName\":" + json("JavaHost " + version + " for " + label(b.releases())) + ","
 					+ "\"gameVersions\":" + versionIds + ","
 					+ "\"releaseType\":\"release\","
-					+ "\"relations\":{\"projects\":[{\"slug\":\"fabric-api\",\"type\":\"requiredDependency\"}]}"
+					+ "\"relations\":{\"projects\":[{\"slug\":\"fabric-api\",\"type\":\"requiredDependency\"},"
+					+ "{\"slug\":\"e4mc\",\"type\":\"optionalDependency\"}]}"
 					+ "}";
 			if (dryRun) {
 				System.out.println("CurseForge (dry run): " + b.jar().getFileName() + " " + wanted + " " + metadata);
