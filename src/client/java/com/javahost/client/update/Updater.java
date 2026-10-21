@@ -51,6 +51,29 @@ public final class Updater {
 		return FabricLoader.getInstance().getGameDir().resolve("mods");
 	}
 
+	/**
+	 * Whether JavaHost may replace its own jar: only in a game folder the JavaHost installer made ("javahost" or
+	 * "javahost-<mc>"). A launcher like the CurseForge app, Modrinth App or Prism keeps track of its instance's mods,
+	 * and swapping the jar behind its back would confuse it, so those players are told to update there instead.
+	 */
+	public static boolean selfUpdates() {
+		String test = testProperty("javahost.test.launcherManaged");
+		if (test != null) {
+			return !Boolean.parseBoolean(test);
+		}
+		if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
+			return true;
+		}
+		Path game = FabricLoader.getInstance().getGameDir().toAbsolutePath().normalize();
+		String name = game.getFileName() == null ? "" : game.getFileName().toString();
+		boolean installerFolder = name.equals("javahost") || name.startsWith("javahost-");
+		String path = game.toString().toLowerCase(java.util.Locale.ROOT);
+		boolean launcher = Files.exists(game.resolve("minecraftinstance.json")) // CurseForge app
+				|| (game.getParent() != null && Files.exists(game.getParent().resolve("instance.cfg"))) // Prism, MultiMC
+				|| path.contains("modrinthapp") || path.contains("com.modrinth.theseus"); // Modrinth App
+		return installerFolder && !launcher;
+	}
+
 	private static Path planFile() {
 		return dir().resolve("plan.properties");
 	}

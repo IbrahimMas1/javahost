@@ -38,9 +38,9 @@ The GitHub workflow in `.github/workflows/build.yml` builds the Windows `.exe` a
 
 1. Bump `version=` in `gradle.properties` (and `PROTOCOL` in `JavaHost.java` only if old and new versions can't play together).
 2. Commit and push, then run `scripts/release.sh "What's new"`.
-3. GitHub builds everything and publishes a release with a signed `update.json`; players' games offer the update on their next launch.
+3. GitHub builds everything and publishes a release with a signed `update.json`; players' games offer the update on their next launch. Then it uploads the mod jars to Modrinth and CurseForge (`scripts/PublishMod.java`), once the `MODRINTH_TOKEN` / `CURSEFORGE_TOKEN` secrets and `MODRINTH_PROJECT_ID` / `CURSEFORGE_PROJECT_ID` variables are set. Actions → Publish uploads an older release by hand.
 4. For a fix everyone must have, use `scripts/release.sh --important "What's new"`. Players can't skip it (only "Remind me soon"), and older versions can't be restored with Settings → Restore.
 
-Players can restore the previous version from Settings, and cancel that (or a pending update) any time before Minecraft closes.
+Players can restore the previous version from Settings, and cancel that (or a pending update) any time before Minecraft closes. JavaHost only updates itself in the folders its installer made; when a launcher (CurseForge app, Modrinth App, Prism) installed it, the game says what's new and to update there.
 
 The signing key's private half is the `UPDATE_SIGNING_KEY` Actions secret (a copy is kept outside the repo). Without it, releases can't be signed and the game ignores them.

@@ -120,3 +120,32 @@ jobs:
             "dist/javahost-mod/$VERSION"/javahost-*.jar dist/update/update.json dist/update/update.json.sig \
             dist/javahost-installer-jar/*.jar dist/javahost-installer-macos/*.dmg \
             dist/javahost-installer-windows/*.exe dist/javahost-installer-windows/*.zip
+
+  # After a release: upload the mod jars to Modrinth and CurseForge. Each site is skipped until its token (secret)
+  # and project id (variable) are set in the repository settings.
+  publish:
+    name: Publish to Modrinth and CurseForge
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: actions/download-artifact@v7
+        with:
+          name: javahost-mod
+          path: dist
+      - name: Upload
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          git fetch --force --tags
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" | sed '/^-----BEGIN/,$d' > notes.txt
+          java scripts/PublishMod.java "dist/$VERSION" "$VERSION" notes.txt stonecutter.properties.toml

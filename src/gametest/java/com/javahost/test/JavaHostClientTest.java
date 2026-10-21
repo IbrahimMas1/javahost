@@ -524,6 +524,37 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.setScreen(() -> null);
 	}
 
+	/** 1.13: installed by a launcher (CurseForge, Modrinth App): say what's new and to update there, never swap jars. */
+	private static void launcherManagedUpdate(ClientGameTestContext context) {
+		System.setProperty("javahost.test.launcherManaged", "true");
+		try {
+			com.sun.net.httpserver.HttpServer server = fakeRelease("9.9.12", com.javahost.JavaHost.PROTOCOL, false);
+			try {
+				context.setScreen(() -> null);
+				java.util.concurrent.CompletableFuture<Void> found = new java.util.concurrent.CompletableFuture<>();
+				context.runOnClient(mc -> com.javahost.client.update.UpdateChecker.checkNow(() -> found.complete(null)));
+				context.waitFor(mc -> found.isDone(), 400);
+				context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+				context.waitFor(mc -> mc.gui.screen() instanceof com.javahost.client.update.UpdateScreen, 400);
+				context.waitTicks(4);
+				check(settingsButton(context, "What's new").widget() != null && settingsButton(context, "Update now").widget() == null,
+						"a launcher-installed JavaHost points to the launcher instead of updating itself");
+				context.takeScreenshot("update-launcher");
+				clickMenu(context, "OK");
+				check(!context.computeOnClient(mc -> com.javahost.client.update.Updater.staged()), "nothing is downloaded for a launcher install");
+			} finally {
+				server.stop(0);
+				System.clearProperty("javahost.updateUrl");
+				System.clearProperty("javahost.updateKey");
+			}
+		} catch (Exception e) {
+			throw new AssertionError(e);
+		} finally {
+			System.clearProperty("javahost.test.launcherManaged");
+		}
+		context.setScreen(() -> null);
+	}
+
 	/** 1.5: updater, world rules, welcome tour, screenshot tools, debug report. */
 	private static void version15(ClientGameTestContext context) {
 		try {
@@ -534,6 +565,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		}
 
 		rollbackAndImportantUpdates(context);
+		launcherManagedUpdate(context);
 
 		// World rules: the host changes a rule; locking stops changes, even by command.
 		context.setScreen(() -> new JavaHostScreen(null, Tab.RULES));

@@ -18,10 +18,11 @@ import net.minecraft.util.FormattedCharSequence;
 /**
  * "JavaHost 1.5.1 is out": Update now, or Not now. Not now explains whether you can still play with friends who
  * updated, then lets you keep your version until the next launch. Updating downloads and verifies the new files
- * here; they're installed when Minecraft closes.
+ * here; they're installed when Minecraft closes. When a launcher (CurseForge, Modrinth App...) installed JavaHost, it
+ * only says what's new and to update there, since that launcher keeps track of the mods folder.
  */
 public class UpdateScreen extends com.javahost.client.gui.BaseScreen {
-	private enum Stage { OFFER, NEEDS_INSTALLER, COMPATIBILITY, DOWNLOADING, READY, FAILED }
+	private enum Stage { OFFER, LAUNCHER, NEEDS_INSTALLER, COMPATIBILITY, DOWNLOADING, READY, FAILED }
 
 	private final Screen behind;
 	private final UpdateManifest update;
@@ -41,7 +42,7 @@ public class UpdateScreen extends com.javahost.client.gui.BaseScreen {
 		// The build for this Minecraft version, if the release has one.
 		UpdateManifest mine = update.forMinecraft(minecraftVersion());
 		this.update = mine != null ? mine : update;
-		this.stage = mine != null ? Stage.OFFER : Stage.NEEDS_INSTALLER;
+		this.stage = !Updater.selfUpdates() ? Stage.LAUNCHER : mine != null ? Stage.OFFER : Stage.NEEDS_INSTALLER;
 		this.important = update.requires(JavaHost.VERSION);
 	}
 
@@ -55,7 +56,7 @@ public class UpdateScreen extends com.javahost.client.gui.BaseScreen {
 
 	private String headline() {
 		return switch (stage) {
-			case OFFER, NEEDS_INSTALLER -> important ? "Important update: JavaHost " + update.version() : "JavaHost " + update.version() + " is out";
+			case OFFER, LAUNCHER, NEEDS_INSTALLER -> important ? "Important update: JavaHost " + update.version() : "JavaHost " + update.version() + " is out";
 			case COMPATIBILITY -> compatible() ? "You can keep playing together" : "Friends on " + update.version() + " can't play with you";
 			case DOWNLOADING -> "Downloading JavaHost " + update.version();
 			case READY -> "Ready to install";
@@ -67,6 +68,9 @@ public class UpdateScreen extends com.javahost.client.gui.BaseScreen {
 		return switch (stage) {
 			case OFFER -> (important ? "This update fixes something important, so it can't be skipped. " : "")
 					+ "You have " + JavaHost.VERSION + " (" + Math.max(1, update.totalSize() / (1024 * 1024)) + " MB to download)."
+					+ (update.notes().isEmpty() ? "" : "\n\n" + update.notes());
+			case LAUNCHER -> (important ? "This update fixes something important. " : "") + "You have " + JavaHost.VERSION
+					+ ". Your launcher installed JavaHost, so update it there (in the CurseForge app, for example)."
 					+ (update.notes().isEmpty() ? "" : "\n\n" + update.notes());
 			case NEEDS_INSTALLER -> "JavaHost " + update.version() + " isn't made for Minecraft " + minecraftVersion() + ". It's for "
 					+ String.join(", ", update.minecraftVersions()) + ". Use the JavaHost installer to switch Minecraft version.";
@@ -98,6 +102,8 @@ public class UpdateScreen extends com.javahost.client.gui.BaseScreen {
 					buttons(buttonW, buttonY, "Not now", () -> go(Stage.COMPATIBILITY), "Update now", this::startDownload, Icons.CHECK);
 				}
 			}
+			case LAUNCHER -> buttons(buttonW, buttonY, important ? "Remind me soon" : "OK", this::keep, "What's new",
+					() -> ConfirmLinkScreen.confirmLinkNow(this, java.net.URI.create(update.releasePage())), Icons.SPARKLE);
 			case NEEDS_INSTALLER -> buttons(buttonW, buttonY, "Not now", this::keep, "Get installer",
 					() -> ConfirmLinkScreen.confirmLinkNow(this, java.net.URI.create(update.releasePage())), Icons.PACKAGE);
 			case COMPATIBILITY -> buttons(buttonW, buttonY, "Keep " + JavaHost.VERSION, this::keep, "Update now", this::startDownload, Icons.CHECK);
@@ -151,7 +157,7 @@ public class UpdateScreen extends com.javahost.client.gui.BaseScreen {
 		Icons icon = switch (stage) {
 			case COMPATIBILITY -> compatible() ? Icons.USERS : Icons.WARNING;
 			case FAILED, NEEDS_INSTALLER -> Icons.WARNING;
-			case OFFER -> important ? Icons.SHIELD : Icons.SPARKLE;
+			case OFFER, LAUNCHER -> important ? Icons.SHIELD : Icons.SPARKLE;
 			case READY -> Icons.CHECK;
 			default -> Icons.SPARKLE;
 		};

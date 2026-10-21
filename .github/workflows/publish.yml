@@ -1,0 +1,38 @@
+# Uploads an existing GitHub release's mod jars to Modrinth and CurseForge (Actions → Publish → Run workflow).
+# Releases do this on their own (build.yml); use this for a release made before a site was set up.
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, e.g. v1.13.0
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+      - name: Upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+        run: |
+          VERSION="${TAG#v}"
+          gh release download "$TAG" --pattern 'javahost-*.jar' --dir dist
+          gh release view "$TAG" --json body --jq .body > notes.txt
+          java scripts/PublishMod.java dist "$VERSION" notes.txt stonecutter.properties.toml
