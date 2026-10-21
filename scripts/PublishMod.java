@@ -49,8 +49,10 @@ public class PublishMod {
 		String modrinthProject = System.getenv("MODRINTH_PROJECT_ID");
 		String curseToken = System.getenv("CURSEFORGE_TOKEN");
 		String curseProject = System.getenv("CURSEFORGE_PROJECT_ID");
-		boolean modrinth = notBlank(modrinthToken) && notBlank(modrinthProject);
-		boolean curse = notBlank(curseToken) && notBlank(curseProject);
+		// PUBLISH_ONLY=modrinth or curseforge limits a run to one site (for re-running one that failed).
+		String only = System.getenv("PUBLISH_ONLY") == null ? "" : System.getenv("PUBLISH_ONLY").strip().toLowerCase(java.util.Locale.ROOT);
+		boolean modrinth = notBlank(modrinthToken) && notBlank(modrinthProject) && !only.equals("curseforge");
+		boolean curse = notBlank(curseToken) && notBlank(curseProject) && !only.equals("modrinth");
 		if (!modrinth && !curse && !dryRun) {
 			System.out.println("No Modrinth or CurseForge settings: nothing to publish.");
 			return;

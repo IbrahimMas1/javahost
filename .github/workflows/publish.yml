@@ -8,6 +8,10 @@ on:
       tag:
         description: Release tag, e.g. v1.13.0
         required: true
+      only:
+        description: Only this site (modrinth or curseforge); empty for both
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -26,6 +30,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
+          PUBLISH_ONLY: ${{ inputs.only }}
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
