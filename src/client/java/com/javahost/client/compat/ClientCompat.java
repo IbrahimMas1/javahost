@@ -49,6 +49,30 @@ public final class ClientCompat {
 		*///?}
 	}
 
+	/** A player's profile from Mojang, skin included, or null if there's none. A network call: never on the render thread. */
+	public static com.mojang.authlib.GameProfile fetchProfile(java.util.UUID id) {
+		net.minecraft.client.Minecraft minecraft = net.minecraft.client.Minecraft.getInstance();
+		//? if >=1.21.9 {
+		return minecraft.services().profileResolver().fetchById(id).orElse(null);
+		//?} else {
+		/*com.mojang.authlib.yggdrasil.ProfileResult result = minecraft.getMinecraftSessionService().fetchProfile(id, false);
+		return result == null ? null : result.profile();
+		*///?}
+	}
+
+	/** Loads the skin in a profile (downloading it if needed); empty when the profile has none. */
+	public static java.util.concurrent.CompletableFuture<java.util.Optional<net.minecraft.world.entity.player.PlayerSkin>> loadSkin(
+			com.mojang.authlib.GameProfile profile) {
+		net.minecraft.client.resources.SkinManager skins = net.minecraft.client.Minecraft.getInstance().getSkinManager();
+		//? if >=1.21.9 {
+		return skins.get(profile);
+		//?} else if >=1.21.4 {
+		/*return skins.getOrLoad(profile);
+		*///?} else {
+		/*return skins.getOrLoad(profile).thenApply(java.util.Optional::of);
+		*///?}
+	}
+
 	/** Whether the player hid the HUD (F1). */
 	public static boolean hudHidden() {
 		//? if >=26.2 {

@@ -524,6 +524,17 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.setScreen(() -> null);
 	}
 
+	/** 1.12.5: skins of players outside our world (the title screen, friends elsewhere) are looked up, never waited for. */
+	private static void outsideSkins(ClientGameTestContext context) {
+		context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+		java.util.UUID stranger = java.util.UUID.fromString("00000000-0000-4000-8000-0000000000a1");
+		long started = System.nanoTime();
+		var first = context.computeOnClient(mc -> com.javahost.client.gui.ui.Faces.skinOf(stranger));
+		check(first != null && System.nanoTime() - started < 1_000_000_000L,
+				"a face outside the world shows the default skin straight away while it's looked up");
+		context.setScreen(() -> null);
+	}
+
 	/** 1.13: installed by a launcher (CurseForge, Modrinth App): say what's new and to update there, never swap jars. */
 	private static void launcherManagedUpdate(ClientGameTestContext context) {
 		System.setProperty("javahost.test.launcherManaged", "true");
@@ -566,6 +577,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 
 		rollbackAndImportantUpdates(context);
 		launcherManagedUpdate(context);
+		outsideSkins(context);
 
 		// World rules: the host changes a rule; locking stops changes, even by command.
 		context.setScreen(() -> new JavaHostScreen(null, Tab.RULES));
