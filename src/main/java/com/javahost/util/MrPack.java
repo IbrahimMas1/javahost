@@ -125,7 +125,7 @@ public final class MrPack {
 	public static boolean allowedUrl(String url) {
 		try {
 			URI uri = URI.create(url);
-			return "https".equals(uri.getScheme()) && uri.getHost() != null && Modrinth.PACK_HOSTS.contains(uri.getHost());
+			return "https".equals(uri.getScheme()) && uri.getHost() != null && Modrinth.packHosts().contains(uri.getHost());
 		} catch (IllegalArgumentException e) {
 			return false;
 		}

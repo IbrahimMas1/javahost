@@ -154,6 +154,9 @@ public final class Presence {
 		if (Friends.status() == Mailbox.Status.CONNECTING && lastPublishTime == 0) {
 			return;
 		}
+		if (Friends.friends().isEmpty()) {
+			return; // nobody to tell yet; the first friend gets our status as soon as they're added
+		}
 		if (lastPublishTime != 0 && System.currentTimeMillis() - lastPublishTime <= MIN_GAP_MS) {
 			return; // nothing can go out yet, so don't even work out the state
 		}
@@ -214,9 +217,6 @@ public final class Presence {
 	private static void publish(JsonObject state) {
 		lastPublished = state.toString();
 		lastPublishTime = System.currentTimeMillis();
-		if (Friends.friends().isEmpty()) {
-			return; // nobody to tell
-		}
 		String sentState = lastPublished;
 		send(state).thenAccept(sent -> {
 			if (!sent.ok()) {

@@ -57,6 +57,9 @@ public final class Updater {
 	 * and swapping the jar behind its back would confuse it, so those players are told to update there instead.
 	 */
 	public static boolean selfUpdates() {
+		if (com.javahost.util.Distribution.fromModSite()) {
+			return false;
+		}
 		String test = testProperty("javahost.test.launcherManaged");
 		if (test != null) {
 			return !Boolean.parseBoolean(test);

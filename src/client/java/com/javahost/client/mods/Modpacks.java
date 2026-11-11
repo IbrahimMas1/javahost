@@ -65,7 +65,7 @@ public final class Modpacks {
 			IOException last = null;
 			for (String url : entry.urls()) {
 				try {
-					Modrinth.download(new Modrinth.ModFile("", "", "", name, url, entry.sha512(), List.of(), ""), target, Modrinth.PACK_HOSTS,
+					Modrinth.download(new Modrinth.ModFile("", "", "", name, url, entry.sha512(), List.of(), ""), target, Modrinth.packHosts(),
 							fileProgress, progress::cancelled);
 					last = null;
 					break;

@@ -5,6 +5,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -133,11 +135,12 @@ public class PublishMod {
 					+ "\"file_parts\":[\"file\"],"
 					+ "\"primary_file\":\"file\""
 					+ "}";
+			Path jar = marked(b.jar(), "modrinth");
 			if (dryRun) {
-				System.out.println("Modrinth (dry run): " + b.jar().getFileName() + " " + data);
+				System.out.println("Modrinth (dry run): " + jar + " " + data);
 				continue;
 			}
-			Multipart body = new Multipart().field("data", data).file("file", b.jar());
+			Multipart body = new Multipart().field("data", data).file("file", jar);
 			send(HttpRequest.newBuilder(URI.create(MODRINTH + "/version")).header("Authorization", token)
 					.header("Content-Type", body.contentType()).POST(HttpRequest.BodyPublishers.ofByteArray(body.bytes())), "Modrinth upload " + number);
 			System.out.println("Modrinth: uploaded " + number);
@@ -179,11 +182,12 @@ public class PublishMod {
 					+ "\"relations\":{\"projects\":[{\"slug\":\"fabric-api\",\"type\":\"requiredDependency\"},"
 					+ "{\"slug\":\"e4mc\",\"type\":\"optionalDependency\"}]}"
 					+ "}";
+			Path jar = marked(b.jar(), "curseforge");
 			if (dryRun) {
-				System.out.println("CurseForge (dry run): " + b.jar().getFileName() + " " + wanted + " " + metadata);
+				System.out.println("CurseForge (dry run): " + jar + " " + wanted + " " + metadata);
 				continue;
 			}
-			Multipart body = new Multipart().field("metadata", metadata).file("file", b.jar());
+			Multipart body = new Multipart().field("metadata", metadata).file("file", jar);
 			send(HttpRequest.newBuilder(URI.create(CURSEFORGE + "/projects/" + project + "/upload-file")).header("X-Api-Token", token)
 					.header("Content-Type", body.contentType()).POST(HttpRequest.BodyPublishers.ofByteArray(body.bytes())),
 					"CurseForge upload " + b.node());
@@ -227,6 +231,23 @@ public class PublishMod {
 	}
 
 	// ---------------------------------------------------------------- helpers
+
+	/**
+	 * A copy of {@code jar} (same file name, in a temporary folder) with {@code javahost/distribution.properties} saying
+	 * which site it's for. JavaHost reads it (util/Distribution): copies from CurseForge and Modrinth leave updates to
+	 * the site and only get modpack files from Modrinth, as both sites require. The GitHub jars stay unmarked.
+	 */
+	static Path marked(Path jar, String platform) throws IOException {
+		Path dir = Files.createTempDirectory("javahost-" + platform);
+		Path copy = dir.resolve(jar.getFileName().toString());
+		Files.copy(jar, copy);
+		try (FileSystem zip = FileSystems.newFileSystem(copy)) {
+			Path entry = zip.getPath("javahost", "distribution.properties");
+			Files.createDirectories(entry.getParent());
+			Files.writeString(entry, "# Downloaded from " + platform + ": updates come from there (see Distribution.java)\nplatform=" + platform + "\n");
+		}
+		return copy;
+	}
 
 	/** "26.3", "26.1–26.1.2". */
 	static String label(List<String> releases) {

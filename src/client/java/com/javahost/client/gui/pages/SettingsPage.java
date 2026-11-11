@@ -97,7 +97,9 @@ public class SettingsPage extends Page {
 						screen.refresh();
 					}), 10, updatesY + 34);
 		} else {
-			if (update != null) {
+			if (com.javahost.util.Distribution.fromModSite()) {
+				// Copies from CurseForge or Modrinth are updated by the site and the launcher: nothing to press here.
+			} else if (update != null) {
 				add(new FlatButton(half, 18, Component.literal("Update to " + update.version()), FlatButton.Style.PRIMARY, Icons.CHECK,
 						b -> minecraft.gui.setScreen(new com.javahost.client.update.UpdateScreen(screen, update))), 10, updatesY + 34);
 			} else {
@@ -214,7 +216,9 @@ public class SettingsPage extends Page {
 		var update = com.javahost.client.update.UpdateChecker.available();
 		String status;
 		int color = Theme.MUTED;
-		if (com.javahost.client.update.Updater.staged()) {
+		if (com.javahost.util.Distribution.fromModSite()) {
+			status = "JavaHost " + com.javahost.JavaHost.VERSION + " · from " + com.javahost.util.Distribution.siteName();
+		} else if (com.javahost.client.update.Updater.staged()) {
 			boolean rollback = "rollback".equals(com.javahost.client.update.Updater.stagedKind());
 			status = rollback ? "Going back to " + com.javahost.client.update.Updater.stagedVersion() + " when Minecraft closes"
 					: "JavaHost " + com.javahost.client.update.Updater.stagedVersion() + " installs when Minecraft closes";
@@ -229,6 +233,11 @@ public class SettingsPage extends Page {
 			status = "JavaHost " + com.javahost.JavaHost.VERSION + (checkedManually ? " · you're up to date" : " · checks automatically");
 		}
 		Draw.textFit(g, status, width - 20, left + 10, top + updatesY + 22, color);
+		if (com.javahost.util.Distribution.fromModSite()) {
+			// Where the buttons would be: how this copy gets new versions.
+			Draw.textFit(g, "Updates come through your launcher.", width - 20,
+					left + 10, top + updatesY + 38, Theme.FAINT);
+		}
 
 		sectionLabel(g, "Help", left, top + helpY);
 		card(g, left, top + helpY + 12, width, 30);

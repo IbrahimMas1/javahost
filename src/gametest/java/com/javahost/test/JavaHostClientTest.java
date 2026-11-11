@@ -524,6 +524,39 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.setScreen(() -> null);
 	}
 
+	/** 1.12.6: a copy from CurseForge or Modrinth never checks GitHub for updates, and modpacks only use Modrinth. */
+	private static void modSiteCopy(ClientGameTestContext context) {
+		System.setProperty("javahost.test.platform", "curseforge");
+		try {
+			com.sun.net.httpserver.HttpServer server = fakeRelease("9.9.13", com.javahost.JavaHost.PROTOCOL, false);
+			try {
+				java.util.concurrent.CompletableFuture<Void> done = new java.util.concurrent.CompletableFuture<>();
+				context.runOnClient(mc -> com.javahost.client.update.UpdateChecker.checkNow(() -> done.complete(null)));
+				context.waitFor(mc -> done.isDone(), 100);
+				var latest = context.computeOnClient(mc -> com.javahost.client.update.UpdateChecker.latest());
+				check(latest == null || !latest.version().equals("9.9.13"), "a CurseForge copy doesn't look for updates itself");
+				check(!context.computeOnClient(mc -> com.javahost.client.update.Updater.selfUpdates()), "a CurseForge copy never replaces itself");
+				check(com.javahost.util.Modrinth.packHosts().equals(java.util.List.of("cdn.modrinth.com")),
+						"a CurseForge copy only downloads modpack files from Modrinth");
+				context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
+				context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -40));
+				context.waitTicks(10);
+				check(settingsButton(context, "Check for updates").widget() == null, "Settings leaves updates to CurseForge");
+				context.takeScreenshot("settings-curseforge-copy");
+			} finally {
+				server.stop(0);
+				System.clearProperty("javahost.updateUrl");
+				System.clearProperty("javahost.updateKey");
+			}
+		} catch (Exception e) {
+			throw new AssertionError(e);
+		} finally {
+			System.clearProperty("javahost.test.platform");
+		}
+		check(com.javahost.util.Modrinth.packHosts().size() > 1, "the GitHub build still accepts every host Modrinth packs use");
+		context.setScreen(() -> null);
+	}
+
 	/** 1.12.5: skins of players outside our world (the title screen, friends elsewhere) are looked up, never waited for. */
 	private static void outsideSkins(ClientGameTestContext context) {
 		context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
@@ -578,6 +611,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		rollbackAndImportantUpdates(context);
 		launcherManagedUpdate(context);
 		outsideSkins(context);
+		modSiteCopy(context);
 
 		// World rules: the host changes a rule; locking stops changes, even by command.
 		context.setScreen(() -> new JavaHostScreen(null, Tab.RULES));

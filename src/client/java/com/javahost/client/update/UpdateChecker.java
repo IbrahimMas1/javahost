@@ -11,7 +11,7 @@ import net.minecraft.client.gui.screens.TitleScreen;
 /**
  * When to check for updates and when to ask: a few seconds after the game starts, then every 6 hours. The question
  * only ever appears on the title screen or pause menu, never in the middle of play; if the player says "not now",
- * it waits until the next launch.
+ * it waits until the next launch. Copies from CurseForge and Modrinth never check: the site and launcher update them.
  */
 public final class UpdateChecker {
 	private static final long FIRST_CHECK_MS = 5_000;
@@ -65,6 +65,13 @@ public final class UpdateChecker {
 	}
 
 	private static void check(Runnable whenDone) {
+		if (com.javahost.util.Distribution.fromModSite()) {
+			// CurseForge and Modrinth copies are updated by the site and the player's launcher, never from here.
+			if (whenDone != null) {
+				whenDone.run();
+			}
+			return;
+		}
 		if (checking) {
 			return;
 		}

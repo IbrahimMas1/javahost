@@ -133,6 +133,14 @@ public final class Modrinth {
 	/** The hosts Modrinth allows modpack files to come from. */
 	public static final List<String> PACK_HOSTS = List.of("cdn.modrinth.com", "github.com", "raw.githubusercontent.com", "gitlab.com");
 
+	/**
+	 * Where this copy may download modpack files from: copies from CurseForge or Modrinth may only get files through
+	 * Modrinth itself (both sites' rules), so only its CDN.
+	 */
+	public static List<String> packHosts() {
+		return Distribution.fromModSite() ? List.of("cdn.modrinth.com") : PACK_HOSTS;
+	}
+
 	/** As {@link #download(ModFile, Path)}, from any of {@code hosts} (https only). */
 	public static void download(ModFile file, Path target, List<String> hosts) throws IOException, InterruptedException {
 		download(file, target, hosts, (read, total) -> {
