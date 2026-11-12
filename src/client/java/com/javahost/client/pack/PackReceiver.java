@@ -113,6 +113,10 @@ public final class PackReceiver {
 
 	/** Waits until the player is actually in the world with no menu open before asking. */
 	private static void tick(Minecraft minecraft) {
+		if (restorePending) {
+			restorePending = false;
+			IrisCompat.apply(restoreShader);
+		}
 		if (heldOffer != null && minecraft.level != null && !com.javahost.client.friends.InviteFlow.verifying()) {
 			PackOffer offer = heldOffer;
 			heldOffer = null;
@@ -287,11 +291,16 @@ public final class PackReceiver {
 		closeDownloads();
 		if (changedShader) {
 			changedShader = false;
-			String restore = previousShader;
+			// Put the player's own shader back on the next tick. Not as a queued task: when the host removes you, the
+			// game throws its queued tasks away while disconnecting, and the shader stayed the host's.
+			restoreShader = previousShader;
+			restorePending = true;
 			previousShader = null;
-			Minecraft.getInstance().execute(() -> IrisCompat.apply(restore));
 		}
 	}
+
+	private static boolean restorePending;
+	private static String restoreShader;
 
 	private static void closeDownloads() {
 		DOWNLOADS.values().forEach(PackReceiver::discard);

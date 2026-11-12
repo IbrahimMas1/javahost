@@ -14,6 +14,14 @@ The details behind the features in the [README](../README.md): how friends conne
 - **Offline friends:** messages are kept for 12 hours, so a friend who's offline gets your request when they next play. Screenshots are kept for 3 hours.
 - ntfy.sh is free, so it limits each internet connection to about 250 *sent* messages a day (receiving is free). Normal play uses far fewer: your online status sends one every 30 minutes or when it changes. The Account page shows today's count, and JavaHost tells you if you hit the limit.
 
+## Direct connections between friends
+
+- When a friend joins, the two games first try to connect **straight to each other**, with nothing in between. That gives the lowest ping your two internet connections allow, which matters most far from the relay's servers (the Middle East, much of Asia, Africa, South America).
+- Each game asks a public STUN server how its connection looks from the internet, the two swap those addresses over the same sealed messages invites use, and then both send to each other at the same moment. Each router sees its own player speaking first and lets the answers back in. No port is opened on your router and nothing needs setting up.
+- The game's normal connection then travels over that link, with lost packets re-sent quickly so a shaky line doesn't freeze the game. It is the same connection Minecraft always makes: your login is still checked and the traffic is still encrypted by the game.
+- It works on most home connections. A few routers and some mobile networks give every destination a different port, which blocks it: after a few seconds the join simply carries on with the other ways in (your router's open port, IPv6, the relay).
+- This is for friends, who have a private channel to arrange it. Invite codes and public worlds use the other ways in.
+
 ## Public worlds (beta)
 
 - **Discover** lists worlds people have opened to everyone. Each shows who's hosting, the title, tags, players and limit, ping (measured the same way as Minecraft's server list) and the region. Search, filter by tag, and sort by busiest or closest.
@@ -47,7 +55,7 @@ The details behind the features in the [README](../README.md): how friends conne
 
 ## Limits
 
-- Direct connections depend on your router and internet provider. The Host tab shows which ways work; when none do, the relay gets friends in.
+- Direct connections depend on both players' routers and internet providers. The Host tab shows which ways work; when none do, the relay gets friends in, at a higher ping.
 - The relay (e4mc) is run by a third party. Traffic only passes through it when direct connections fail (or you choose "Always").
 - **macOS microphone:** if the Voice tab says the mic is silent, give your launcher microphone access in System Settings → Privacy & Security → Microphone.
 - e4mc 6.2.3 crashes on 26.3 *dedicated* servers (not on hosted worlds). JavaHost only uses it for hosted worlds.

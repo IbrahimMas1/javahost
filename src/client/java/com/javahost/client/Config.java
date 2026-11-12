@@ -66,6 +66,8 @@ public final class Config {
 	public boolean fpsOverlay = false;
 	/** Friends see you as offline (you still see them). */
 	public boolean appearOffline = false;
+	/** Let friends connect straight to this PC through both routers (no relay) when it's possible. */
+	public boolean directLink = true;
 	/** The menu's text and icons: "PIXEL" (the game's font, pixel icons) or "SMOOTH" (Inter, smooth icons); see Fonts. */
 	public String menuFont = "PIXEL";
 	/** The first-time welcome tour has been shown (or skipped). */

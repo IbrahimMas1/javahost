@@ -183,8 +183,17 @@ public final class InviteFlow {
 				routes.add(new RouteInfo(route.name(), route.state().name(), address));
 			}
 		}
+		// Straight through both routers, for friends on JavaHost 2.0+. Last in the list: an older JavaHost reads it as
+		// one more address to try and should only get to it after the ones it understands.
+		if (com.javahost.client.host.DirectLink.hosting()) {
+			routes.add(new RouteInfo("Direct", "WORKING", DIRECT));
+		}
 		return routes;
 	}
+
+	/** What a direct route has in place of an address. */
+	static final String DIRECT = "direct";
+	private static boolean directPending;
 
 	// ================================================================ guest side
 
@@ -274,7 +283,7 @@ public final class InviteFlow {
 		String forced = System.getProperty("javahost.test.preferRoute");
 		List<String> preference = forced != null
 				? List.of(forced)
-				: sameHome ? List.of("Same Wi-Fi", "Internet", "Relay", "IPv6") : List.of("Internet", "Relay", "IPv6");
+				: sameHome ? List.of("Same Wi-Fi", "Internet", "Direct", "Relay", "IPv6") : List.of("Internet", "Direct", "Relay", "IPv6");
 		// Everything known to work comes before anything that only might (a "maybe" can take ~30 s to time out).
 		for (String state : List.of("WORKING", "MAYBE")) {
 			for (String wanted : preference) {
@@ -322,13 +331,52 @@ public final class InviteFlow {
 		}
 		attemptStarted = System.currentTimeMillis();
 		sawConnecting = false;
+		if (address.equals(DIRECT)) {
+			// No relay: reach their game straight through both routers. Takes a second or two to arrange; if it can't
+			// be done we carry on with the next route.
+			java.util.Optional<Friend> host = expectedHost == null ? java.util.Optional.empty() : Friends.friend(expectedHost);
+			if (host.isEmpty()) {
+				next();
+				return;
+			}
+			int attempt = joinIndex;
+			List<String> queue = joinQueue;
+			directPending = true;
+			minecraft.gui.setScreen(new net.minecraft.client.gui.screens.GenericMessageScreen(Component.literal("Connecting straight to " + joiningHost + "...")));
+			com.javahost.client.host.DirectLink.open(host.get()).whenComplete((port, error) -> minecraft.execute(() -> {
+				if (joinQueue != queue || joinIndex != attempt || !directPending) {
+					return; // this join was replaced or cancelled meanwhile
+				}
+				directPending = false;
+				if (error != null || port == null) {
+					JavaHost.LOGGER.info("No direct route to {} ({}), trying the next", joiningHost, error == null ? "no port" : error.toString());
+					next();
+					return;
+				}
+				JavaHost.LOGGER.info("Direct link to {} is up", joiningHost);
+				attemptStarted = System.currentTimeMillis();
+				String local = "127.0.0.1:" + port;
+				ServerData server = new ServerData(joiningHost + "'s world", local, ServerData.Type.OTHER);
+				ConnectScreen.startConnecting(new TitleScreen(), minecraft, ServerAddress.parseString(local), server, false, null);
+			}));
+			return;
+		}
 		ServerData server = new ServerData(joiningHost + "'s world", address, ServerData.Type.OTHER);
 		ConnectScreen.startConnecting(new TitleScreen(), minecraft, ServerAddress.parseString(address), server, false, null);
 	}
 
 	/** Watches each join attempt: done once we're in the world; on failure, try the next way in. */
 	public static void tick(Minecraft minecraft) {
+		com.javahost.client.host.DirectLink.tick(!joinQueue.isEmpty() || minecraft.level != null);
 		if (joinQueue.isEmpty() || joinIndex < 0) {
+			directPending = false;
+			return;
+		}
+		if (directPending) {
+			if (System.currentTimeMillis() - attemptStarted > 20_000) {
+				directPending = false; // should never take this long: move on
+				next();
+			}
 			return;
 		}
 		if (minecraft.gui.screen() instanceof ConnectScreen connecting) {

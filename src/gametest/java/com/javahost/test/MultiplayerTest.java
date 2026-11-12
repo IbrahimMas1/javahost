@@ -911,11 +911,17 @@ final class MultiplayerTest {
 		// ---- The invite popup's Join button.
 		context.waitFor(mc -> mc.gui.screen() instanceof FriendPopup, 3 * ONE_MINUTE);
 		context.takeScreenshot("mp-guest-invite");
+		// 2.0: this join goes straight through to the host's game (no router port, no relay), arranged over the
+		// friends' sealed messages. Everything after it (packs, voice, game modes) then runs over that link.
+		System.setProperty("javahost.test.preferRoute", "Direct");
 		context.clickScreenButton("Join");
 		context.waitFor(mc -> (mc.player != null && mc.level != null && mc.gui.screen() == null)
 				|| mc.gui.screen() instanceof DisconnectedScreen, 3 * ONE_MINUTE);
+		System.clearProperty("javahost.test.preferRoute");
 		String refusedInvite = context.computeOnClient(mc -> mc.gui.screen() instanceof DisconnectedScreen d ? d.getNarrationMessage().getString() : null);
 		check(refusedInvite == null, "guest joined the host's world by clicking Join" + (refusedInvite == null ? "" : " (refused: " + refusedInvite + ")"));
+		int directPing = com.javahost.client.host.DirectLink.guestPing();
+		check(directPing >= 0, "that join went over a direct player-to-player link (round trip " + directPing + " ms)");
 		VoiceClient.setTestTone(true);
 		waitForShared(context, "host-set-creative", 2 * ONE_MINUTE);
 		context.waitFor(mc -> mc.gameMode != null && mc.gameMode.getPlayerMode() == GameType.CREATIVE, ONE_MINUTE);

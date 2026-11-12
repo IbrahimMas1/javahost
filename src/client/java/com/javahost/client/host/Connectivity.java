@@ -232,6 +232,10 @@ public final class Connectivity {
 			routes.add(new Route("IPv6", State.UNAVAILABLE, null, "Your connection has no public IPv6 address."));
 		}
 
+		if (DirectLink.hosting()) {
+			routes.add(new Route("Direct", State.WORKING, null, DirectLink.hostNote()));
+		}
+
 		switch (relayState) {
 			case WORKING -> routes.add(new Route("Relay", State.WORKING, relayDomain,
 					"Works for anyone, even without mods. Traffic passes through e4mc's free relay."));

@@ -616,6 +616,11 @@ public final class Friends {
 		});
 	}
 
+	/** The two messages that arrange a direct join ("punch" from the guest, "punch-ok" back from the host); see DirectLink. */
+	public static CompletableFuture<Sent> sendPunch(Friend friend, String type, JsonObject body) {
+		return sendSealed(friend, type.equals("punch-ok") ? "punch-ok" : "punch", body);
+	}
+
 	private static CompletableFuture<Sent> sendSealed(Friend friend, String type, JsonObject body) {
 		return sendSealed(friend, header(type, friend.id()), body);
 	}
@@ -692,7 +697,7 @@ public final class Friends {
 						JavaHost.LOGGER.warn("[Friends] rejected accept from {}: bad signature", name);
 					}
 				}
-				case "invite", "invite-seen", "remove", "statuskey", "keys", "keys-please", "chat", "screenshot" -> {
+				case "invite", "invite-seen", "remove", "statuskey", "keys", "keys-please", "chat", "screenshot", "punch", "punch-ok" -> {
 					Optional<Friend> friend = friend(from);
 					if (friend.isEmpty()) {
 						JavaHost.LOGGER.info("[Friends] ignored {} from {}: not a friend", type, name);
@@ -744,6 +749,8 @@ public final class Friends {
 					save();
 				}
 			}
+			case "punch" -> com.javahost.client.host.DirectLink.onPunch(friend, body);
+			case "punch-ok" -> com.javahost.client.host.DirectLink.onPunchOk(friend, body);
 			case "invite-seen" -> {
 				InviteStatus status = INVITES_SENT.get(friend.id());
 				if (status != null && status.messageId().equals(str(body, "ref"))) {

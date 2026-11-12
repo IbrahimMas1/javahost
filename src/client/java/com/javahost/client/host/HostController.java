@@ -77,6 +77,7 @@ public final class HostController {
 		hosting = true;
 		port = config.port;
 		Connectivity.start(port, relayNow);
+		DirectLink.hostStart(port);
 		preparePacks(server, config);
 		return null;
 	}
@@ -111,6 +112,7 @@ public final class HostController {
 		if (hosting) {
 			Connectivity.stop();
 		}
+		DirectLink.hostStop();
 		hosting = false;
 		HostState.clear();
 		// Keep the join rules in force: a world opened later with Minecraft's own "Open to LAN" stays protected.
