@@ -37,8 +37,9 @@ The installer puts Fabric, Fabric API and JavaHost in a separate profile and fol
 
 ## Features
 
-- **Hosting from your PC.** Start hosting tries your router (UPnP), IPv6, the free e4mc relay and LAN in turn, so it works on most networks without port forwarding.
-- **Friends and invites.** Add friends by their Minecraft name and see who's online or hosting. Invite sends a Join button straight to their game, no codes needed.
+- **Hosting from your PC.** Start hosting tries your router (UPnP), IPv6, the free e4mc relay and LAN in turn, so it works on most networks without port forwarding. From the title screen, Host opens a world and starts hosting in one click.
+- **Friends and invites.** Add friends by their Minecraft name and see who's online or hosting. Invite sends a Join button straight to their game, no codes needed. Star your favourites, see when friends were last on, and invite everyone online at once.
+- **Quick menu.** Hold Z while playing for a ring of shortcuts: invite, mute, party voice, screenshot, copy the invite code.
 - **Encrypted chat and screenshots.** Messages, invites and screenshots (F6) are end-to-end encrypted. There's no JavaHost server in the middle.
 - **Proximity voice.** Push to talk (V) or voice activation, with voices that fade with distance. The host can switch the world to party voice so everyone hears everyone.
 - **Mod store.** Search Modrinth mods and modpacks by category and install them from the menu, with download progress and a notification when they're done.

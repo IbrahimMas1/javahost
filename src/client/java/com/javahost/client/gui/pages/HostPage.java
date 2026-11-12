@@ -19,6 +19,7 @@ import com.javahost.client.host.Connectivity.Route;
 import com.javahost.client.host.Connectivity.State;
 import com.javahost.client.host.E4mcCompat;
 import com.javahost.client.host.HostController;
+import com.javahost.client.host.QuickHost;
 import com.javahost.client.host.HostController.Guest;
 import com.javahost.client.host.WorldBackups;
 import com.javahost.client.share.WorldShare;
@@ -64,12 +65,13 @@ public class HostPage extends Page {
 
 	@Override
 	public String title() {
-		return HostController.isHosting() ? "Your world is open" : "Host this world";
+		return HostController.isHosting() ? "Your world is open" : minecraft != null && minecraft.level == null ? "Host a world" : "Host this world";
 	}
 
 	@Override
 	public String subtitle() {
-		return HostController.isHosting() ? "Invite friends, or share the code." : "Your PC is the server. No rental.";
+		return HostController.isHosting() ? "Invite friends, or share the code."
+				: minecraft != null && minecraft.level == null ? "Pick one: it opens and hosting starts." : "Your PC is the server. No rental.";
 	}
 
 	private static boolean startRequested;
@@ -108,7 +110,8 @@ public class HostPage extends Page {
 		guests = HostController.guests();
 		lastSignature = signature();
 		// The hero (the world and Start, or the invite code and Invite / Stop) stays on top; the rest is in sub-tabs.
-		int y = builtHosting ? buildHostingHero() : buildSetupHero();
+		worlds = !builtHosting && minecraft.level == null ? QuickHost.worlds() : null;
+		int y = builtHosting ? buildHostingHero() : worlds != null ? buildWorldList() : buildSetupHero();
 		List<Section> sections = builtHosting ? List.of(Section.PLAYERS, Section.SETTINGS, Section.BACKUPS) : List.of(Section.SETTINGS, Section.BACKUPS);
 		shown = sections.contains(section) ? section : Section.SETTINGS;
 		add(new Segmented<>(width, sections, shown, s -> switch (s) {
@@ -124,6 +127,63 @@ public class HostPage extends Page {
 			case PLAYERS -> buildPlayers(sectionY);
 			case SETTINGS -> buildSettings(sectionY);
 			case BACKUPS -> buildBackups(sectionY);
+		}
+	}
+
+	// ================================================================ on the title screen: pick a world to host
+
+	private static final int WORLD_ROW = 28;
+	private static final int MAX_WORLDS = 4;
+	/** Your saved worlds, when no world is open (the title screen); null otherwise. */
+	private List<QuickHost.SavedWorld> worlds;
+	private int worldListH;
+
+	/** Your worlds, each with Host (open it and start hosting in one go) and Play. Returns where the sub-tabs go. */
+	private int buildWorldList() {
+		int y = 14;
+		int rows = Math.min(worlds.size(), MAX_WORLDS);
+		for (int i = 0; i < rows; i++) {
+			QuickHost.SavedWorld world = worlds.get(i);
+			FlatButton host = add(new FlatButton(54, 18, Component.literal("Host"), FlatButton.Style.PRIMARY, Icons.HOST, b -> QuickHost.host(world)),
+					width - 62, y + 5);
+			host.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Open " + world.name() + " and start hosting")));
+			add(new FlatButton(40, 18, Component.literal("Play"), FlatButton.Style.SECONDARY, null, b -> QuickHost.play(world)), width - 106, y + 5);
+			y += WORLD_ROW;
+		}
+		if (rows == 0) {
+			add(new FlatButton(110, 18, Component.literal("Create a world"), FlatButton.Style.PRIMARY, Icons.PLAY,
+					b -> minecraft.gui.setScreen(new net.minecraft.client.gui.screens.worldselection.SelectWorldScreen(screen))), width - 120, y + 7);
+			y += 32;
+		} else if (worlds.size() > rows) {
+			add(new FlatButton(width - 16, 16, Component.literal("All " + worlds.size() + " worlds"), FlatButton.Style.GHOST, null,
+					b -> minecraft.gui.setScreen(new net.minecraft.client.gui.screens.worldselection.SelectWorldScreen(screen))), 8, y + 1);
+			y += 18;
+		}
+		worldListH = y + 2 - 12;
+		return y + 12;
+	}
+
+	private void drawWorldList(GuiGraphicsExtractor g, int left, int top) {
+		sectionLabel(g, "Your worlds", left, top);
+		card(g, left, top + 12, width, worldListH);
+		int y = top + 14;
+		int rows = Math.min(worlds.size(), MAX_WORLDS);
+		for (int i = 0; i < rows; i++) {
+			QuickHost.SavedWorld world = worlds.get(i);
+			if (i > 0) {
+				g.fill(left + 8, y, left + width - 8, y + 1, 0x12FFFFFF);
+			}
+			QuickHost.drawIcon(g, world, left + 8, y + 4, 20);
+			Draw.textFit(g, world.name(), width - 150, left + 34, y + 5, Theme.TEXT);
+			Draw.textFit(g, QuickHost.played(world.lastPlayed()), width - 150, left + 34, y + 16, Theme.MUTED);
+			y += WORLD_ROW;
+		}
+		if (rows == 0) {
+			Draw.textFit(g, "No worlds yet", width - 140, left + 10, y + 7, Theme.TEXT);
+			Draw.textFit(g, "Make one, then host it from here.", width - 140, left + 10, y + 18, Theme.MUTED);
+		}
+		if (error != null) {
+			Icons.WARNING.draw(g, left, top + 12 + worldListH + 4, Theme.WARNING);
 		}
 	}
 
@@ -540,7 +600,7 @@ public class HostPage extends Page {
 	}
 
 	private String signature() {
-		StringBuilder s = new StringBuilder();
+		StringBuilder s = new StringBuilder().append(QuickHost.version()).append(minecraft.level == null);
 		for (Route r : Connectivity.routes()) {
 			s.append(r.name()).append(r.state()).append(r.invite());
 		}
@@ -582,7 +642,11 @@ public class HostPage extends Page {
 		if (builtHosting) {
 			drawHostingHero(g, left, top);
 		} else {
-			drawSetupHero(g, left, top);
+			if (worlds != null) {
+				drawWorldList(g, left, top);
+			} else {
+				drawSetupHero(g, left, top);
+			}
 		}
 		switch (shown) {
 			case PLAYERS -> drawPlayers(g, left, top);

@@ -15,6 +15,7 @@ public class FlatButton extends Button {
 	private float hover;
 	private boolean iconOnly;
 	private long pressedAt;
+	private int iconColor;
 
 	public FlatButton(int x, int y, int width, int height, Component label, Style style, Icons icon, Consumer<FlatButton> onPress) {
 		super(x, y, width, height, label, button -> onPress.accept((FlatButton) button), DEFAULT_NARRATION);
@@ -46,6 +47,12 @@ public class FlatButton extends Button {
 	/** Shows just the icon; the label is still the button's name for narration (and tests). */
 	public FlatButton iconOnly() {
 		iconOnly = true;
+		return this;
+	}
+
+	/** Draws the icon in this colour whatever the style says (0 = the style's own). */
+	public FlatButton iconColor(int color) {
+		iconColor = color;
 		return this;
 	}
 
@@ -129,7 +136,7 @@ public class FlatButton extends Button {
 		int cx = x + (w - contentWidth) / 2;
 		int cy = y + (h - 8) / 2;
 		if (icon != null) {
-			icon.draw(g, cx, cy, text);
+			icon.draw(g, cx, cy, iconColor != 0 && active ? iconColor : text);
 		}
 		Draw.text(g, shown, cx + iconSpace, cy + 1, text);
 	}

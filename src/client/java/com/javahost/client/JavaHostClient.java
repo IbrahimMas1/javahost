@@ -52,6 +52,7 @@ public class JavaHostClient implements ClientModInitializer {
 	/** The JavaHost version of the world we're in (null if not JavaHost 1.4+, or not connected). */
 	public static volatile String hostVersion;
 	public static final KeyMapping PARTY_VOICE = new KeyMapping("key.javahost.party", InputConstants.KEY_B, CATEGORY);
+	public static final KeyMapping QUICK_MENU = new KeyMapping("key.javahost.wheel", InputConstants.KEY_Z, CATEGORY);
 	public static final KeyMapping TOGGLE_OVERLAY = new KeyMapping("key.javahost.overlay", InputConstants.UNKNOWN.getValue(), CATEGORY);
 
 	@Override
@@ -62,6 +63,7 @@ public class JavaHostClient implements ClientModInitializer {
 		KeyMappingHelper.registerKeyMapping(TOGGLE_MUTE);
 		KeyMappingHelper.registerKeyMapping(SCREENSHOT_SHARE);
 		KeyMappingHelper.registerKeyMapping(TOGGLE_OVERLAY);
+		KeyMappingHelper.registerKeyMapping(QUICK_MENU);
 		KeyMappingHelper.registerKeyMapping(PARTY_VOICE);
 
 		VoiceClient.register();
@@ -89,6 +91,8 @@ public class JavaHostClient implements ClientModInitializer {
 			InviteFlow.tick(minecraft);
 			Popups.tick(minecraft);
 			Toasts.tick(minecraft);
+			com.javahost.client.host.QuickHost.tick(minecraft);
+			com.javahost.client.friends.FriendLog.tick();
 			com.javahost.client.update.UpdateChecker.tick(minecraft);
 			Friends.tick();
 			Presence.tick(minecraft);
@@ -98,6 +102,11 @@ public class JavaHostClient implements ClientModInitializer {
 			com.javahost.client.mods.PendingJoin.tick(minecraft);
 			while (OPEN_MENU.consumeClick()) {
 				minecraft.gui.setScreen(new JavaHostScreen(null));
+			}
+			while (QUICK_MENU.consumeClick()) {
+				if (minecraft.gui.screen() == null && minecraft.player != null) {
+					minecraft.gui.setScreen(new com.javahost.client.gui.QuickWheelScreen());
+				}
 			}
 			while (TOGGLE_MUTE.consumeClick()) {
 				Config config = Config.get();
@@ -126,6 +135,7 @@ public class JavaHostClient implements ClientModInitializer {
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> HostController.cleanup());
 		ClientLifecycleEvents.CLIENT_STOPPING.register(minecraft -> {
 			com.javahost.client.friends.Friends.flushNow();
+			com.javahost.client.friends.FriendLog.flushNow();
 			com.javahost.client.discover.PublicHosting.shutdown();
 			com.javahost.client.update.Updater.launchSwapIfStaged();
 			com.javahost.client.mods.ModSets.launchIfStaged();

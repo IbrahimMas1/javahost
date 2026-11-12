@@ -85,6 +85,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		}
 		guestReceivesHostPacks(context);
 		hostingASingleplayerWorld(context);
+		hostFromTitle(context);
 		JavaHost.LOGGER.info("[JavaHost test] ALL CHECKS PASSED");
 	}
 
@@ -350,6 +351,37 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		});
 		context.waitTicks(30);
 		context.takeScreenshot("quick-title");
+		hostFromTitle(context);
+	}
+
+	/** 2.0: on the title screen, Home offers to host your last world and the Host tab lists your worlds; Host opens one and starts hosting. */
+	private static void hostFromTitle(ClientGameTestContext context) {
+		context.runOnClient(mc -> com.javahost.client.host.QuickHost.worlds()); // starts reading the saves folder
+		context.waitFor(mc -> !com.javahost.client.host.QuickHost.worlds().isEmpty(), 200);
+		context.setScreen(() -> new JavaHostScreen(null, Tab.HOME));
+		context.waitTicks(10);
+		context.takeScreenshot("title-home");
+		String first = context.computeOnClient(mc -> com.javahost.client.host.QuickHost.worlds().get(0).name());
+		check(settingsButton(context, "Host " + first).widget() != null, "Home on the title screen offers to host the last world (" + first + ")");
+		context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
+		context.waitTicks(10);
+		context.takeScreenshot("title-host-worlds");
+		check(settingsButton(context, "Host").widget() != null && settingsButton(context, "Play").widget() != null,
+				"the Host tab lists your worlds with Host and Play");
+		context.runOnClient(mc -> com.javahost.client.host.QuickHost.host(com.javahost.client.host.QuickHost.worlds().get(0)));
+		context.waitFor(mc -> HostController.isHosting(), 1200);
+		context.runOnClient(mc -> check(mc.getSingleplayerServer() != null && mc.getSingleplayerServer().isPublished(),
+				"Host on the title screen opens the world and starts hosting"));
+		context.waitTicks(20);
+		context.takeScreenshot("title-hosted");
+		context.runOnClient(mc -> {
+			HostController.stop();
+			com.javahost.client.compat.ClientCompat.leaveWorld(net.minecraft.network.chat.Component.literal("test"));
+		});
+		context.waitFor(mc -> mc.level == null && mc.getSingleplayerServer() == null, 600);
+		context.waitTicks(60); // the "saving world" screen has its moment
+		context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+		context.waitTicks(20);
 	}
 
 	/**
@@ -484,6 +516,51 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.setScreen(() -> new JavaHostScreen(null, Tab.FRIENDS));
 			context.waitTicks(8);
 			context.takeScreenshot("hub-2000-s3-friends");
+
+			// Friends 2.0: favourites go first, friends' comings and goings are listed, and one button invites everyone online.
+			context.getInput().resizeWindow(1710, 1070);
+			context.runOnClient(mc -> {
+				mc.options.guiScale().set(4);
+				TestCompat.resizeGui(mc);
+				try {
+					var seen = com.javahost.client.friends.FriendLog.class.getDeclaredMethod("seen", com.javahost.client.friends.Presence.Status.class,
+							com.javahost.client.friends.Presence.Status.class, String.class);
+					seen.setAccessible(true);
+					for (var friend : friends[0]) {
+						if (added.contains(friend.id())) {
+							seen.invoke(null, null, latest[0].get(friend.id()), friend.name());
+						}
+					}
+				} catch (ReflectiveOperationException e) {
+					throw new AssertionError(e);
+				}
+				com.javahost.client.friends.FriendLog.toggleFavourite(added.get(3)); // RedstoneRay
+			});
+			context.setScreen(() -> new JavaHostScreen(null, Tab.FRIENDS));
+			context.waitTicks(8);
+			context.takeScreenshot("friends-2-favourite-activity");
+			check(com.javahost.client.friends.FriendLog.isFavourite(added.get(3)), "a friend can be made a favourite");
+			check(settingsButton(context, "Remove from favourites").widget() != null && settingsButton(context, "Add to favourites").widget() != null,
+					"every friend has a favourite star");
+			check(com.javahost.client.friends.FriendLog.activity(10).stream().anyMatch(e -> e.what.equals("started hosting Cherry Valley")),
+					"the activity list says a friend started hosting");
+			check(settingsButton(context, "Invite all online").widget() != null, "hosting with friends online offers to invite them all");
+			context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -20));
+			context.waitTicks(10);
+			context.takeScreenshot("friends-2-activity-scrolled");
+			context.runOnClient(mc -> com.javahost.client.friends.FriendLog.toggleFavourite(added.get(3)));
+
+			// The quick menu: its key opens a ring of actions; Menu opens the hub.
+			context.setScreen(() -> new com.javahost.client.gui.QuickWheelScreen());
+			context.waitTicks(10);
+			context.getInput().setCursorPos(1710 / 2.0 + 300, 1070 / 2.0 - 120);
+			context.waitTicks(10);
+			context.takeScreenshot("quick-wheel");
+			check(settingsButton(context, "Menu").widget() != null && settingsButton(context, "Invite").widget() != null
+					&& settingsButton(context, "Capture").widget() != null, "the quick menu offers Menu, Invite and Capture while hosting");
+			clickMenu(context, "Menu");
+			context.waitTicks(4);
+			check(context.computeOnClient(mc -> mc.gui.screen() instanceof JavaHostScreen), "the quick menu's Menu opens JavaHost");
 			context.setScreen(() -> null);
 			context.getInput().resizeWindow(854, 480);
 			context.runOnClient(mc -> {

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.javahost.client.friends.Chats;
+import com.javahost.client.friends.FriendLog;
 import com.javahost.client.friends.Friends;
 import com.javahost.client.friends.Friends.Friend;
 import com.javahost.client.friends.Friends.Outgoing;
@@ -39,6 +40,20 @@ public class FriendsPage extends Page {
 	private int sentY = -1;
 	private int friendsY;
 	private int footerY;
+	private int activityY = -1;
+	private List<FriendLog.Entry> activity = List.of();
+	private static final int ACTIVITY_ROW = 14;
+	/** The gold of a favourite's star. */
+	private static final int FAVOURITE = 0xFFF2C14E;
+
+	/** Online friends you could invite to your world right now. */
+	private static List<Friend> invitable() {
+		if (!InviteFlow.canInvite()) {
+			return List.of();
+		}
+		return Presence.onlineFriends().stream().filter(f -> !InviteFlow.playingTogether(f.id()) && !InviteFlow.busy(f.id())
+				&& Presence.otherMinecraft(f.id()) == null).toList();
+	}
 	private List<Request> incoming = List.of();
 	private List<Outgoing> outgoing = List.of();
 	private List<Friend> friends = List.of();
@@ -69,7 +84,8 @@ public class FriendsPage extends Page {
 		incoming = Friends.incoming();
 		outgoing = Friends.outgoing();
 		friends = Friends.friends().stream()
-				.sorted(Comparator.comparingInt(FriendsPage::rank).thenComparing(f -> f.name().toLowerCase()))
+				.sorted(Comparator.comparing((Friend f) -> !FriendLog.isFavourite(f.id())).thenComparingInt(FriendsPage::rank)
+						.thenComparing(f -> f.name().toLowerCase()))
 				.toList();
 
 		int y = 12;
@@ -106,12 +122,29 @@ public class FriendsPage extends Page {
 		}
 
 		friendsY = y;
+		// Hosting with a few friends online: one button invites them all.
+		List<Friend> invitable = invitable();
+		if (invitable.size() >= 2) {
+			add(new FlatButton(104, 14, Component.literal("Invite all online"), FlatButton.Style.SECONDARY, null, b -> {
+				invitable.forEach(InviteFlow::invite);
+				screen.refresh();
+			}), width - 104, y - 4).setTooltip(net.minecraft.client.gui.components.Tooltip.create(
+					Draw.styled("Send an invite to " + Draw.count(invitable.size(), "friend") + " at once")));
+		}
 		y += 12;
 		if (friends.isEmpty()) {
 			y += ROW;
 		}
 		for (Friend friend : friends) {
-			add(new RowButton(width - 130, ROW - 2, Component.literal(friend.name()), b -> screen.openProfile(friend.id())), 2, y + 1);
+			boolean favourite = FriendLog.isFavourite(friend.id());
+			add(new RowButton(width - 152, ROW - 2, Component.literal(friend.name()), b -> screen.openProfile(friend.id())), 2, y + 1);
+			FlatButton star = add(new FlatButton(20, 18, Component.literal(favourite ? "Remove from favourites" : "Add to favourites"),
+					FlatButton.Style.GHOST, Icons.STAR, b -> {
+						FriendLog.toggleFavourite(friend.id());
+						screen.refresh();
+					}).iconOnly().iconColor(favourite ? FAVOURITE : Theme.withAlpha(Theme.FAINT, 0.7f)), width - 120, y + 5);
+			star.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
+					Draw.styled(favourite ? "A favourite: listed first. Click to undo." : "Make a favourite: listed first")));
 			add(action(screen, friend, 64), width - 96, y + 5);
 			add(new FlatButton(22, 18, Component.empty(), FlatButton.Style.GHOST, Icons.CHAT, b -> screen.openChat(friend.id())),
 					width - 28, y + 5);
@@ -130,6 +163,15 @@ public class FriendsPage extends Page {
 			y += 12;
 		} else {
 			sentY = -1;
+		}
+
+		// What friends have been up to lately.
+		activity = FriendLog.activity(5);
+		if (!activity.isEmpty()) {
+			activityY = y;
+			y += 12 + activity.size() * ACTIVITY_ROW + 4 + 12;
+		} else {
+			activityY = -1;
 		}
 
 		footerY = y;
@@ -274,7 +316,7 @@ public class FriendsPage extends Page {
 		}
 		Optional<Presence.Status> status = Presence.of(friend.id());
 		if (status.isEmpty()) {
-			return "Offline";
+			return FriendLog.lastSeenText(friend.id());
 		}
 		Presence.Status s = status.get();
 		String other = Presence.otherMinecraft(friend.id());
@@ -329,16 +371,16 @@ public class FriendsPage extends Page {
 		}
 		for (Friend friend : friends) {
 			faceWithDot(g, friend.id(), left + 8, y + 5, 18);
-			String name = Draw.fit(friend.name(), width - 140);
+			String name = Draw.fit(friend.name(), width - 162);
 			Draw.text(g, name, left + 32, y + 5, Theme.TEXT);
-			versionChip(g, friend.id(), left + 36 + Draw.width(name), y + 4, width - 176 - Draw.width(name));
+			versionChip(g, friend.id(), left + 36 + Draw.width(name), y + 4, width - 198 - Draw.width(name));
 			String invite = InviteFlow.status(friend.id());
 			String line = invite != null ? invite : statusLine(friend);
 			int color = invite != null
 					? (invite.startsWith("Delivered") || invite.startsWith("In your world") ? Theme.ACCENT
 							: invite.startsWith("Not delivered") || invite.startsWith("Couldn't") ? Theme.WARNING : Theme.INFO)
 					: Presence.of(friend.id()).isPresent() ? Theme.ACCENT : Theme.FAINT;
-			Draw.textFit(g, line, width - 140, left + 32, y + 15, color);
+			Draw.textFit(g, line, width - 162, left + 32, y + 15, color);
 			int unread = Chats.unread(friend.id());
 			if (unread > 0) {
 				Draw.roundRect(g, left + width - 12, y + 4, 8, 8, 4, Theme.DANGER);
@@ -355,6 +397,28 @@ public class FriendsPage extends Page {
 				Draw.text(g, sent.name(), left + 32, y + 5, Theme.TEXT);
 				Draw.text(g, "Request sent", left + 32, y + 15, Theme.FAINT);
 				y += ROW;
+			}
+		}
+
+		if (activityY >= 0) {
+			sectionLabel(g, "Recent activity", left, top + activityY);
+			y = top + activityY + 12;
+			card(g, left, y - 2, width, activity.size() * ACTIVITY_ROW + 8);
+			y += 2;
+			for (FriendLog.Entry entry : activity) {
+				String when = FriendLog.ago(entry.time);
+				int whenW = Draw.width(when);
+				try {
+					Faces.draw(g, java.util.UUID.fromString(entry.friend), left + 8, y + 1, 10);
+				} catch (IllegalArgumentException e) {
+					// no face for a broken id
+				}
+				String name = Draw.fit(entry.name, Math.max(30, width / 3));
+				Draw.text(g, name, left + 23, y + 2, Theme.TEXT);
+				Draw.textFit(g, entry.what, width - 44 - Draw.width(name) - whenW, left + 27 + Draw.width(name), y + 2,
+						entry.what.startsWith("started hosting") ? Theme.ACCENT : Theme.MUTED);
+				Draw.text(g, when, left + width - 8 - whenW, y + 2, Theme.FAINT);
+				y += ACTIVITY_ROW;
 			}
 		}
 

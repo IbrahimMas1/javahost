@@ -69,7 +69,7 @@ public class HomePage extends Page {
 	}
 
 	private String state() {
-		StringBuilder s = new StringBuilder().append(HostController.isHosting()).append(HostController.guests().size())
+		StringBuilder s = new StringBuilder().append(com.javahost.client.host.QuickHost.version()).append(HostController.isHosting()).append(HostController.guests().size())
 				.append(Friends.incoming().size()).append(canHost()).append(InviteFlow.canInvite()).append(Friends.friends().size());
 		for (Friend f : Presence.onlineFriends()) {
 			s.append(f.id()).append(InviteFlow.status(f.id())).append(InviteFlow.joinable(f.id())).append(InviteFlow.playingTogether(f.id()))
@@ -118,11 +118,21 @@ public class HomePage extends Page {
 			add(new FlatButton(rightW, 18, Component.literal("Hosting options"), FlatButton.Style.SECONDARY, Icons.GEAR,
 					b -> screen.switchTo(JavaHostScreen.Tab.HOST)), rightX, y);
 		} else if (minecraft.level == null) {
-			add(new FlatButton(rightW, 26, Component.literal("Choose a world"), FlatButton.Style.PRIMARY, Icons.PLAY,
-					b -> minecraft.gui.setScreen(new net.minecraft.client.gui.screens.worldselection.SelectWorldScreen(screen))), rightX, y);
+			// The title screen: host the world you played last in one click, or pick another.
+			List<com.javahost.client.host.QuickHost.SavedWorld> worlds = com.javahost.client.host.QuickHost.worlds();
+			if (worlds.isEmpty()) {
+				add(new FlatButton(rightW, 26, Component.literal("Choose a world"), FlatButton.Style.PRIMARY, Icons.PLAY,
+						b -> minecraft.gui.setScreen(new net.minecraft.client.gui.screens.worldselection.SelectWorldScreen(screen))), rightX, y);
+			} else {
+				com.javahost.client.host.QuickHost.SavedWorld last = worlds.get(0);
+				FlatButton host = add(new FlatButton(rightW, 26, Component.literal("Host " + last.name()), FlatButton.Style.PRIMARY, Icons.HOST,
+						b -> com.javahost.client.host.QuickHost.host(last)), rightX, y);
+				host.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Draw.styled("Open " + last.name() + " and start hosting")));
+			}
 			y += 30;
-			add(new FlatButton(rightW, 18, Component.literal("Discover public worlds"), FlatButton.Style.SECONDARY, Icons.GLOBE,
-					b -> screen.switchTo(JavaHostScreen.Tab.DISCOVER)), rightX, y);
+			add(new FlatButton(rightW, 18, Component.literal(worlds.size() > 1 ? "Your worlds (" + worlds.size() + ")" : "Discover public worlds"),
+					FlatButton.Style.SECONDARY, worlds.size() > 1 ? Icons.FOLDER : Icons.GLOBE,
+					b -> screen.switchTo(worlds.size() > 1 ? JavaHostScreen.Tab.HOST : JavaHostScreen.Tab.DISCOVER)), rightX, y);
 		} else {
 			// In someone else's world.
 			add(new FlatButton(rightW, 26, Component.literal("Friends"), FlatButton.Style.PRIMARY, Icons.USERS,
@@ -137,7 +147,8 @@ public class HomePage extends Page {
 		friendsY = y;
 		y += 19;
 		List<Friend> online = new ArrayList<>(Presence.onlineFriends());
-		online.sort(java.util.Comparator.comparingInt((Friend f) -> InviteFlow.joinable(f.id()) ? 0 : InviteFlow.playingTogether(f.id()) ? 1 : 2)
+		online.sort(java.util.Comparator.comparing((Friend f) -> !com.javahost.client.friends.FriendLog.isFavourite(f.id()))
+				.thenComparingInt(f -> InviteFlow.joinable(f.id()) ? 0 : InviteFlow.playingTogether(f.id()) ? 1 : 2)
 				.thenComparing(f -> f.name().toLowerCase(java.util.Locale.ROOT)));
 		int room = Math.max(1, (heroH - y - 3) / FRIEND_ROW);
 		boolean overflow = online.size() > room;

@@ -281,6 +281,7 @@ public final class Presence {
 					body.has("players") ? body.get("players").getAsInt() : 0, body.has("max") ? body.get("max").getAsInt() : 0,
 					body.has("routes") ? Friends.routesFrom(body.getAsJsonArray("routes")) : List.of(), Friends.str(body, "hostIp"), ts);
 			LATEST.put(from, status);
+			FriendLog.seen(previous, status, friend.get().name());
 			if (body.has("jv")) {
 				VERSIONS.put(from, body.get("jv").getAsString());
 			}
