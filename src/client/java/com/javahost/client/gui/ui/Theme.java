@@ -10,7 +10,7 @@ public final class Theme {
 	public static final int GLASS_SIDEBAR = 0x9A0B0E13;
 	public static final int GLASS_EDGE = 0x30FFFFFF;
 	/** The full-screen hub: a dark tint over the blurred game, a darker sidebar, and the same tint without the game. */
-	public static final int HUB = 0xDE12161C;
+	public static final int HUB = 0xEC12161C;
 	public static final int HUB_SIDEBAR = 0x7A090C10;
 	public static final int HUB_SOLID = 0xFF14181E;
 	/** A lighter scrim behind glass windows, so the blur stays visible. */
