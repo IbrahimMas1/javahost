@@ -72,6 +72,13 @@ public class HostPage extends Page {
 		return HostController.isHosting() ? "Invite friends, or share the code." : "Your PC is the server. No rental.";
 	}
 
+	private static boolean startRequested;
+
+	/** Home's "Start hosting": the Host tab starts hosting as soon as it opens. */
+	public static void startWhenOpened() {
+		startRequested = true;
+	}
+
 	private boolean canHost() {
 		IntegratedServer server = minecraft.getSingleplayerServer();
 		return server != null && minecraft.player != null && com.javahost.compat.Compat.isOwner(server, minecraft.player);
@@ -548,6 +555,13 @@ public class HostPage extends Page {
 
 	@Override
 	public void tick() {
+		if (startRequested) {
+			startRequested = false;
+			if (canHost() && !HostController.isHosting()) {
+				start(); // "Start hosting" on Home: straight to work
+				return;
+			}
+		}
 		if (HostController.isHosting() != builtHosting) {
 			if (!builtHosting) {
 				section = Section.PLAYERS; // hosting just started: who's here matters most now

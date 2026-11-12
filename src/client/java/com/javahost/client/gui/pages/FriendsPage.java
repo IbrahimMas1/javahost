@@ -110,40 +110,9 @@ public class FriendsPage extends Page {
 		if (friends.isEmpty()) {
 			y += ROW;
 		}
-		boolean canInvite = InviteFlow.canInvite();
 		for (Friend friend : friends) {
 			add(new RowButton(width - 130, ROW - 2, Component.literal(friend.name()), b -> screen.openProfile(friend.id())), 2, y + 1);
-			Optional<Presence.Status> status = Presence.of(friend.id());
-			if (InviteFlow.playingTogether(friend.id())) {
-				FlatButton together = add(new FlatButton(64, 18, Component.literal("Here"), FlatButton.Style.SECONDARY, Icons.CHECK, b -> {
-				}), width - 96, y + 5);
-				together.active = false;
-				together.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("You're in the same world")));
-			} else if (InviteFlow.joinable(friend.id())) {
-				FlatButton join = add(new FlatButton(64, 18, Component.literal("Join"), FlatButton.Style.PRIMARY, Icons.JOIN,
-						b -> InviteFlow.join(status.get().asInvite(friend.name()))), width - 96, y + 5);
-				versionTooltip(join, friend);
-			} else {
-				boolean busyInviting = InviteFlow.busy(friend.id());
-				FlatButton invite = add(new FlatButton(64, 18, Component.literal(busyInviting ? "..." : "Invite"),
-						FlatButton.Style.PRIMARY, busyInviting ? null : Icons.PLAY, b -> {
-							InviteFlow.invite(friend);
-							screen.refresh();
-						}), width - 96, y + 5);
-				String other = Presence.otherMinecraft(friend.id());
-				invite.active = canInvite && !busyInviting && other == null;
-				if (canInvite) {
-					versionTooltip(invite, friend);
-				}
-				if (other != null) {
-					invite.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(friend.name() + " plays Minecraft "
-							+ other + ". Worlds can only be joined from the same Minecraft version.")));
-				}
-				if (!canInvite) {
-					invite.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
-							minecraft.level == null ? "Open one of your worlds to invite friends" : "You can only invite people into your own world")));
-				}
-			}
+			add(action(screen, friend, 64), width - 96, y + 5);
 			add(new FlatButton(22, 18, Component.empty(), FlatButton.Style.GHOST, Icons.CHAT, b -> screen.openChat(friend.id())),
 					width - 28, y + 5);
 			y += ROW;
@@ -220,6 +189,49 @@ public class FriendsPage extends Page {
 	}
 
 	/** Explains a version mismatch on a friend's Join/Invite button. */
+	/**
+	 * The button for playing with a friend right now: Join when they're hosting, Invite when we can, or "Here" when
+	 * they're already in our world. Shared with Home.
+	 */
+	public static FlatButton action(JavaHostScreen screen, Friend friend, int w) {
+		net.minecraft.client.Minecraft minecraft = net.minecraft.client.Minecraft.getInstance();
+		Optional<Presence.Status> status = Presence.of(friend.id());
+		if (InviteFlow.playingTogether(friend.id())) {
+			FlatButton together = new FlatButton(w, 18, Component.literal("Here"), FlatButton.Style.SECONDARY, Icons.CHECK, b -> {
+			});
+			together.active = false;
+			together.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("You're in the same world")));
+			return together;
+		}
+		if (InviteFlow.joinable(friend.id())) {
+			FlatButton join = new FlatButton(w, 18, Component.literal("Join"), FlatButton.Style.PRIMARY, Icons.JOIN,
+					b -> InviteFlow.join(status.get().asInvite(friend.name())));
+			versionTooltip(join, friend);
+			return join;
+		}
+		boolean canInvite = InviteFlow.canInvite();
+		boolean busyInviting = InviteFlow.busy(friend.id());
+		FlatButton invite = new FlatButton(w, 18, Component.literal(busyInviting ? "..." : "Invite"),
+				FlatButton.Style.PRIMARY, busyInviting ? null : Icons.PLAY, b -> {
+					InviteFlow.invite(friend);
+					screen.refresh();
+				});
+		String other = Presence.otherMinecraft(friend.id());
+		invite.active = canInvite && !busyInviting && other == null;
+		if (canInvite) {
+			versionTooltip(invite, friend);
+		}
+		if (other != null) {
+			invite.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(friend.name() + " plays Minecraft "
+					+ other + ". Worlds can only be joined from the same Minecraft version.")));
+		}
+		if (!canInvite) {
+			invite.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+					minecraft.level == null ? "Open one of your worlds to invite friends" : "You can only invite people into your own world")));
+		}
+		return invite;
+	}
+
 	private static void versionTooltip(FlatButton button, Friend friend) {
 		String note = Presence.versionNote(friend.id());
 		if (note != null) {
@@ -246,7 +258,7 @@ public class FriendsPage extends Page {
 	}
 
 	/** Friend face with an online dot in the corner. */
-	static void faceWithDot(GuiGraphicsExtractor g, java.util.UUID id, int x, int y, int size) {
+	public static void faceWithDot(GuiGraphicsExtractor g, java.util.UUID id, int x, int y, int size) {
 		Faces.draw(g, id, x, y, size);
 		Optional<Presence.Status> status = Presence.of(id);
 		int dot = status.isEmpty() ? Theme.FAINT : status.get().hosting() ? Theme.ACCENT
@@ -256,7 +268,7 @@ public class FriendsPage extends Page {
 	}
 
 	/** One line describing what a friend is up to. */
-	static String statusLine(Friend friend) {
+	public static String statusLine(Friend friend) {
 		if (InviteFlow.playingTogether(friend.id())) {
 			return "Playing with you";
 		}

@@ -77,7 +77,12 @@ public class JavaHostScreen extends BaseScreen {
 	}
 
 	private static Tab lastTab = Tab.HOME;
-	private static final int HEADER = 34;
+	private static final int HEADER = 36;
+	/** The sidebar's two groups; Settings and the account sit at the bottom. */
+	private static final List<Tab> PLAY = List.of(Tab.HOME, Tab.FRIENDS, Tab.HOST, Tab.DISCOVER);
+	private static final List<Tab> TOOLS = List.of(Tab.VOICE, Tab.SCREENSHOTS, Tab.PERFORMANCE, Tab.MODS);
+	/** Pages never get wider than this: on big screens they sit centred beside the sidebar. */
+	private static final int MAX_CONTENT = 440;
 
 	private final Screen parent;
 	private Tab tab;
@@ -107,6 +112,9 @@ public class JavaHostScreen extends BaseScreen {
 	private int contentY;
 	private int contentW;
 	private int contentH;
+	private boolean compact;
+	/** Where the sidebar's group names (or, with icons only, divider lines) go: label, y. */
+	private final List<Object[]> groupLabels = new ArrayList<>();
 
 	public JavaHostScreen(Screen parent) {
 		this(parent, lastTab.inSidebar() ? lastTab : Tab.HOME);
@@ -211,37 +219,42 @@ public class JavaHostScreen extends BaseScreen {
 			page = null;
 		}
 
-		// At most 480x310, and never more than ~96% of the screen wide, so big GUI scales keep a margin all round
-		// (wide enough on a laptop at GUI scale 3-4 for the sidebar to show names, not just icons).
-		winW = Math.min(480, Math.min(width - 16, Math.round(width * 0.96f)));
-		winH = Math.min(310, Math.min(height - 16, Math.round(height * 0.86f)));
-		winX = (width - winW) / 2;
-		winY = (height - winH) / 2;
-		int pad = winW < 440 ? 10 : 14;
-		// Names in the sidebar when pages still get at least 244 wide; otherwise just icons (names on hover).
-		boolean compact = winW - 108 - pad * 2 < 244;
-		sideW = compact ? 30 : 108;
-		contentX = winX + sideW + pad;
-		contentW = winX + winW - pad - contentX;
-		contentY = winY + HEADER + 10; // a little air between the header line and the first section
-		contentH = winY + winH - 10 - contentY;
+		// The hub fills the screen: the sidebar down the left, the page centred in the rest.
+		winX = 0;
+		winY = 0;
+		winW = width;
+		winH = height;
+		// Names in the sidebar unless the window is very narrow; then just icons (names on hover).
+		compact = width < 350;
+		sideW = compact ? 32 : Math.max(104, Math.min(132, width / 4));
+		int areaW = width - sideW;
+		int pad = areaW < 340 ? 12 : 18;
+		contentW = Math.min(areaW - pad * 2, MAX_CONTENT);
+		contentX = sideW + (areaW - contentW) / 2;
+		contentY = HEADER + 12; // a little air between the header line and the first section
+		contentH = height - 8 - contentY;
 
-		// Tabs share the height between the logo and the account row, so the sidebar never overflows the window.
-		int tabCount = (int) java.util.Arrays.stream(Tab.values()).filter(t -> t.inSidebar() && t != Tab.ACCOUNT).count();
-		int accountY = winY + winH - 28;
-		int tabTop = winY + 38;
-		int step = Math.max(14, Math.min(22, (accountY - 4 - tabTop) / tabCount));
+		// Sidebar: two groups share the height between the logo and the two rows pinned to the bottom.
+		groupLabels.clear();
+		int accountY = height - 28;
+		int tabTop = 34;
+		int tabsBottom = accountY - 4;
+		int rows = PLAY.size() + TOOLS.size() + 1;
+		boolean labels = (tabsBottom - tabTop - 2 * 13 - 6) / rows >= 16;
+		int headH = labels ? 13 : 5;
+		int step = Math.max(13, Math.min(22, (tabsBottom - tabTop - 2 * headH - 6) / rows));
 		int tabY = tabTop;
-		for (Tab t : Tab.values()) {
-			if (!t.inSidebar() || t == Tab.ACCOUNT) {
-				continue;
+		for (List<Tab> group : List.of(PLAY, TOOLS)) {
+			groupLabels.add(new Object[] {labels && !compact ? (group == PLAY ? "Play" : "Tools") : null, tabY + (labels ? 2 : 2)});
+			tabY += headH;
+			for (Tab t : group) {
+				sidebarWidgets.add(addWidget(new SidebarTab(6, tabY, sideW - 12, step - 2, t, compact)));
+				tabY += step;
 			}
-			SidebarTab button = new SidebarTab(winX + 6, tabY, sideW - 12, step - 2, t, compact);
-			sidebarWidgets.add(addWidget(button));
-			tabY += step;
 		}
-		// You, pinned to the bottom of the sidebar.
-		sidebarWidgets.add(addWidget(new SidebarTab(winX + 6, accountY, sideW - 12, 22, Tab.ACCOUNT, compact)));
+		// Settings and you, pinned to the bottom of the sidebar.
+		sidebarWidgets.add(addWidget(new SidebarTab(6, accountY - step, sideW - 12, step - 2, Tab.SETTINGS, compact)));
+		sidebarWidgets.add(addWidget(new SidebarTab(6, accountY, sideW - 12, 22, Tab.ACCOUNT, compact)));
 
 		if (page == null) {
 			page = tab.factory.get();
@@ -249,26 +262,26 @@ public class JavaHostScreen extends BaseScreen {
 		page.init(this, contentW);
 
 		// Top right of the window: notifications, then close. Top left of the page: back, when there's a way back.
-		FlatButton bell = new FlatButton(winX + winW - 58, winY + 8, 22, 18, Component.literal("Notifications"),
+		FlatButton bell = new FlatButton(width - 56, 9, 22, 18, Component.literal("Notifications"),
 				tab == Tab.NOTIFICATIONS ? FlatButton.Style.SECONDARY : FlatButton.Style.GHOST, Icons.BELL,
 				b -> switchTo(tab == Tab.NOTIFICATIONS ? beforeNotifications : Tab.NOTIFICATIONS)).iconOnly();
 		sidebarWidgets.add(addWidget(bell));
 		// Downloads: only while there are some; a ring on it shows how far they've got.
 		downloadsButton = null;
 		if (!com.javahost.client.mods.Downloads.jobs().isEmpty()) {
-			downloadsButton = new FlatButton(winX + winW - 84, winY + 8, 22, 18, Component.literal("Downloads"),
+			downloadsButton = new FlatButton(width - 82, 9, 22, 18, Component.literal("Downloads"),
 					popover instanceof DownloadsPopover ? FlatButton.Style.SECONDARY : FlatButton.Style.GHOST, Icons.DOWNLOAD,
 					b -> toggleDownloads()).iconOnly();
 			downloadsButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Downloads")));
 			sidebarWidgets.add(addWidget(downloadsButton));
 		}
 		hadDownloads = downloadsButton != null;
-		FlatButton close = new FlatButton(winX + winW - 32, winY + 8, 22, 18, Component.literal("Close"),
+		FlatButton close = new FlatButton(width - 30, 9, 22, 18, Component.literal("Close"),
 				FlatButton.Style.GHOST, Icons.CROSS, b -> close()).iconOnly();
 		close.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Close")));
 		sidebarWidgets.add(addWidget(close));
 		if (canGoBack()) {
-			FlatButton back = new FlatButton(contentX - 4, winY + 9, 18, 18, Component.literal("Back"),
+			FlatButton back = new FlatButton(contentX - 4, 10, 18, 18, Component.literal("Back"),
 					FlatButton.Style.GHOST, Icons.BACK, b -> goBack()).iconOnly();
 			back.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Back")));
 			sidebarWidgets.add(addWidget(back));
@@ -342,35 +355,43 @@ public class JavaHostScreen extends BaseScreen {
 		tabAnim = Draw.approach(tabAnim, 1, 0.35f);
 		layoutPage();
 
-		g.fill(0, 0, width, height, Theme.withAlpha(Theme.SCRIM_GLASS, openAnim));
+		// The hub: the blurred game behind a dark tint, a darker sidebar, and a soft glow of the accent colour on top.
+		g.fill(0, 0, width, height, Theme.withAlpha(Theme.HUB, openAnim));
+		g.fillGradient(sideW, 0, width, Math.min(height, 110), Theme.withAlpha(Theme.ACCENT, 0.11f * openAnim), Theme.withAlpha(Theme.ACCENT, 0));
 
-		// Open animation: the window grows slightly into place.
-		float scale = 0.94f + 0.06f * openAnim;
+		// Open animation: everything settles into place.
+		float scale = 0.975f + 0.025f * openAnim;
 		Draw.push(g);
 		Draw.translate(g, width / 2f, height / 2f);
 		Draw.scale(g, scale, scale);
 		Draw.translate(g, -width / 2f, -height / 2f);
 
-		Draw.glass(g, winX, winY, winW, winH, 10);
-		Draw.roundRect(g, winX + 1, winY + 1, sideW, winH - 2, 9, Theme.GLASS_SIDEBAR);
-		g.fill(winX + sideW - 8, winY + 1, winX + sideW + 1, winY + winH - 1, Theme.GLASS_SIDEBAR);
-		g.fill(winX + sideW + 1, winY + 1, winX + sideW + 2, winY + winH - 1, Theme.GLASS_EDGE);
+		g.fill(0, 0, sideW, height, Theme.HUB_SIDEBAR);
+		g.fill(sideW, 0, sideW + 1, height, Theme.GLASS_EDGE);
 
-		Icons.logo(g, winX + 9, winY + 9, 16);
-		if (sideW > 40) {
-			Draw.text(g, "JavaHost", winX + 31, winY + 13, Theme.TEXT);
+		Icons.logo(g, compact ? (sideW - 16) / 2 : 10, 9, 16);
+		if (!compact) {
+			Draw.text(g, "JavaHost", 32, 13, Theme.TEXT);
+		}
+		for (Object[] label : groupLabels) {
+			int y = (int) label[1];
+			if (label[0] != null) {
+				Draw.text(g, ((String) label[0]).toUpperCase(java.util.Locale.ROOT), 14, y + 1, Theme.FAINT);
+			} else if (y > 40) {
+				g.fill(10, y, sideW - 10, y + 1, Theme.withAlpha(Theme.BORDER, 0.8f)); // a line between the groups
+			}
 		}
 
 		// Page header (shifted right when there's a back button).
 		int titleX = canGoBack() ? contentX + 18 : contentX;
-		int titleW = contentX + contentW - (downloadsButton != null ? 88 : 62) - titleX;
+		int titleW = Math.min(contentX + contentW, width - (downloadsButton != null ? 90 : 64)) - titleX;
 		String title = Draw.fit(page.title(), (int) (titleW / 1.25f));
-		Draw.scaledText(g, title, titleX, winY + 10, 1.25f, Theme.TEXT);
+		Draw.scaledText(g, title, titleX, 11, 1.25f, Theme.TEXT);
 		if (!title.equals(page.title())) {
-			Draw.truncated(g, titleX, winY + 9, (int) (Draw.font().width(title) * 1.25f), 12, page.title());
+			Draw.truncated(g, titleX, 10, (int) (Draw.font().width(title) * 1.25f), 12, page.title());
 		}
-		Draw.textFit(g, page.subtitle(), titleW, titleX, winY + 24, Theme.MUTED);
-		g.fill(contentX, winY + HEADER + 2, contentX + contentW, winY + HEADER + 3, Theme.withAlpha(Theme.BORDER, 0.7f));
+		Draw.textFit(g, page.subtitle(), titleW, titleX, 25, Theme.MUTED);
+		g.fill(contentX, HEADER + 2, contentX + contentW, HEADER + 3, Theme.withAlpha(Theme.BORDER, 0.7f));
 
 		g.nextStratum();
 		drawTabIndicator(g);
@@ -379,7 +400,7 @@ public class JavaHostScreen extends BaseScreen {
 		}
 		int unread = Notifications.unread();
 		if (unread > 0 && tab != Tab.NOTIFICATIONS) {
-			badge(g, winX + winW - 40, winY + 6, unread);
+			badge(g, width - 38, 7, unread);
 		}
 		if (downloadsButton != null) {
 			float cx = downloadsButton.getX() + downloadsButton.getWidth() / 2f;
@@ -410,7 +431,7 @@ public class JavaHostScreen extends BaseScreen {
 		if (tabAnim < 0.99f) {
 			// The new page fades in as it slides.
 			g.nextStratum();
-			g.fill(contentX - 4, contentY, contentX + contentW + 4, contentY + contentH, Theme.withAlpha(Theme.WINDOW, (1 - tabAnim) * 0.9f));
+			g.fill(contentX - 4, contentY, contentX + contentW + 4, contentY + contentH, Theme.withAlpha(Theme.HUB_SOLID, (1 - tabAnim) * 0.9f));
 		}
 		g.disableScissor();
 		Draw.unclip();
@@ -418,7 +439,7 @@ public class JavaHostScreen extends BaseScreen {
 		if (maxScroll() > 0) {
 			int barH = Math.max(16, contentH * contentH / (contentH + maxScroll()));
 			int barY = contentY + Math.round((contentH - barH) * (scroll / maxScroll()));
-			Draw.roundRect(g, winX + winW - 7, barY, 3, barH, 1, Theme.FAINT);
+			Draw.roundRect(g, Math.min(width - 6, contentX + contentW + 6), barY, 3, barH, 1, Theme.FAINT);
 		}
 		if (tour != null) {
 			g.nextStratum();
@@ -492,7 +513,7 @@ public class JavaHostScreen extends BaseScreen {
 			popover = null;
 		} else if (downloadsButton != null) {
 			com.javahost.client.mods.Downloads.markSeen();
-			openPopover(new DownloadsPopover(winW - 8), downloadsButton);
+			openPopover(new DownloadsPopover(Math.min(winW - 8, contentW + 8)), downloadsButton);
 		}
 	}
 

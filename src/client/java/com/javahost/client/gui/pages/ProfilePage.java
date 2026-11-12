@@ -56,7 +56,7 @@ public class ProfilePage extends Page {
 		Config config = Config.get();
 		String id = friend.id().toString();
 
-		add(new PlayerSkinWidget(86, 126, minecraft.getEntityModels(), () -> Faces.skinOf(friend.id())), 5, 4);
+		add(com.javahost.client.gui.ui.IdleSkin.create(86, 126, friend.id(), false), 5, 4);
 
 		int right = 108;
 		int rightW = width - right;

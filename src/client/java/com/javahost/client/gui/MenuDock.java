@@ -142,7 +142,7 @@ public final class MenuDock {
 		}
 		int x = (room - skinW) / 2 + 6;
 		int y = height - 32 - skinH;
-		PlayerSkinWidget skin = new PlayerSkinWidget(skinW, skinH, minecraft.getEntityModels(), () -> Faces.skinOf(Identity.id()));
+		PlayerSkinWidget skin = com.javahost.client.gui.ui.IdleSkin.create(skinW, skinH, Identity.id(), true);
 		skin.setPosition(x, y);
 		widgets.add(skin);
 	}

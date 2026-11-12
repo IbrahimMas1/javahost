@@ -324,6 +324,83 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		}
 	}
 
+	/** 2.0: the hub's Home with friends online (made-up ones), at the laptop sizes; the 3D model's idle animation runs. */
+	@SuppressWarnings("unchecked")
+	private static void hubWithFriends(ClientGameTestContext context) {
+		record Pal(String name, com.javahost.client.friends.Presence.State state, String world, int players, int max) {
+		}
+		List<Pal> pals = List.of(new Pal("AlexPlays", com.javahost.client.friends.Presence.State.HOSTING, "Cherry Valley", 3, 8),
+				new Pal("LunaBuilds", com.javahost.client.friends.Presence.State.PLAYING, "", 0, 0),
+				new Pal("MossyMiner", com.javahost.client.friends.Presence.State.MENU, "", 0, 0),
+				new Pal("RedstoneRay", com.javahost.client.friends.Presence.State.MENU, "", 0, 0),
+				new Pal("PixelPip", com.javahost.client.friends.Presence.State.PLAYING, "", 0, 0));
+		List<java.util.UUID> added = new java.util.ArrayList<>();
+		List<com.javahost.client.friends.Friends.Friend>[] friends = new List[1];
+		java.util.Map<java.util.UUID, com.javahost.client.friends.Presence.Status>[] latest = new java.util.Map[1];
+		context.runOnClient(mc -> {
+			try {
+				var dataField = com.javahost.client.friends.Friends.class.getDeclaredField("data");
+				dataField.setAccessible(true);
+				Object data = dataField.get(null);
+				var friendsField = data.getClass().getDeclaredField("friends");
+				friendsField.setAccessible(true);
+				friends[0] = (List<com.javahost.client.friends.Friends.Friend>) friendsField.get(data);
+				var latestField = com.javahost.client.friends.Presence.class.getDeclaredField("LATEST");
+				latestField.setAccessible(true);
+				latest[0] = (java.util.Map<java.util.UUID, com.javahost.client.friends.Presence.Status>) latestField.get(null);
+				long now = System.currentTimeMillis();
+				String signKey = com.javahost.util.FriendCrypto.encodePublic(com.javahost.util.FriendCrypto.newSigningKeyPair().getPublic());
+				for (Pal pal : pals) {
+					java.util.UUID id = java.util.UUID.nameUUIDFromBytes(("hub-test:" + pal.name()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+					added.add(id);
+					friends[0].add(new com.javahost.client.friends.Friends.Friend(id, pal.name(), "", now, "", signKey));
+					List<com.javahost.client.friends.Friends.RouteInfo> routes = pal.state() == com.javahost.client.friends.Presence.State.HOSTING
+							? List.of(new com.javahost.client.friends.Friends.RouteInfo("Relay", "WORKING", "brave-otter.eu.e4mc.link")) : List.of();
+					latest[0].put(id, new com.javahost.client.friends.Presence.Status(id, pal.state(), pal.world(), pal.players(), pal.max(), routes, "", now));
+				}
+			} catch (Exception e) {
+				throw new AssertionError(e);
+			}
+		});
+		try {
+			int previous = context.computeOnClient(mc -> mc.options.guiScale().get());
+			for (int[] size : new int[][] {{1710, 1070, 4}, {1280, 800, 3}, {2000, 1250, 3}}) {
+				context.getInput().resizeWindow(size[0], size[1]);
+				context.runOnClient(mc -> {
+					mc.options.guiScale().set(size[2]);
+					TestCompat.resizeGui(mc);
+				});
+				context.setScreen(() -> new JavaHostScreen(null, Tab.HOME));
+				context.waitTicks(10);
+				context.takeScreenshot("hub-" + size[0] + "-s" + size[2] + "-home-friends");
+			}
+			check(settingsButton(context, "Join").widget() != null, "Home offers Join for a friend who's hosting");
+			check(com.javahost.client.gui.ui.IdleSkin.posedFrames() > 0, "the 3D model's idle animation runs");
+			// The head follows the mouse: one shot with it far left, one far right.
+			context.getInput().setCursorPos(40, 300);
+			context.waitTicks(30);
+			context.takeScreenshot("hub-skin-look-left");
+			context.getInput().setCursorPos(1900, 300);
+			context.waitTicks(30);
+			context.takeScreenshot("hub-skin-look-right");
+			context.setScreen(() -> new JavaHostScreen(null, Tab.FRIENDS));
+			context.waitTicks(8);
+			context.takeScreenshot("hub-2000-s3-friends");
+			context.setScreen(() -> null);
+			context.getInput().resizeWindow(854, 480);
+			context.runOnClient(mc -> {
+				mc.options.guiScale().set(previous);
+				TestCompat.resizeGui(mc);
+			});
+			context.waitTicks(4);
+		} finally {
+			context.runOnClient(mc -> {
+				friends[0].removeIf(f -> added.contains(f.id()));
+				added.forEach(latest[0]::remove);
+			});
+		}
+	}
+
 	/** UI review at the player's real setup: a 2000x1250 window at GUI scale 4 (and 3), every screen captured. */
 	private static void reviewAtScale(ClientGameTestContext context, int guiScale) {
 		reviewAtScale(context, guiScale, 2000, 1250);
@@ -1526,6 +1603,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		// A laptop-sized window, where the menu switches to its compact icon sidebar.
 		reviewAtScale(context, 4, 1710, 1070);
 		reviewAtScale(context, 3, 1280, 800);
+		hubWithFriends(context);
 		// A friend's profile on the laptop-sized window: every button must fit inside the window.
 		java.util.UUID alexId = java.util.UUID.nameUUIDFromBytes("Alex".getBytes());
 		context.runOnClient(mc -> {

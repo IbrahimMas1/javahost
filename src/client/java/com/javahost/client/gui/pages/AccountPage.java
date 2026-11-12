@@ -47,7 +47,7 @@ public class AccountPage extends Page {
 	protected void build() {
 		Config config = Config.get();
 		lastSignature = signature();
-		add(new PlayerSkinWidget(86, 126, minecraft.getEntityModels(), () -> Faces.skinOf(Identity.id())), 5, 4);
+		add(com.javahost.client.gui.ui.IdleSkin.create(86, 126, Identity.id(), false), 5, 4);
 		int right = 108;
 		int rightW = width - right;
 		int buttonW = (rightW - 6) / 2;
