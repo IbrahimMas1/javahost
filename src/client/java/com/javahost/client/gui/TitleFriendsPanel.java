@@ -142,7 +142,7 @@ public final class TitleFriendsPanel extends Button {
 		Draw.text(g, "Friends", x + 22, y + 7, Theme.TEXT);
 		if (online > 0) {
 			String count = String.valueOf(online);
-			int countX = x + W - 8 - Draw.font().width(count);
+			int countX = x + W - 8 - Draw.width(count);
 			Draw.roundRect(g, countX - 7, y + 8, 4, 4, 2, Theme.ACCENT);
 			Draw.text(g, count, countX, y + 7, Theme.MUTED);
 		}

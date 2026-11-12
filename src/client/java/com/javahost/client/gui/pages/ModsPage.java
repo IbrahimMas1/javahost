@@ -355,7 +355,7 @@ public class ModsPage extends Page {
 					button.active = false;
 				}
 				if (state == State.RESTART) {
-					button.setTooltip(Tooltip.create(Component.literal("Downloaded. Minecraft loads mods when it starts, so close it and press Play to use this.")));
+					button.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Downloaded. Minecraft loads mods when it starts, so close it and press Play to use this.")));
 				}
 			}
 			y += CARD;
@@ -513,14 +513,14 @@ public class ModsPage extends Page {
 		WebIcons.draw(g, project.iconUrl(), project.title(), left + 9, top + 9, 40);
 		int textX = left + 58;
 		int textW = width - 66;
-		String name = Draw.fit(project.title(), (int) (textW / 1.25f));
+		String name = Draw.fitScaled(project.title(), textW, 1.25f);
 		Draw.scaledText(g, name, textX, top + 9, 1.25f, Theme.TEXT);
 		Draw.textFit(g, downloads(project.downloads()) + (project.author().isEmpty() ? "" : " · by " + project.author()), textW, textX, top + 23,
 				Theme.MUTED);
 		int chipX = textX;
 		for (String c : project.categories()) {
 			String label = c.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + c.substring(1).replace('-', ' ');
-			int w = Draw.font().width(label) + 10;
+			int w = Draw.width(label) + 10;
 			if (chipX + w > left + width - 8) {
 				break;
 			}
@@ -613,7 +613,7 @@ public class ModsPage extends Page {
 							}
 							screen.refresh();
 						}).iconOnly(), width - 26, rowY + 8);
-				cross.setTooltip(Tooltip.create(Component.literal(job.active() ? "Cancel" : "Dismiss")));
+				cross.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled(job.active() ? "Cancel" : "Dismiss")));
 				rowY += JOB_ROW;
 			}
 			y = rowY + 6;
@@ -639,7 +639,7 @@ public class ModsPage extends Page {
 					}
 					screen.refresh();
 				}), width - 52, rowY + 3);
-				keep.setTooltip(Tooltip.create(Component.literal("Don't remove " + mod.name())));
+				keep.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Don't remove " + mod.name())));
 			} else {
 				String why = ModSets.staged() ? "Wait until your mod set switch is done" : BoostMods.cannotRemove(mod, installed, removing);
 				FlatButton remove = add(new FlatButton(20, 16, Component.literal("Remove"), FlatButton.Style.GHOST, Icons.TRASH, b -> {
@@ -652,7 +652,7 @@ public class ModsPage extends Page {
 					screen.refresh();
 				}).iconOnly(), width - 26, rowY + 3);
 				remove.active = why == null;
-				remove.setTooltip(Tooltip.create(Component.literal(why != null ? "Can't remove: " + why : "Remove " + mod.name())));
+				remove.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled(why != null ? "Can't remove: " + why : "Remove " + mod.name())));
 			}
 			rowY += INSTALLED_ROW;
 		}
@@ -710,7 +710,7 @@ public class ModsPage extends Page {
 			boolean leaving = removing.contains(mod.jarName());
 			Icons.PACKAGE.draw(g, left + 10, y + 5, Theme.MUTED);
 			String badge = leaving ? "Removed on restart" : mod.active() ? "Active" : "Restart needed";
-			int bw = Draw.font().width(badge) + 10;
+			int bw = Draw.width(badge) + 10;
 			int buttonW = leaving ? 52 : 28;
 			Draw.textFit(g, mod.name(), width - 40 - bw - buttonW, left + 28, y + 7, leaving ? Theme.MUTED : Theme.TEXT);
 			int bx = left + width - bw - 4 - buttonW;

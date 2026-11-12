@@ -86,7 +86,7 @@ public class PackOfferScreen extends BaseScreen {
 			(shader ? Icons.SPARKLE : Icons.PACKAGE).draw(g, boxX + 20, y + 5, shader ? Theme.INFO : Theme.ACCENT);
 			Draw.textFit(g, pack.name(), boxW - 120, boxX + 35, y + 6, Theme.TEXT);
 			String kind = shader ? "Shader" : String.format("%.1f MB", pack.size() / 1048576.0);
-			Draw.text(g, kind, boxX + boxW - 22 - Draw.font().width(kind), y + 6, Theme.MUTED);
+			Draw.text(g, kind, boxX + boxW - 22 - Draw.width(kind), y + 6, Theme.MUTED);
 			y += ROW;
 		}
 		if (packs.size() > 5) {

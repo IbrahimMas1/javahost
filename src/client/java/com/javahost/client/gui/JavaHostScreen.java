@@ -273,18 +273,18 @@ public class JavaHostScreen extends BaseScreen {
 			downloadsButton = new FlatButton(width - 82, 9, 22, 18, Component.literal("Downloads"),
 					popover instanceof DownloadsPopover ? FlatButton.Style.SECONDARY : FlatButton.Style.GHOST, Icons.DOWNLOAD,
 					b -> toggleDownloads()).iconOnly();
-			downloadsButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Downloads")));
+			downloadsButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Downloads")));
 			sidebarWidgets.add(addWidget(downloadsButton));
 		}
 		hadDownloads = downloadsButton != null;
 		FlatButton close = new FlatButton(width - 30, 9, 22, 18, Component.literal("Close"),
 				FlatButton.Style.GHOST, Icons.CROSS, b -> close()).iconOnly();
-		close.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Close")));
+		close.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Close")));
 		sidebarWidgets.add(addWidget(close));
 		if (canGoBack()) {
 			FlatButton back = new FlatButton(contentX - 4, 10, 18, 18, Component.literal("Back"),
 					FlatButton.Style.GHOST, Icons.BACK, b -> goBack()).iconOnly();
-			back.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Back")));
+			back.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Back")));
 			sidebarWidgets.add(addWidget(back));
 		}
 		if (scrollToBottom) {
@@ -378,7 +378,7 @@ public class JavaHostScreen extends BaseScreen {
 		for (Object[] label : groupLabels) {
 			int y = (int) label[1];
 			if (label[0] != null) {
-				Draw.text(g, ((String) label[0]).toUpperCase(java.util.Locale.ROOT), 14, y + 1, Theme.FAINT);
+				Draw.caps(g, (String) label[0], 14, y + 1, Theme.FAINT);
 			} else if (y > 40) {
 				g.fill(10, y, sideW - 10, y + 1, Theme.withAlpha(Theme.BORDER, 0.8f)); // a line between the groups
 			}
@@ -387,10 +387,10 @@ public class JavaHostScreen extends BaseScreen {
 		// Page header (shifted right when there's a back button).
 		int titleX = canGoBack() ? contentX + 18 : contentX;
 		int titleW = Math.min(contentX + contentW, width - (downloadsButton != null ? 90 : 64)) - titleX;
-		String title = Draw.fit(page.title(), (int) (titleW / 1.25f));
+		String title = Draw.fitScaled(page.title(), titleW, 1.25f);
 		Draw.scaledText(g, title, titleX, 11, 1.25f, Theme.TEXT);
 		if (!title.equals(page.title())) {
-			Draw.truncated(g, titleX, 10, (int) (Draw.font().width(title) * 1.25f), 12, page.title());
+			Draw.truncated(g, titleX, 10, (int) (Draw.width(title) * 1.25f), 12, page.title());
 		}
 		Draw.textFit(g, page.subtitle(), titleW, titleX, 25, Theme.MUTED);
 		g.fill(contentX, HEADER + 2, contentX + contentW, HEADER + 3, 0x16FFFFFF);
@@ -523,7 +523,7 @@ public class JavaHostScreen extends BaseScreen {
 	/** A small red count bubble. */
 	static void badge(GuiGraphicsExtractor g, int x, int y, int count) {
 		String text = count > 9 ? "9+" : String.valueOf(count);
-		int w = Math.max(9, Draw.font().width(text) + 5);
+		int w = Math.max(9, Draw.width(text) + 5);
 		Draw.roundRect(g, x - w / 2, y, w, 9, 4, Theme.DANGER);
 		Draw.centered(g, text, x, y + 1, 0xFFFFFFFF);
 	}
@@ -745,7 +745,7 @@ public class JavaHostScreen extends BaseScreen {
 			this.compact = compact;
 			if (compact) {
 				// Only icons fit: the name shows on hover.
-				setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(target == Tab.ACCOUNT ? "Your account" : target.label)));
+				setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled(target == Tab.ACCOUNT ? "Your account" : target.label)));
 			}
 		}
 

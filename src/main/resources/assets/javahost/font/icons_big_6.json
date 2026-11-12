@@ -1,0 +1,14 @@
+{
+	"providers": [
+		{
+			"type": "ttf",
+			"file": "javahost:lucide.ttf",
+			"size": 16.0,
+			"oversample": 6.0,
+			"shift": [
+				0.0,
+				0.0
+			]
+		}
+	]
+}

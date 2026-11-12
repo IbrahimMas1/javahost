@@ -124,7 +124,7 @@ public class PublicWorldScreen extends BaseScreen {
 				FlatButton.Style.SECONDARY, null, b -> onClose()));
 		FlatButton open = addRenderableWidget(new FlatButton(boxX + boxW - 16 - buttonW, boxY + boxH - 28, buttonW, 22,
 				Component.literal("Open to the public"), FlatButton.Style.PRIMARY, Icons.GLOBE, b -> open()));
-		open.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+		open.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled(
 				"Everyone with JavaHost will see your name, title and description. " + NOTE)));
 	}
 
@@ -155,8 +155,8 @@ public class PublicWorldScreen extends BaseScreen {
 		Draw.glass(g, boxX, boxY, boxW, boxH, 10);
 		Icons.GLOBE.draw(g, boxX + 16, boxY + 13, Theme.ACCENT);
 		Draw.scaledText(g, "Open to the public", boxX + 32, boxY + 13, 1.15f, Theme.TEXT);
-		int beta = boxX + 32 + (int) (Draw.font().width("Open to the public") * 1.15f) + 6;
-		Draw.roundRect(g, beta, boxY + 13, Draw.font().width("Beta") + 8, 11, 3, Theme.withAlpha(Theme.INFO, 0.2f));
+		int beta = boxX + 32 + (int) (Draw.width("Open to the public") * 1.15f) + 6;
+		Draw.roundRect(g, beta, boxY + 13, Draw.width("Beta") + 8, 11, 3, Theme.withAlpha(Theme.INFO, 0.2f));
 		Draw.text(g, "Beta", beta + 4, boxY + 15, Theme.INFO);
 
 		Draw.text(g, "Players (including you)", boxX + 16, playersY + 5, Theme.TEXT);

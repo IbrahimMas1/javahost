@@ -77,7 +77,7 @@ public abstract class Popover {
 		return new Popover() {
 			@Override
 			public int width() {
-				int widest = items.stream().mapToInt(i -> Draw.font().width(i.label()) + (i.note().isEmpty() ? 0 : Draw.font().width(i.note()) + 10))
+				int widest = items.stream().mapToInt(i -> Draw.width(i.label()) + (i.note().isEmpty() ? 0 : Draw.width(i.note()) + 10))
 						.max().orElse(40);
 				return Math.max(96, widest + 34);
 			}
@@ -110,7 +110,7 @@ public abstract class Popover {
 					}
 					Draw.text(g, item.label(), x + 24, rowY + (ITEM - 8) / 2, color);
 					if (!item.note().isEmpty()) {
-						Draw.text(g, item.note(), x + width() - 8 - Draw.font().width(item.note()), rowY + (ITEM - 8) / 2,
+						Draw.text(g, item.note(), x + width() - 8 - Draw.width(item.note()), rowY + (ITEM - 8) / 2,
 								item.note().equals("✓") ? Theme.ACCENT : Theme.FAINT);
 					}
 				}

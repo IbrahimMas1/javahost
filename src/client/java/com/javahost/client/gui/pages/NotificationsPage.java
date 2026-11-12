@@ -71,7 +71,7 @@ public class NotificationsPage extends Page {
 				Notifications.remove(item);
 				screen.refresh();
 			}).iconOnly(), width - 24, y + (h - 16) / 2);
-			dismiss.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Dismiss")));
+			dismiss.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Dismiss")));
 			y += h;
 		}
 		reserve(Math.max(y, 60) + 10);
@@ -111,7 +111,7 @@ public class NotificationsPage extends Page {
 						WorldShare.dismiss(transfer);
 						screen.refresh();
 					}).iconOnly(), width - 24, y + (TRANSFER_ROW - 16) / 2);
-					dismiss.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Dismiss")));
+					dismiss.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Dismiss")));
 				}
 				default -> {
 				}

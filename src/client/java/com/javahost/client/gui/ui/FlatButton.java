@@ -125,7 +125,7 @@ public class FlatButton extends Button {
 		if (!shown.equals(label)) {
 			Draw.truncated(g, x, y, w, h, label); // full label on hover
 		}
-		int contentWidth = iconSpace + Draw.font().width(shown);
+		int contentWidth = iconSpace + Draw.width(shown);
 		int cx = x + (w - contentWidth) / 2;
 		int cy = y + (h - 8) / 2;
 		if (icon != null) {

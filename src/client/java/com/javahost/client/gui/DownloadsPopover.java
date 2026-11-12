@@ -43,7 +43,7 @@ final class DownloadsPopover extends Popover {
 	}
 
 	private int[] clearBounds() {
-		int cw = Draw.font().width("Clear") + 8;
+		int cw = Draw.width("Clear") + 8;
 		return new int[] {x + w - 6 - cw, y + 4, cw, 12};
 	}
 

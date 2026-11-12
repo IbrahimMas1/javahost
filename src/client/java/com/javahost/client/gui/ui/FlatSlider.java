@@ -48,7 +48,7 @@ public class FlatSlider extends AbstractSliderButton {
 		int w = getWidth();
 		String valueText = format.apply(actual());
 		Draw.text(g, label, x, y + 1, active ? Theme.TEXT : Theme.FAINT);
-		Draw.text(g, valueText, x + w - Draw.font().width(valueText), y + 1, active ? Theme.MUTED : Theme.FAINT);
+		Draw.text(g, valueText, x + w - Draw.width(valueText), y + 1, active ? Theme.MUTED : Theme.FAINT);
 
 		int trackY = y + 15;
 		Draw.roundRect(g, x, trackY, w, 4, 2, Theme.FIELD);

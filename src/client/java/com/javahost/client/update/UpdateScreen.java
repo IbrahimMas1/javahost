@@ -87,7 +87,7 @@ public class UpdateScreen extends com.javahost.client.gui.BaseScreen {
 	@Override
 	protected void init() {
 		boxW = Math.min(width - 20, 300);
-		List<FormattedCharSequence> lines = Draw.font().split(Component.literal(body()), boxW - 32);
+		List<FormattedCharSequence> lines = Draw.split(body(), boxW - 32);
 		int maxLines = Math.max(3, (height - 120) / 10);
 		boxH = 52 + Math.min(lines.size(), maxLines) * 10 + (stage == Stage.DOWNLOADING ? 14 : 0) + 40;
 		boxX = (width - boxW) / 2;
@@ -165,19 +165,19 @@ public class UpdateScreen extends com.javahost.client.gui.BaseScreen {
 				? Theme.WARNING : Theme.ACCENT;
 		Draw.roundRect(g, boxX + 16, boxY + 16, 22, 22, 6, Theme.withAlpha(iconColor, 0.18f));
 		icon.drawCentred(g, boxX + 27, boxY + 27, 14, iconColor);
-		Draw.scaledText(g, Draw.fit(headline(), (int) ((boxW - 64) / 1.15f)), boxX + 46, boxY + 22, 1.15f, Theme.TEXT);
+		Draw.scaledText(g, Draw.fitScaled(headline(), (boxW - 64), 1.15f), boxX + 46, boxY + 22, 1.15f, Theme.TEXT);
 
-		List<FormattedCharSequence> lines = Draw.font().split(Component.literal(body()), boxW - 32);
+		List<FormattedCharSequence> lines = Draw.split(body(), boxW - 32);
 		int maxLines = Math.max(3, (height - 120) / 10);
 		int y = boxY + 50;
 		for (int i = 0; i < Math.min(lines.size(), maxLines); i++) {
-			g.text(Draw.font(), lines.get(i), boxX + 16, y, Theme.MUTED, false);
+			Draw.text(g, lines.get(i), boxX + 16, y, Theme.MUTED);
 			y += 10;
 		}
 		if (stage == Stage.DOWNLOADING) {
 			Draw.roundRect(g, boxX + 16, y + 6, boxW - 32, 5, 2, Theme.FIELD);
 			Draw.roundRect(g, boxX + 16, y + 6, Math.max(5, (int) Math.round((boxW - 32) * progress)), 5, 2, Theme.ACCENT);
-			Draw.text(g, Math.round(progress * 100) + "%", boxX + boxW - 16 - Draw.font().width(Math.round(progress * 100) + "%"), boxY + boxH - 26, Theme.FAINT);
+			Draw.text(g, Math.round(progress * 100) + "%", boxX + boxW - 16 - Draw.width(Math.round(progress * 100) + "%"), boxY + boxH - 26, Theme.FAINT);
 		}
 		g.nextStratum();
 		super.extractRenderState(g, mouseX, mouseY, a);

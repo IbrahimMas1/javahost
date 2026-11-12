@@ -42,7 +42,7 @@ public class Segmented<T> extends AbstractWidget {
 		int[] text = new int[n];
 		int sum = 0;
 		for (int i = 0; i < n; i++) {
-			text[i] = Draw.font().width(labels.apply(options.get(i))) + 8;
+			text[i] = Draw.width(labels.apply(options.get(i))) + 8;
 			sum += text[i];
 		}
 		int[] edges = new int[n + 1];

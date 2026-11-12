@@ -131,7 +131,7 @@ public abstract class Page {
 	}
 
 	protected static void sectionLabel(GuiGraphicsExtractor g, String text, int x, int y) {
-		Draw.text(g, text.toUpperCase(java.util.Locale.ROOT), x, y, Theme.FAINT);
+		Draw.caps(g, text, x, y, Theme.FAINT);
 	}
 
 	/** A coloured dot followed by text. */
@@ -161,7 +161,7 @@ public abstract class Page {
 	}
 
 	private static java.util.List<net.minecraft.util.FormattedCharSequence> lines(String text, int width) {
-		return WRAPPED.computeIfAbsent(width + "|" + text, k -> Draw.font().split(Component.literal(text), width));
+		return WRAPPED.computeIfAbsent(width + "|" + text, k -> Draw.split(text, width));
 	}
 
 	protected static int wrappedHeight(String text, int width) {
@@ -171,7 +171,7 @@ public abstract class Page {
 	protected static int wrap(GuiGraphicsExtractor g, String text, int x, int y, int width, int color) {
 		int lineY = y;
 		for (net.minecraft.util.FormattedCharSequence line : lines(text, width)) {
-			g.text(Draw.font(), line, x, lineY, color, false);
+			Draw.text(g, line, x, lineY, color);
 			lineY += 10;
 		}
 		return lineY - y;

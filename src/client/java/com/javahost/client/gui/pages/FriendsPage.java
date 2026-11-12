@@ -93,10 +93,10 @@ public class FriendsPage extends Page {
 						b -> Friends.accept(request)), width - 92, y + 6);
 				FlatButton decline = add(new FlatButton(18, 16, Component.literal("Decline"), FlatButton.Style.GHOST, Icons.CROSS,
 						b -> Friends.decline(request)).iconOnly(), width - 26, y + 6);
-				decline.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Decline")));
+				decline.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Decline")));
 				FlatButton block = add(new FlatButton(44, 16, Component.literal("Block"), FlatButton.Style.GHOST, null,
 						b -> Friends.block(request.id(), request.name())), width - 140, y + 6);
-				block.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+				block.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled(
 						"They can't send you requests or messages, or join your worlds. Undo in Settings.")));
 				y += ROW;
 			}
@@ -200,7 +200,7 @@ public class FriendsPage extends Page {
 			FlatButton together = new FlatButton(w, 18, Component.literal("Here"), FlatButton.Style.SECONDARY, Icons.CHECK, b -> {
 			});
 			together.active = false;
-			together.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("You're in the same world")));
+			together.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled("You're in the same world")));
 			return together;
 		}
 		if (InviteFlow.joinable(friend.id())) {
@@ -222,11 +222,11 @@ public class FriendsPage extends Page {
 			versionTooltip(invite, friend);
 		}
 		if (other != null) {
-			invite.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(friend.name() + " plays Minecraft "
+			invite.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled(friend.name() + " plays Minecraft "
 					+ other + ". Worlds can only be joined from the same Minecraft version.")));
 		}
 		if (!canInvite) {
-			invite.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+			invite.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled(
 					minecraft.level == null ? "Open one of your worlds to invite friends" : "You can only invite people into your own world")));
 		}
 		return invite;
@@ -237,7 +237,7 @@ public class FriendsPage extends Page {
 		if (note != null) {
 			String advice = note.startsWith("Needs") ? friend.name() + " should run the latest JavaHost installer."
 					: "Run the latest JavaHost installer to update.";
-			button.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+			button.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled(
 					friend.name() + ": " + note + ". Some features (party voice, fast sending) need the same version. " + advice)));
 		}
 	}
@@ -249,7 +249,7 @@ public class FriendsPage extends Page {
 			return;
 		}
 		String text = note.startsWith("Needs") ? "Needs update" : "Update JavaHost";
-		int w = Draw.font().width(text) + 8;
+		int w = Draw.width(text) + 8;
 		if (w > room) {
 			return;
 		}
@@ -331,7 +331,7 @@ public class FriendsPage extends Page {
 			faceWithDot(g, friend.id(), left + 8, y + 5, 18);
 			String name = Draw.fit(friend.name(), width - 140);
 			Draw.text(g, name, left + 32, y + 5, Theme.TEXT);
-			versionChip(g, friend.id(), left + 36 + Draw.font().width(name), y + 4, width - 176 - Draw.font().width(name));
+			versionChip(g, friend.id(), left + 36 + Draw.width(name), y + 4, width - 176 - Draw.width(name));
 			String invite = InviteFlow.status(friend.id());
 			String line = invite != null ? invite : statusLine(friend);
 			int color = invite != null

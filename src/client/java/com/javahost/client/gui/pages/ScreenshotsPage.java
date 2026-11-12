@@ -143,7 +143,7 @@ public class ScreenshotsPage extends Page {
 			// Send shortcut in the corner, shown while the thumbnail is hovered.
 			FlatButton send = add(new FlatButton(16, 14, Component.literal("Send"), FlatButton.Style.PRIMARY, Icons.SEND,
 					b -> open(file, true)).iconOnly(), x + cellW - 19, y + 3);
-			send.setTooltip(Tooltip.create(Component.literal("Send to a friend")));
+			send.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Send to a friend")));
 			send.visible = false;
 			thumbSends.add(send);
 		}

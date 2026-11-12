@@ -996,6 +996,11 @@ public enum Icons {
 	 * alignment keeps lines thinnest, so strokes that start on odd pixels don't merge into blobs.
 	 */
 	private final boolean[][] small = new boolean[GRID / 2][GRID / 2];
+	/** The icon as rectangles to fill: its lines, and the area they enclose; for the full grid and the half one. */
+	private final int[][] lines;
+	private final int[][] inside;
+	private final int[][] smallLines;
+	private final int[][] smallInside;
 	/** Centre of the drawn pixels (not the grid), in grid units, so every icon sits visually centred. */
 	private final float centreX;
 	private final float centreY;
@@ -1048,6 +1053,10 @@ public enum Icons {
 				}
 			}
 		}
+		lines = rectangles(pixels);
+		inside = rectangles(enclosed(pixels));
+		smallLines = rectangles(small);
+		smallInside = rectangles(enclosed(small));
 		float[] full = centre(pixels);
 		float[] half = centre(small);
 		centreX = full[0];
@@ -1079,6 +1088,39 @@ public enum Icons {
 		draw(g, x, y, SIZE, color);
 	}
 
+	private net.minecraft.util.FormattedCharSequence[] glyphs;
+
+	/**
+	 * The smooth version: this icon's glyph in the bundled Lucide font (code point U+E000 + the icon's position in
+	 * this enum, the order scripts/gen-fonts.py writes them in). The font comes in two sizes, each drawn at one screen
+	 * pixel per font pixel, so the usual sizes are perfectly sharp; anything else is scaled from the nearer one.
+	 */
+	private void drawSmooth(GuiGraphicsExtractor g, float cx, float cy, int box, int color) {
+		float guiScale = (float) Minecraft.getInstance().getWindow().getGuiScale();
+		float wanted = box <= SIZE + 1 ? Fonts.ICON_SIZE : box + 1;
+		boolean big = wanted >= 14.5f;
+		float base = big ? Fonts.ICON_BIG_SIZE : Fonts.ICON_SIZE;
+		float scale = Math.abs(wanted - base) < 1.2f ? 1 : wanted / base;
+		int slot = Math.max(1, Math.min(6, Math.round(guiScale))) * 2 + (big ? 1 : 0);
+		if (glyphs == null) {
+			glyphs = new net.minecraft.util.FormattedCharSequence[14];
+		}
+		if (glyphs[slot] == null) {
+			glyphs[slot] = net.minecraft.util.FormattedCharSequence.forward(String.valueOf((char) (0xE000 + ordinal())), Fonts.icons(big));
+		}
+		// Each glyph is centred in its square, half the font's size above the text baseline (7 below the origin).
+		// Snap to whole screen pixels so the glyph's own pixels land exactly on the screen's.
+		float ox = Math.round((cx - scale * base / 2f) * guiScale) / guiScale;
+		float oy = Math.round((cy - scale * (7 - base / 2f)) * guiScale) / guiScale;
+		Draw.push(g);
+		Draw.translate(g, ox, oy);
+		if (scale != 1) {
+			Draw.scale(g, scale, scale);
+		}
+		g.text(Draw.font(), glyphs[slot], 0, 0, color, false);
+		Draw.pop(g);
+	}
+
 	/** Draws the icon centred in a {@code box}×{@code box} area at (x, y), as big as stays crisp. */
 	public void draw(GuiGraphicsExtractor g, int x, int y, int box, int color) {
 		drawCentred(g, x + box / 2f, y + box / 2f, box, color);
@@ -1089,6 +1131,10 @@ public enum Icons {
 	 * size where every icon pixel is a whole number of screen pixels (so it's always crisp).
 	 */
 	public void drawCentred(GuiGraphicsExtractor g, float cx, float cy, int box, int color) {
+		if (Fonts.smooth()) {
+			drawSmooth(g, cx, cy, box, color);
+			return;
+		}
 		float guiScale = (float) Minecraft.getInstance().getWindow().getGuiScale();
 		// The full 24px grid, each icon pixel a whole number (k) of screen pixels so it's crisp. The half grid
 		// loses detail (thin diagonals like Wi-Fi arcs blur together), so it's only used when even one screen
@@ -1097,8 +1143,6 @@ public enum Icons {
 		int kHalf = Math.max(1, Math.round(box * guiScale / (GRID / 2f)));
 		float fullSize = GRID * kFull / guiScale;
 		boolean useHalf = fullSize > box * 1.6f;
-		boolean[][] grid = useHalf ? small : pixels;
-		int n = useHalf ? GRID / 2 : GRID;
 		int k = useHalf ? kHalf : kFull;
 		float unit = k / guiScale;
 		// Put the drawn pixels' centre on (cx, cy), snapped to whole screen pixels.
@@ -1107,22 +1151,84 @@ public enum Icons {
 		Draw.push(g);
 		Draw.translate(g, ox, oy);
 		Draw.scale(g, unit, unit);
-		for (int row = 0; row < n; row++) {
-			int col = 0;
-			while (col < n) {
-				if (!grid[row][col]) {
-					col++;
-					continue;
-				}
-				int start = col;
-				while (col < n && grid[row][col]) {
-					col++;
-				}
-				// One fill per horizontal run keeps this cheap.
-				g.fill(start, row, col, row + 1, color);
-			}
+		// Two tones: the shape's inside in a see-through wash of the same colour, then its lines on top. Both are
+		// worked out once per icon as a few rectangles, so drawing one is a couple of dozen fills.
+		int wash = (color & 0xFFFFFF) | (Math.round((color >>> 24) * 0.26f) << 24);
+		for (int[] r : useHalf ? smallInside : inside) {
+			g.fill(r[0], r[1], r[2], r[3], wash);
+		}
+		for (int[] r : useHalf ? smallLines : lines) {
+			g.fill(r[0], r[1], r[2], r[3], color);
 		}
 		Draw.pop(g);
+	}
+
+	/** The cells an icon's lines close off from the outside (a house's walls, a bell's body): what gets the wash. */
+	private static boolean[][] enclosed(boolean[][] grid) {
+		int n = grid.length;
+		boolean[][] outside = new boolean[n][n];
+		java.util.ArrayDeque<int[]> queue = new java.util.ArrayDeque<>();
+		for (int i = 0; i < n; i++) {
+			for (int[] edge : new int[][] {{0, i}, {n - 1, i}, {i, 0}, {i, n - 1}}) {
+				if (!grid[edge[0]][edge[1]] && !outside[edge[0]][edge[1]]) {
+					outside[edge[0]][edge[1]] = true;
+					queue.add(edge);
+				}
+			}
+		}
+		while (!queue.isEmpty()) {
+			int[] cell = queue.poll();
+			for (int[] step : new int[][] {{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+				int y = cell[0] + step[0];
+				int x = cell[1] + step[1];
+				if (y >= 0 && x >= 0 && y < n && x < n && !grid[y][x] && !outside[y][x]) {
+					outside[y][x] = true;
+					queue.add(new int[] {y, x});
+				}
+			}
+		}
+		boolean[][] inside = new boolean[n][n];
+		for (int y = 0; y < n; y++) {
+			for (int x = 0; x < n; x++) {
+				inside[y][x] = !grid[y][x] && !outside[y][x];
+			}
+		}
+		return inside;
+	}
+
+	/** The set cells of {@code grid} as a few rectangles (x0, y0, x1, y1): runs along each row, joined down the rows. */
+	private static int[][] rectangles(boolean[][] grid) {
+		int n = grid.length;
+		boolean[][] used = new boolean[n][n];
+		java.util.List<int[]> out = new java.util.ArrayList<>();
+		for (int y = 0; y < n; y++) {
+			for (int x = 0; x < n; x++) {
+				if (!grid[y][x] || used[y][x]) {
+					continue;
+				}
+				int x1 = x;
+				while (x1 < n && grid[y][x1] && !used[y][x1]) {
+					x1++;
+				}
+				int y1 = y + 1;
+				grow:
+				while (y1 < n) {
+					for (int i = x; i < x1; i++) {
+						if (!grid[y1][i] || used[y1][i]) {
+							break grow;
+						}
+					}
+					y1++;
+				}
+				for (int j = y; j < y1; j++) {
+					for (int i = x; i < x1; i++) {
+						used[j][i] = true;
+					}
+				}
+				out.add(new int[] {x, y, x1, y1});
+			}
+		}
+		return out.toArray(new int[0][]);
 	}
 
 	/** The JavaHost logo: a green rounded tile with a "J". */
@@ -1130,7 +1236,7 @@ public enum Icons {
 		Draw.roundRect(g, x, y, size, size, Math.max(2, size / 4), Theme.ACCENT);
 		Draw.roundRect(g, x + 1, y + 1, size - 2, size / 2, Math.max(1, size / 4 - 1), Theme.withAlpha(0xFFFFFFFF, 0.12f));
 		float scale = size / 12f;
-		int glyph = Draw.font().width("J");
+		int glyph = Draw.width("J");
 		Draw.scaledText(g, "J", Math.round(x + (size - glyph * scale) / 2f + scale * 0.5f), Math.round(y + (size - 8 * scale) / 2f + scale * 0.5f), scale, Theme.ON_ACCENT);
 	}
 }

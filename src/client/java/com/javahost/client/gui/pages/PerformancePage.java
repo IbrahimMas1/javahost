@@ -212,7 +212,7 @@ public class PerformancePage extends Page {
 		com.javahost.client.gui.ui.WebIcons.draw(g, icons == null ? "" : icons.getOrDefault(mod.slug(), ""), mod.name(), left + 7, y + 5, 20);
 		Draw.text(g, mod.name(), left + 34, y + 5, Theme.TEXT);
 		String badge = loaded ? "Active" : "Restart needed";
-		int bw = Draw.font().width(badge) + 10;
+		int bw = Draw.width(badge) + 10;
 		int reserved = installed ? bw + 16 : 80;
 		Draw.textFit(g, mod.benefit(), width - 34 - reserved, left + 34, y + 16, Theme.MUTED);
 		if (installed) {

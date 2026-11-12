@@ -93,7 +93,7 @@ final class WelcomeTour {
 		}
 		Draw.glass(g, cardX, cardY, cardW, cardH, 8);
 		Step step = steps.get(index);
-		Draw.scaledText(g, Draw.fit(step.title(), (int) ((cardW - 24) / 1.15f)), cardX + 12, cardY + 10, 1.15f, Theme.TEXT);
+		Draw.scaledText(g, Draw.fitScaled(step.title(), (cardW - 24), 1.15f), cardX + 12, cardY + 10, 1.15f, Theme.TEXT);
 		Draw.wrapped(g, Component.literal(step.body()), cardX + 12, cardY + 26, cardW - 24, Theme.MUTED);
 		// Step dots.
 		for (int i = 0; i < steps.size(); i++) {

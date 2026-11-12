@@ -18,7 +18,7 @@ public class Chip extends Button {
 	}
 
 	public static int width(String label) {
-		return Draw.font().width(label) + 12;
+		return Draw.width(label) + 12;
 	}
 
 	@Override

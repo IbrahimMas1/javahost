@@ -93,7 +93,7 @@ public class AccountPage extends Page {
 		g.disableScissor();
 		int right = left + 108;
 		int rightW = width - 108;
-		Draw.scaledText(g, Draw.fit(Identity.name(), (int) (rightW / 1.5f)), right, top + 2, 1.5f, Theme.TEXT);
+		Draw.scaledText(g, Draw.fitScaled(Identity.name(), rightW, 1.5f), right, top + 2, 1.5f, Theme.TEXT);
 		if (Identity.canSign()) {
 			Icons.CHECK.draw(g, right, top + 18, Theme.ACCENT);
 			Draw.textFit(g, "Microsoft account", rightW - 14, right + 13, top + 19, Theme.ACCENT);

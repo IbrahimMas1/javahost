@@ -74,7 +74,7 @@ public class ReportScreen extends BaseScreen {
 		g.fill(0, 0, width, height, Theme.SCRIM_GLASS);
 		Draw.glass(g, boxX, boxY, boxW, boxH, 10);
 		Faces.draw(g, host, boxX + 16, boxY + 14, 18);
-		Draw.scaledText(g, Draw.fit("Report " + name, (int) ((boxW - 60) / 1.15f)), boxX + 40, boxY + 14, 1.15f, Theme.TEXT);
+		Draw.scaledText(g, Draw.fitScaled("Report " + name, (boxW - 60), 1.15f), boxX + 40, boxY + 14, 1.15f, Theme.TEXT);
 		Draw.text(g, "What's wrong?", boxX + 40, boxY + 28, Theme.MUTED);
 		g.nextStratum();
 		super.extractRenderState(g, mouseX, mouseY, a);

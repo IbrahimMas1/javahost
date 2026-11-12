@@ -136,7 +136,7 @@ public class HostPage extends Page {
 				b -> start()), width - 128, (HERO_H - 24) / 2);
 		start.active = ready;
 		if (!ready) {
-			start.setTooltip(Tooltip.create(Component.literal("Open one of your singleplayer worlds first")));
+			start.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Open one of your singleplayer worlds first")));
 		}
 		return HERO_H + (error != null ? 16 : 0) + 10;
 	}
@@ -306,7 +306,7 @@ public class HostPage extends Page {
 		FlatButton open = add(new FlatButton(width, 18, Component.literal("Open to the public (Beta)"), FlatButton.Style.SECONDARY, Icons.GLOBE,
 				b -> minecraft.gui.setScreen(new com.javahost.client.gui.PublicWorldScreen(screen))), 0, y + 10);
 		open.active = problem == null;
-		open.setTooltip(Tooltip.create(Component.literal(problem != null ? problem
+		open.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled(problem != null ? problem
 				: "List your world so anyone with JavaHost can find it in Discover. Strangers visit until you trust them.")));
 		return y + 24;
 	}
@@ -387,10 +387,10 @@ public class HostPage extends Page {
 			if (!WorldShare.reachableFriends().isEmpty()) {
 				FlatButton send = add(new FlatButton(18, 16, Component.literal("Send"), FlatButton.Style.GHOST, Icons.UPLOAD,
 						b -> openPicker(null, backup.file())).iconOnly(), width - (confirming ? 106 : 74) - 22, rowY + 3);
-				send.setTooltip(Tooltip.create(Component.literal("Send this backup to a friend in this world")));
+				send.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Send this backup to a friend in this world")));
 			}
 			restore.active = !worldOpen;
-			restore.setTooltip(Tooltip.create(Component.literal(worldOpen ? "Leave the world to restore a backup"
+			restore.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled(worldOpen ? "Leave the world to restore a backup"
 					: "Your current \"" + backup.world() + "\" is kept as a copy, then this backup takes its place")));
 			rowY += BACKUP_ROW;
 		}
@@ -486,10 +486,10 @@ public class HostPage extends Page {
 										HostController.setGameMode(guest.id(), m);
 										screen.refresh();
 									}).selected(m == current)).toList()), b)), width - 100, y + 5);
-			modeButton.setTooltip(Tooltip.create(Component.literal("Game mode for " + guest.name())));
+			modeButton.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Game mode for " + guest.name())));
 			FlatButton more = add(new FlatButton(22, 18, Component.literal("More"), FlatButton.Style.GHOST, Icons.MORE,
 					b -> screen.openPopover(com.javahost.client.gui.ui.Popover.menu(playerActions(guest)), b)).iconOnly(), width - 26, y + 5);
-			more.setTooltip(Tooltip.create(Component.literal("More for " + guest.name())));
+			more.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled("More for " + guest.name())));
 			y += PLAYER_ROW;
 		}
 		if (guests.isEmpty()) {
@@ -520,11 +520,11 @@ public class HostPage extends Page {
 	/** The invite code is never cut: it's drawn smaller when the window is narrow, leaving room for the copy button. */
 	private float inviteScale(String invite) {
 		int room = width - 132 - 12 - 24;
-		return Math.max(0.75f, Math.min(1.5f, room / (float) Math.max(1, Draw.font().width(invite))));
+		return Math.max(0.75f, Math.min(1.5f, room / (float) Math.max(1, Draw.width(invite))));
 	}
 
 	private int inviteWidth(String invite) {
-		return (int) (Draw.font().width(invite) * inviteScale(invite));
+		return (int) (Draw.width(invite) * inviteScale(invite));
 	}
 
 	private void copy(String value) {
@@ -656,7 +656,7 @@ public class HostPage extends Page {
 			card(g, left, y, width, 156);
 			Draw.text(g, "Game port", left + 10, y + 13, Theme.TEXT);
 			if (builtHosting) {
-				Draw.text(g, String.valueOf(Config.get().port), left + width - 10 - Draw.font().width(String.valueOf(Config.get().port)), y + 13, Theme.MUTED);
+				Draw.text(g, String.valueOf(Config.get().port), left + width - 10 - Draw.width(String.valueOf(Config.get().port)), y + 13, Theme.MUTED);
 				Draw.textFit(g, "Applies next time you host", width - 140, left + 68, y + 13, Theme.FAINT);
 			}
 			Draw.text(g, "Relay, for friends who can't connect directly", left + 10, y + 92, Theme.TEXT);
@@ -710,8 +710,8 @@ public class HostPage extends Page {
 			Draw.text(g, pingText, left + 32, rowY + 15,
 					ping <= 0 ? Theme.FAINT : ping < 80 ? Theme.ACCENT : ping < 200 ? Theme.WARNING : Theme.DANGER);
 			if (guest.visitor() || guest.trusted()) {
-				Draw.textFit(g, guest.visitor() ? "· visitor" : "· trusted", textW - Draw.font().width(pingText) - 4,
-						left + 36 + Draw.font().width(pingText), rowY + 15, guest.visitor() ? Theme.WARNING : Theme.MUTED);
+				Draw.textFit(g, guest.visitor() ? "· visitor" : "· trusted", textW - Draw.width(pingText) - 4,
+						left + 36 + Draw.width(pingText), rowY + 15, guest.visitor() ? Theme.WARNING : Theme.MUTED);
 			}
 			rowY += PLAYER_ROW;
 		}

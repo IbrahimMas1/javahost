@@ -55,7 +55,7 @@ public final class VideoMenu {
 							setMenu("SIMPLE");
 							minecraft.gui.setScreen(new VideoSettingsScreen(sodiumParent(screen), minecraft, minecraft.options));
 						});
-				simple.setTooltip(Tooltip.create(Component.literal("Minecraft's own Video Settings: fewer, simpler options")));
+				simple.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Minecraft's own Video Settings: fewer, simpler options")));
 				Screens.getWidgets(screen).add(simple);
 				// Sodium's screen handles clicks itself and doesn't pass them on to added buttons, so catch ours first.
 				//? if >=1.21.9 {
@@ -81,7 +81,7 @@ public final class VideoMenu {
 							setMenu("SODIUM");
 							openSodium(minecraft, lastScreen(vanilla));
 						});
-				more.setTooltip(Tooltip.create(Component.literal("Sodium's detailed settings for performance and quality")));
+				more.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Sodium's detailed settings for performance and quality")));
 				Screens.getWidgets(screen).add(more);
 			}
 		});

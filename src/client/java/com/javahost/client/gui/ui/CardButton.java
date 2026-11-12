@@ -55,13 +55,13 @@ public class CardButton extends AbstractButton {
 
 		int textX = tx + tile + 9;
 		int textW = x + w - textX - 8;
-		var lines = Draw.font().split(Component.literal(subtitle), textW);
+		var lines = Draw.split(subtitle, textW);
 		int shown = Math.min(2, lines.size());
 		int blockH = 10 + shown * 10;
 		int ty0 = y + (h - blockH) / 2;
 		Draw.textFit(g, getMessage().getString(), textW, textX, ty0, active ? Theme.TEXT : Theme.FAINT);
 		for (int i = 0; i < shown; i++) {
-			g.text(Draw.font(), lines.get(i), textX, ty0 + 11 + i * 10, active ? Theme.MUTED : Theme.FAINT, false);
+			Draw.text(g, lines.get(i), textX, ty0 + 11 + i * 10, active ? Theme.MUTED : Theme.FAINT);
 		}
 	}
 

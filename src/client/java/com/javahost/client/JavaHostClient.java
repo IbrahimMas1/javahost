@@ -265,10 +265,10 @@ public class JavaHostClient implements ClientModInitializer {
 		int x = (g.guiWidth() - w) / 2;
 		Draw.roundRect(g, x, top, w, 26, 6, Theme.withAlpha(Theme.WINDOW, 0.92f));
 		icon.draw(g, x + 8, top + 5, Theme.ACCENT);
-		int rightW = right == null ? 0 : Draw.font().width(right) + 6;
+		int rightW = right == null ? 0 : Draw.width(right) + 6;
 		Draw.textFit(g, label, w - 30 - rightW, x + 22, top + 5, Theme.TEXT);
 		if (right != null) {
-			Draw.text(g, right, x + w - 8 - Draw.font().width(right), top + 5, Theme.MUTED);
+			Draw.text(g, right, x + w - 8 - Draw.width(right), top + 5, Theme.MUTED);
 		}
 		Draw.roundRect(g, x + 8, top + 17, w - 16, 3, 1, Theme.FIELD);
 		Draw.roundRect(g, x + 8, top + 17, Math.max(3, Math.round((w - 16) * progress)), 3, 1, Theme.ACCENT);
@@ -284,16 +284,16 @@ public class JavaHostClient implements ClientModInitializer {
 		String number = String.valueOf(fps);
 		String label = "FPS";
 		int color = fps >= 60 ? 0xFF7CE0A3 : fps >= 30 ? 0xFFF2C14E : 0xFFF07070;
-		int w = Draw.font().width(number) + 3 + Draw.font().width(label) + 10;
+		int w = Draw.width(number) + 3 + Draw.width(label) + 10;
 		int x = right ? g.guiWidth() - w - 4 : 4;
 		Draw.roundRect(g, x, y, w, 13, 4, 0x8C000000);
 		Draw.text(g, number, x + 5, y + 3, color);
-		Draw.text(g, label, x + 5 + Draw.font().width(number) + 3, y + 3, 0xFFB7BEC7);
+		Draw.text(g, label, x + 5 + Draw.width(number) + 3, y + 3, 0xFFB7BEC7);
 		return y + 16;
 	}
 
 	private static int pill(GuiGraphicsExtractor g, boolean right, int y, Icons icon, UUID face, String text, int accent) {
-		int w = 26 + Draw.font().width(text);
+		int w = 26 + Draw.width(text);
 		int x = right ? g.guiWidth() - w - 4 : 4;
 		Draw.roundRect(g, x, y, w, 16, 8, Theme.withAlpha(Theme.WINDOW, 0.85f));
 		if (face != null) {

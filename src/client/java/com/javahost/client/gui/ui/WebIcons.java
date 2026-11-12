@@ -69,7 +69,7 @@ public final class WebIcons {
 		Draw.roundRect(g, x, y, size, size, Math.max(2, size / 6), Theme.withAlpha(Theme.ACCENT, icon == LOADING ? 0.08f : 0.18f));
 		String letter = name.isEmpty() ? "?" : name.substring(0, 1).toUpperCase(java.util.Locale.ROOT);
 		float scale = size / 16f;
-		int glyph = Draw.font().width(letter);
+		int glyph = Draw.width(letter);
 		Draw.scaledText(g, letter, Math.round(x + (size - glyph * scale) / 2f), Math.round(y + (size - 8 * scale) / 2f), scale, Theme.ACCENT);
 	}
 

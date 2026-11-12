@@ -336,8 +336,90 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.waitTicks(20);
 			hubWithFriends(context);
 			reviewAtScale(context, 4, 1710, 1070);
+			if (System.getenv("JAVAHOST_TEST_FPS") != null) {
+				frameRates(context);
+			}
+			tickCost(context);
 			context.runOnClient(mc -> HostController.stop());
 		}
+		// Back on the title screen: the dock and the model, at the laptop size.
+		context.getInput().resizeWindow(1710, 1070);
+		context.runOnClient(mc -> {
+			mc.options.guiScale().set(4);
+			TestCompat.resizeGui(mc);
+		});
+		context.waitTicks(30);
+		context.takeScreenshot("quick-title");
+	}
+
+	/**
+	 * What the mod costs while you play: everything it does each game tick, timed over a thousand ticks in a hosted
+	 * world. A tick is 50 ms; all of JavaHost together has to stay under a tenth of a millisecond of it.
+	 */
+	private static void tickCost(ClientGameTestContext context) {
+		context.runOnClient(mc -> {
+			java.util.Map<String, Runnable> steps = new java.util.LinkedHashMap<>();
+			steps.put("HostController", HostController::tick);
+			steps.put("InviteFlow", () -> com.javahost.client.friends.InviteFlow.tick(mc));
+			steps.put("Popups", () -> com.javahost.client.Popups.tick(mc));
+			steps.put("Toasts", () -> com.javahost.client.Toasts.tick(mc));
+			steps.put("UpdateChecker", () -> com.javahost.client.update.UpdateChecker.tick(mc));
+			steps.put("Friends", com.javahost.client.friends.Friends::tick);
+			steps.put("Presence", () -> com.javahost.client.friends.Presence.tick(mc));
+			steps.put("WorldShare", () -> com.javahost.client.share.WorldShare.tick(mc));
+			steps.put("PublicHosting", com.javahost.client.discover.PublicHosting::tick);
+			steps.put("ModSets", () -> com.javahost.client.mods.ModSets.tick(mc));
+			steps.put("PendingJoin", () -> com.javahost.client.mods.PendingJoin.tick(mc));
+			long total = 0;
+			StringBuilder detail = new StringBuilder();
+			for (var step : steps.entrySet()) {
+				for (int i = 0; i < 200; i++) {
+					step.getValue().run();
+				}
+				long start = System.nanoTime();
+				for (int i = 0; i < 1000; i++) {
+					step.getValue().run();
+				}
+				long each = (System.nanoTime() - start) / 1000;
+				total += each;
+				detail.append(step.getKey()).append(' ').append(each).append(" ns, ");
+			}
+			JavaHost.LOGGER.info("[JavaHost test] tick cost: {}", detail);
+			check(total < 100_000, "everything JavaHost does each tick takes " + total / 1000 + " µs (under 100)");
+		});
+	}
+
+	/** What the menu costs: frames per second with nothing open, then with each kind of screen open (uncapped). */
+	private static void frameRates(ClientGameTestContext context) {
+		context.getInput().resizeWindow(1710, 1070);
+		int[] before = new int[2];
+		context.runOnClient(mc -> {
+			before[0] = mc.options.guiScale().get();
+			before[1] = mc.options.framerateLimit().get();
+			mc.options.guiScale().set(4);
+			mc.options.framerateLimit().set(260);
+			mc.options.enableVsync().set(false);
+			TestCompat.resizeGui(mc);
+		});
+		java.util.Map<String, java.util.function.Supplier<net.minecraft.client.gui.screens.Screen>> screens = new java.util.LinkedHashMap<>();
+		screens.put("no menu", () -> null);
+		screens.put("vanilla pause", () -> new net.minecraft.client.gui.screens.PauseScreen(true));
+		screens.put("hub home", () -> new JavaHostScreen(null, Tab.HOME));
+		screens.put("hub voice", () -> new JavaHostScreen(null, Tab.VOICE));
+		screens.put("hub mods", () -> new JavaHostScreen(null, Tab.MODS));
+		screens.put("hub settings", () -> new JavaHostScreen(null, Tab.SETTINGS));
+		for (var entry : screens.entrySet()) {
+			context.setScreen(entry.getValue()::get);
+			context.waitTicks(70);
+			int fps = context.computeOnClient(net.minecraft.client.Minecraft::getFps);
+			JavaHost.LOGGER.info("[JavaHost test] fps with {}: {}", entry.getKey(), fps);
+		}
+		context.setScreen(() -> null);
+		context.runOnClient(mc -> {
+			mc.options.guiScale().set(before[0]);
+			mc.options.framerateLimit().set(before[1]);
+			TestCompat.resizeGui(mc);
+		});
 	}
 
 	/** 2.0: the hub's Home with friends online (made-up ones), at the laptop sizes; the 3D model's idle animation runs. */

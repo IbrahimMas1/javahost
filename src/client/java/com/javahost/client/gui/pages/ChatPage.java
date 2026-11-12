@@ -80,10 +80,10 @@ public class ChatPage extends Page {
 			if (label != null) {
 				y += 12;
 			}
-			List<FormattedCharSequence> wrapped = Draw.font().split(Component.literal(line.text()), maxW - 12);
+			List<FormattedCharSequence> wrapped = Draw.split(line.text(), maxW - 12);
 			int textW = 0;
 			for (FormattedCharSequence part : wrapped) {
-				textW = Math.max(textW, Draw.font().width(part));
+				textW = Math.max(textW, Draw.width(part));
 			}
 			int h = wrapped.size() * 10 + 8;
 			bubbles.add(new Bubble(line, wrapped, y, textW + 12, h, label));
@@ -174,7 +174,7 @@ public class ChatPage extends Page {
 			Draw.roundRect(g, x, y, bubble.width(), bubble.height(), 6, mine ? Theme.ACCENT_DARK : Theme.CARD);
 			int textY = y + 4;
 			for (FormattedCharSequence part : bubble.wrapped()) {
-				g.text(Draw.font(), part, x + 6, textY, Theme.TEXT, false);
+				Draw.text(g, part, x + 6, textY, Theme.TEXT);
 				textY += 10;
 			}
 		}

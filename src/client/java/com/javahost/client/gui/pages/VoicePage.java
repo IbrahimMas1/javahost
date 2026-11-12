@@ -68,7 +68,7 @@ public class VoicePage extends Page {
 					}
 				}), 10, 104);
 		who.active = !worldDecides || (rules.canEdit() && !rules.locked());
-		who.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(!worldDecides
+		who.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled(!worldDecides
 				? "Who hears you. Party voice reaches everyone in the world, anywhere (" + partyKey + " in game)."
 						+ (VoiceClient.isAvailable() && !VoiceClient.partyAvailable() ? " This host needs JavaHost 1.4 for party voice." : "")
 				: rules.locked() ? "The world rules are locked."

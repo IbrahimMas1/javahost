@@ -81,7 +81,7 @@ public class FriendPopup extends BaseScreen {
 		Faces.draw(g, player, boxX + 16, boxY + 16, face);
 		int textX = boxX + 16 + face + 12;
 		int textW = boxX + boxW - 16 - textX;
-		Draw.scaledText(g, Draw.fit(headline, (int) (textW / 1.15f)), textX, boxY + 18, 1.15f, Theme.TEXT);
+		Draw.scaledText(g, Draw.fitScaled(headline, textW, 1.15f), textX, boxY + 18, 1.15f, Theme.TEXT);
 		Draw.wrapped(g, Component.literal(detail), textX, boxY + 33, textW, Theme.MUTED);
 
 		g.nextStratum();

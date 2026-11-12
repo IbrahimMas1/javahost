@@ -21,6 +21,16 @@ public class TextField extends EditBox {
 		setTextColor(Theme.TEXT);
 		//? if >=1.21.6
 		setTextShadow(false);
+		// Typed text in the menu's typeface.
+		//? if >=1.21.9 {
+		addFormatter((text, offset) -> net.minecraft.util.FormattedCharSequence.forward(text, Fonts.text()));
+		//?} else
+		/*setFormatter((text, offset) -> net.minecraft.util.FormattedCharSequence.forward(text, Fonts.text()));*/
+	}
+
+	@Override
+	public void setHint(Component hint) {
+		super.setHint(Draw.styled(hint));
 	}
 
 	/** Positions the whole frame (not just the inner text area). */

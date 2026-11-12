@@ -180,8 +180,8 @@ public class HomePage extends Page {
 		String doing = hosting ? (HostController.guests().isEmpty() ? "Hosting" : "Hosting · " + (HostController.guests().size() + 1) + " playing")
 				: server != null ? "Singleplayer" : minecraft.level != null ? "Playing together" : "Not in a world";
 		String placeShown = Draw.fit(place, heroW - 8);
-		Draw.textFit(g, place, heroW - 8, cx - Draw.font().width(placeShown) / 2, top + heroH - PLATE_H + 4, Theme.TEXT);
-		int doingW = Math.min(Draw.font().width(doing), heroW - 30);
+		Draw.textFit(g, place, heroW - 8, cx - Draw.width(placeShown) / 2, top + heroH - PLATE_H + 4, Theme.TEXT);
+		int doingW = Math.min(Draw.width(doing), heroW - 30);
 		int pillW = doingW + 22;
 		int pillX = cx - pillW / 2;
 		int pillY = top + heroH - 14;
@@ -196,7 +196,7 @@ public class HomePage extends Page {
 		sectionLabel(g, online > 0 ? "Online now" : "Friends", x + 8, top + friendsY + 7);
 		if (online > 0) {
 			String count = String.valueOf(online);
-			int countW = Draw.font().width(count) + 9;
+			int countW = Draw.width(count) + 9;
 			Draw.roundRect(g, x + rightW - 8 - countW, top + friendsY + 5, countW, 11, 5, Theme.withAlpha(Theme.ACCENT, 0.18f));
 			Draw.text(g, count, x + rightW - 8 - countW + 5, top + friendsY + 7, Theme.ACCENT);
 		}
@@ -233,8 +233,8 @@ public class HomePage extends Page {
 		Draw.glassCard(g, x, y, w, CHIP_H, 6);
 		Draw.roundRect(g, x + 5, y + 5, 14, 14, 4, Theme.withAlpha(accent, 0.16f));
 		icon.drawCentred(g, x + 12, y + 12, Icons.SIZE, accent);
-		int valueW = Math.min(Draw.font().width(value), w - 34);
-		if (w - 34 - valueW > Draw.font().width(label) + 4) {
+		int valueW = Math.min(Draw.width(value), w - 34);
+		if (w - 34 - valueW > Draw.width(label) + 4) {
 			Draw.text(g, label, x + 24, y + 8, Theme.MUTED);
 		}
 		Draw.textFit(g, value, w - 34, x + w - 8 - valueW, y + 8, Theme.TEXT);

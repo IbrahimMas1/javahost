@@ -122,12 +122,12 @@ public class ModsNeededScreen extends BaseScreen {
 		int textW = boxW - 58;
 		switch (stage) {
 			case READY -> {
-				Draw.scaledText(g, Draw.fit("Ready to play with " + needed.hostName(), (int) (textW / 1.25f)), boxX + 42, boxY + 16, 1.25f, Theme.TEXT);
+				Draw.scaledText(g, Draw.fitScaled("Ready to play with " + needed.hostName(), textW, 1.25f), boxX + 42, boxY + 16, 1.25f, Theme.TEXT);
 				Draw.textFit(g, "Close Minecraft, then press Play: you'll go", textW, boxX + 42, boxY + 30, Theme.MUTED);
 				Draw.textFit(g, "straight back into their world.", textW, boxX + 42, boxY + 40, Theme.MUTED);
 			}
 			default -> {
-				Draw.scaledText(g, Draw.fit(needed.hostName() + "'s world uses mods", (int) (textW / 1.25f)), boxX + 42, boxY + 16, 1.25f, Theme.TEXT);
+				Draw.scaledText(g, Draw.fitScaled(needed.hostName() + "'s world uses mods", textW, 1.25f), boxX + 42, boxY + 16, 1.25f, Theme.TEXT);
 				Draw.textFit(g, needed.missing().size() == 1 ? "Get " + needed.missing().getFirst().name() + " to play together."
 						: "Get the same " + needed.missing().size() + " mods to play together.", textW, boxX + 42, boxY + 30, Theme.MUTED);
 				Draw.textFit(g, "Your own mods are kept, and come back any time.", textW, boxX + 42, boxY + 40, Theme.MUTED);
@@ -143,7 +143,7 @@ public class ModsNeededScreen extends BaseScreen {
 			(ok ? Icons.PACKAGE : Icons.WARNING).draw(g, boxX + 20, y + 4, ok ? Theme.ACCENT : Theme.WARNING);
 			Draw.textFit(g, mod.name(), boxW - 160, boxX + 36, y + 5, Theme.TEXT);
 			String right = ok ? String.format("%.1f MB", mod.size() / 1048576.0) : "Not on Modrinth";
-			int rightX = boxX + boxW - 22 - Draw.font().width(right);
+			int rightX = boxX + boxW - 22 - Draw.width(right);
 			Draw.text(g, right, rightX, y + 5, ok ? Theme.MUTED : Theme.WARNING);
 			Draw.textFit(g, mod.version(), rightX - (boxX + boxW - 160 + 40) - 6, boxX + boxW - 160 + 40, y + 5, Theme.FAINT);
 			y += ROW;

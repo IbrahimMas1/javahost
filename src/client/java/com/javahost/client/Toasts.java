@@ -139,7 +139,7 @@ public final class Toasts {
 		/** One or two lines of message, cut with "..." if longer (the full text is in the notification center). */
 		private List<net.minecraft.util.FormattedCharSequence> lines() {
 			if (wrapped == null) {
-				List<net.minecraft.util.FormattedCharSequence> all = Draw.font().split(net.minecraft.network.chat.Component.literal(message), WIDTH - 40);
+				List<net.minecraft.util.FormattedCharSequence> all = Draw.split(message, WIDTH - 40);
 				if (all.size() > 2) {
 					all = List.of(all.get(0), net.minecraft.util.FormattedCharSequence.composite(all.get(1),
 							net.minecraft.network.chat.Component.literal("...").getVisualOrderText()));
@@ -211,12 +211,12 @@ public final class Toasts {
 			List<net.minecraft.util.FormattedCharSequence> lines = lines();
 			if (lines.size() > 1) {
 				Draw.text(g, Draw.fit(title, WIDTH - 40), 32, 3, Theme.TEXT);
-				g.text(Draw.font(), lines.get(0), 32, 13, Theme.MUTED, false);
-				g.text(Draw.font(), lines.get(1), 32, 22, Theme.MUTED, false);
+				Draw.text(g, lines.get(0), 32, 13, Theme.MUTED);
+				Draw.text(g, lines.get(1), 32, 22, Theme.MUTED);
 			} else {
 				Draw.text(g, Draw.fit(title, WIDTH - 40), 32, 7, Theme.TEXT);
 				if (!lines.isEmpty()) {
-					g.text(Draw.font(), lines.get(0), 32, 18, Theme.MUTED, false);
+					Draw.text(g, lines.get(0), 32, 18, Theme.MUTED);
 				}
 			}
 		}

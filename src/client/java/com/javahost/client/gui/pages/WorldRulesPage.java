@@ -60,7 +60,7 @@ public class WorldRulesPage extends Page {
 		int y = 0;
 		if (state.host()) {
 			String label = state.locked() ? (confirmUnlock ? "Click again to unlock" : "Unlock rules") : "Lock rules";
-			lockW = Math.min(124, Draw.font().width(label) + 34);
+			lockW = Math.min(124, Draw.width(label) + 34);
 			add(new FlatButton(lockW, 18, Component.literal(label), state.locked() ? FlatButton.Style.SECONDARY : FlatButton.Style.PRIMARY,
 					state.locked() ? Icons.UNLOCK : Icons.LOCK, b -> {
 						if (state.locked() && !confirmUnlock) {
@@ -172,8 +172,8 @@ public class WorldRulesPage extends Page {
 		}
 		for (RulesClient.Change change : history) {
 			String when = ago(change.time());
-			Draw.textFit(g, change.who() + " " + change.what(), width - 30 - Draw.font().width(when), left + 10, rowY, Theme.MUTED);
-			Draw.text(g, when, left + width - 10 - Draw.font().width(when), rowY, Theme.FAINT);
+			Draw.textFit(g, change.who() + " " + change.what(), width - 30 - Draw.width(when), left + 10, rowY, Theme.MUTED);
+			Draw.text(g, when, left + width - 10 - Draw.width(when), rowY, Theme.FAINT);
 			rowY += 14;
 		}
 	}

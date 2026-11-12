@@ -33,15 +33,18 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * The JavaHost dock on the title and pause screens: a column of buttons down the right edge (starting level with
- * the first menu button, so it never covers the logo), plus, on the title screen, your 3D skin and the mod version.
- * Hovering a button slides out its label; badges show what needs attention, and Friends glows when a friend's
- * world is ready to join.
+ * The JavaHost dock on the title and pause screens: a glass rail down the right edge with the logo on top and a
+ * button for each part of the menu (starting level with the first menu button, so it never covers the game's logo),
+ * plus, on the title screen, your 3D skin on a lit stage and the mod version. Hovering a button slides out its
+ * label; badges show what needs attention, and Friends glows when a friend's world is ready to join.
  */
 public final class MenuDock {
 	private static final int MAX_STEP = 26;
 	private static final int SEPARATOR = 8;
 	private static final int MARGIN = 6;
+	/** Space between the rail's edge and its buttons. */
+	private static final int RAIL_PAD = 4;
+	private static final int LOGO_H = 24;
 
 	private record Item(String label, Supplier<Icons> icon, Supplier<Tab> tab, IntSupplier badge, BooleanSupplier glow, boolean separatorBefore) {
 	}
@@ -71,7 +74,7 @@ public final class MenuDock {
 
 	/** Left edge of the dock on a screen this wide, so other title-screen panels can sit beside it. */
 	static int left(int screenWidth) {
-		return screenWidth - MAX_STEP + 4 - MARGIN;
+		return screenWidth - MAX_STEP + 4 - MARGIN - RAIL_PAD;
 	}
 
 	/** Adds the dock to {@code screen}; on the title screen also your skin and the JavaHost version. */
@@ -99,19 +102,40 @@ public final class MenuDock {
 			top = Math.max(4, (height - items.size() * step - separator) / 2);
 		}
 		int size = Math.max(16, Math.min(22, step - 4));
-		int x = width - size - MARGIN;
+		int x = width - size - MARGIN - RAIL_PAD;
 		int y = top;
+		// The logo sits on top of the rail when there's room above the first button.
+		boolean logo = step >= 22 && top - LOGO_H - RAIL_PAD >= (titleScreen ? height / 4 + 20 : 4);
 		List<AbstractWidget> widgets = Screens.getWidgets(screen);
 		List<DockButton> buttons = new ArrayList<>();
+		int separatorY = -1;
 		for (Item item : items) {
 			if (item.separatorBefore()) {
+				separatorY = separator > 0 ? y - (step - size) / 2 + separator / 2 - 1 : -1;
 				y += separator;
 			}
-			DockButton button = new DockButton(minecraft, screen, x, y, size, item);
-			buttons.add(button);
-			widgets.add(button);
+			buttons.add(new DockButton(minecraft, screen, x, y, size, item));
 			y += step;
 		}
+		int railX = x - RAIL_PAD;
+		int railY = top - RAIL_PAD - (logo ? LOGO_H : 0);
+		int railW = size + RAIL_PAD * 2;
+		int railH = y - step + size + RAIL_PAD - railY;
+		int lineY = separatorY;
+		widgets.add(new Decor(g -> {
+			Draw.roundRect(g, railX - 1, railY + 1, railW + 2, railH + 2, 9, 0x50000000);
+			Draw.roundRect(g, railX, railY, railW, railH, 8, 0x40FFFFFF);
+			Draw.roundRect(g, railX + 1, railY + 1, railW - 2, railH - 2, 7, 0xEA0E1217);
+			if (logo) {
+				Draw.glow(g, railX + railW / 2, railY + 13, 20, 18, Theme.withAlpha(Theme.ACCENT, 0.32f));
+				Icons.logo(g, railX + (railW - 16) / 2, railY + 5, 16);
+				g.fill(railX + 6, railY + LOGO_H, railX + railW - 6, railY + LOGO_H + 1, 0x20FFFFFF);
+			}
+			if (lineY >= 0) {
+				g.fill(railX + 6, lineY, railX + railW - 6, lineY + 1, 0x20FFFFFF);
+			}
+		}));
+		widgets.addAll(buttons);
 		// Hover labels go on top of everything (the splash text included), so they're drawn after the screen.
 		ScreenEvents.afterExtract(screen).register((s, g, mouseX, mouseY, delta) -> {
 			g.nextStratum();
@@ -128,7 +152,7 @@ public final class MenuDock {
 		}
 	}
 
-	/** Your own skin, big, in the empty space left of the menu buttons; drag to turn it. */
+	/** Your own skin, big, in the empty space left of the menu buttons, on a lit stage with your name; drag to turn it. */
 	private static void addSkin(Minecraft minecraft, Screen screen, List<AbstractWidget> widgets, int width, int height) {
 		int room = width / 2 - 100 - 12; // free space left of the buttons
 		int skinH = Math.round(height * 0.5f);
@@ -141,10 +165,53 @@ public final class MenuDock {
 			return;
 		}
 		int x = (room - skinW) / 2 + 6;
-		int y = height - 32 - skinH;
+		int y = height - 48 - skinH;
+		int cx = x + skinW / 2;
+		int feet = y + skinH - 2;
+		int plateY = height - 43;
+		int spread = skinW;
+		widgets.add(new Decor(g -> {
+			// A pool of light and a shadow under the feet, then a name plate: who's playing, and friends online.
+			Draw.glow(g, cx, feet, Math.round(spread * 0.62f), 11, 0xB0000000);
+			Draw.glow(g, cx, feet, Math.round(spread * 0.50f), 8, Theme.withAlpha(Theme.ACCENT, 0.55f));
+			Draw.glow(g, cx, feet, Math.round(spread * 0.26f), 4, 0xD0000000);
+			String name = Identity.name();
+			int online = Presence.onlineFriends().size();
+			String extra = online > 0 ? online + " online" : "";
+			int nameW = Draw.boldWidth(name);
+			int w = 8 + 9 + nameW + (extra.isEmpty() ? 0 : 8 + Draw.width(extra)) + 8;
+			int px = Math.max(3, cx - w / 2);
+			Draw.roundRect(g, px, plateY, w, 15, 7, 0x40FFFFFF);
+			Draw.roundRect(g, px + 1, plateY + 1, w - 2, 13, 6, 0xEA0E1217);
+			Draw.roundRect(g, px + 7, plateY + 5, 5, 5, 2, Identity.canSign() ? Theme.ACCENT : Theme.WARNING);
+			Draw.bold(g, name, px + 17, plateY + 4, Theme.TEXT);
+			if (!extra.isEmpty()) {
+				Draw.text(g, extra, px + 17 + nameW + 8, plateY + 4, Theme.ACCENT);
+			}
+		}));
 		PlayerSkinWidget skin = com.javahost.client.gui.ui.IdleSkin.create(skinW, skinH, Identity.id(), true);
 		skin.setPosition(x, y);
 		widgets.add(skin);
+	}
+
+	/** Something drawn behind the widgets added after it (the rail, the stage); it takes no input. */
+	private static final class Decor extends AbstractWidget {
+		private final java.util.function.Consumer<GuiGraphicsExtractor> painter;
+
+		Decor(java.util.function.Consumer<GuiGraphicsExtractor> painter) {
+			super(0, 0, 0, 0, Component.empty());
+			this.painter = painter;
+			this.active = false;
+		}
+
+		@Override
+		protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+			painter.accept(g);
+		}
+
+		@Override
+		protected void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput output) {
+		}
 	}
 
 	private static final class DockButton extends Button {
@@ -174,29 +241,30 @@ public final class MenuDock {
 			boolean glow = item.glow().getAsBoolean();
 
 			if (glow) {
-				// A soft pulsing ring: something is ready (a world to join, or you're hosting).
-				float pulse = 0.3f + 0.25f * (float) Math.sin(ticks / 9.0);
-				Draw.roundRect(g, x - 2, y - 2, size + 4, size + 4, 6, Theme.withAlpha(Theme.ACCENT, pulse));
+				// A soft pulsing light: something is ready (a world to join, or you're hosting).
+				float pulse = 0.5f + 0.5f * (float) Math.sin(ticks / 9.0);
+				Draw.glow(g, x + size / 2, y + size / 2, size, size, Theme.withAlpha(Theme.ACCENT, 0.25f + 0.20f * pulse));
+				Draw.roundRect(g, x, y, size, size, 5, Theme.withAlpha(Theme.ACCENT, 0.16f + 0.08f * pulse));
 			}
-			int border = Theme.mix(glow ? Theme.ACCENT_DARK : 0x40FFFFFF, Theme.ACCENT, hover);
-			Draw.roundRect(g, x, y, size, size, 4, border);
-			Draw.roundRect(g, x + 1, y + 1, size - 2, size - 2, 3, Theme.mix(0xE0101419, 0xF0222A33, hover));
+			if (hover > 0.01f) {
+				Draw.roundRect(g, x, y, size, size, 5, Theme.withAlpha(0x2CFFFFFF, hover));
+			}
 
 			Icons icon = item.icon().get();
 			if (icon == null) {
 				int face = size - 8;
 				Faces.draw(g, Identity.id(), x + 4, y + 4, face);
 			} else {
-				int color = glow ? Theme.ACCENT : Theme.mix(0xFFD8DEE6, 0xFFFFFFFF, hover);
-				icon.drawCentred(g, x + size / 2f, y + size / 2f, size - 9, color);
+				int color = glow ? Theme.ACCENT : Theme.mix(0xFFB4BFCC, 0xFFFFFFFF, hover);
+				icon.drawCentred(g, x + size / 2f, y + size / 2f, size >= 21 ? 15 : 11, color);
 			}
 
 			int count = item.badge().getAsInt();
 			if (count > 0) {
 				String text = count > 9 ? "9+" : String.valueOf(count);
-				int w = Math.max(9, Draw.font().width(text) + 4);
+				int w = Math.max(9, Draw.width(text) + 4);
 				Draw.roundRect(g, x + size - w + 3, y - 3, w, 9, 4, Theme.DANGER);
-				Draw.text(g, text, x + size - w + 3 + (w - Draw.font().width(text)) / 2 + 1, y - 2, 0xFFFFFFFF);
+				Draw.text(g, text, x + size - w + 3 + (w - Draw.width(text)) / 2 + 1, y - 2, 0xFFFFFFFF);
 			}
 			if (item.label().equals("Friends") && !Presence.onlineFriends().isEmpty()) {
 				Draw.roundRect(g, x + size - 6, y + size - 6, 8, 8, 4, 0xFF101419);
@@ -210,14 +278,11 @@ public final class MenuDock {
 				return;
 			}
 			String label = label();
-			int w = Draw.font().width(label) + 12;
-			int x = getX() - 7 - w + Math.round((1 - hover) * 6);
+			int w = Draw.width(label) + 12;
+			int x = getX() - RAIL_PAD - 6 - w + Math.round((1 - hover) * 6);
 			int y = getY() + (getHeight() - 14) / 2;
-			int fill = Theme.withAlpha(0xFF101419, 0.95f * hover);
-			Draw.roundRect(g, x, y, w, 14, 3, fill);
-			// A small pointer towards the button.
-			g.fill(x + w, y + 4, x + w + 2, y + 10, fill);
-			g.fill(x + w + 2, y + 5, x + w + 3, y + 9, fill);
+			Draw.roundRect(g, x - 1, y - 1, w + 2, 16, 5, Theme.withAlpha(0x40FFFFFF, hover));
+			Draw.roundRect(g, x, y, w, 14, 4, Theme.withAlpha(0xFF0E1217, 0.96f * hover));
 			Draw.text(g, label, x + 6, y + 3, Theme.withAlpha(0xFFFFFFFF, hover));
 		}
 

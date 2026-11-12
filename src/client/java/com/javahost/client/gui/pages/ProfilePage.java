@@ -75,7 +75,7 @@ public class ProfilePage extends Page {
 					b -> minecraft.gui.setScreen(new WorldPickerScreen(screen, friend, null,
 							() -> screen.switchTo(JavaHostScreen.Tab.NOTIFICATIONS)))), right, 48);
 			send.active = problem == null;
-			send.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(problem != null ? problem
+			send.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled(problem != null ? problem
 					: "You're in the same world. Send " + friend.name() + " a copy of one of your worlds")));
 		} else if (InviteFlow.joinable(friend.id())) {
 			add(new FlatButton(buttonW, 20, Component.literal("Join"), FlatButton.Style.PRIMARY, Icons.JOIN,
@@ -120,7 +120,7 @@ public class ProfilePage extends Page {
 						screen.refresh();
 					}
 				}), right + rightW - blockW, 152 + shift);
-		block.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+		block.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled(
 				"Removes them and stops their messages, requests and joins. Undo in Settings.")));
 		add(new FlatButton(rightW - blockW - 6, 18, Component.literal(confirming ? "Click again to remove " + friend.name() : "Remove friend"),
 				FlatButton.Style.DANGER, Icons.CROSS, b -> {
@@ -159,14 +159,14 @@ public class ProfilePage extends Page {
 		g.disableScissor();
 		int right = left + 108;
 		int rightW = width - 108;
-		Draw.scaledText(g, Draw.fit(friend.name(), (int) (rightW / 1.5f)), right, top + 2, 1.5f, Theme.TEXT);
+		Draw.scaledText(g, Draw.fitScaled(friend.name(), rightW, 1.5f), right, top + 2, 1.5f, Theme.TEXT);
 		Optional<Presence.Status> status = Presence.of(friend.id());
 		int dot = status.isPresent() ? Theme.ACCENT : Theme.FAINT;
 		String invite = InviteFlow.status(friend.id());
 		statusFit(g, right, top + 18, dot, invite != null ? invite : FriendsPage.statusLine(friend), rightW - 14, Theme.MUTED);
 		Draw.text(g, "Friends since " + DATE.format(Instant.ofEpochMilli(friend.since())), right, top + 32, Theme.FAINT);
-		FriendsPage.versionChip(g, friend.id(), right + 4 + (int) (Draw.font().width(Draw.fit(friend.name(), (int) (rightW / 1.5f))) * 1.5f), top + 4,
-				rightW - 8 - (int) (Draw.font().width(friend.name()) * 1.5f));
+		FriendsPage.versionChip(g, friend.id(), right + 4 + (int) (Draw.width(Draw.fitScaled(friend.name(), rightW, 1.5f)) * 1.5f), top + 4,
+				rightW - 8 - (int) (Draw.width(friend.name()) * 1.5f));
 
 		sectionLabel(g, "Their voice", right, top + 78 + shift);
 		card(g, right, top + 88 + shift, rightW, 58);

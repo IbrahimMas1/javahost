@@ -66,6 +66,8 @@ public final class Config {
 	public boolean fpsOverlay = false;
 	/** Friends see you as offline (you still see them). */
 	public boolean appearOffline = false;
+	/** The menu's text and icons: "PIXEL" (the game's font, pixel icons) or "SMOOTH" (Inter, smooth icons); see Fonts. */
+	public String menuFont = "PIXEL";
 	/** The first-time welcome tour has been shown (or skipped). */
 	public boolean tourDone = false;
 	/** Starred screenshots, as paths inside the game folder. */

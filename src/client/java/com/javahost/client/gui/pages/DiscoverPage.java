@@ -103,13 +103,13 @@ public class DiscoverPage extends Page {
 			refresh();
 			screen.refresh();
 		}).iconOnly(), width - openW - 26, 0);
-		reload.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Refresh the list")));
+		reload.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Refresh the list")));
 		String cannotOpen = PublicHosting.cannotOpen();
 		FlatButton open = add(new FlatButton(openW, 20, Component.literal(PublicHosting.isPublic() ? "Your world is public" : "Open your world"),
 				FlatButton.Style.PRIMARY, Icons.GLOBE, b -> minecraft.gui.setScreen(new PublicWorldScreen(screen))), width - openW, 0);
 		open.active = cannotOpen == null && !PublicHosting.isPublic();
 		if (cannotOpen != null) {
-			open.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(cannotOpen)));
+			open.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled(cannotOpen)));
 		}
 
 		// Filters and order.
@@ -129,7 +129,7 @@ public class DiscoverPage extends Page {
 					sort = sort.equals("PLAYERS") ? "PING" : "PLAYERS";
 					screen.refresh();
 				}), width - sortW, 26);
-		sortButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+		sortButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled(
 				sort.equals("PLAYERS") ? "Most players first. Click for lowest ping first" : "Lowest ping first. Click for most players first")));
 
 		listY = 56;
@@ -195,7 +195,7 @@ public class DiscoverPage extends Page {
 				}), 10, buttonsY);
 		join.active = why == null;
 		if (why != null) {
-			join.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(why)));
+			join.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled(why)));
 		}
 		int reportX = confirm ? 186 : 106;
 		if (!mine) {
@@ -208,7 +208,7 @@ public class DiscoverPage extends Page {
 				selected = null;
 				screen.refresh();
 			}), reportX + 86, buttonsY);
-			hide.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("Stop showing " + Directory.nameOf(world) + "'s worlds")));
+			hide.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Stop showing " + Directory.nameOf(world) + "'s worlds")));
 		}
 		return y + detailH + 4;
 	}
