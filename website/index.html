@@ -8,8 +8,8 @@
       name="description"
       content="Turn your Minecraft Java world into one friends can join in a click. Invites, voice chat, mods and shared packs built in. Free and open source, for Fabric on Minecraft 1.21 to 26.3."
     />
-    <meta name="theme-color" content="#0b0f14" />
-    <meta property="og:title" content="JavaHost: play your world with friends. No server needed." />
+    <meta name="theme-color" content="#06080b" />
+    <meta property="og:title" content="JavaHost: play with friends. No server." />
     <meta
       property="og:description"
       content="Host your Minecraft world from your own PC. One-click invites, voice chat, mods and shared packs. Free and open source."
@@ -26,26 +26,31 @@
     <link rel="apple-touch-icon" href="media/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;600;700&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
     <link rel="preload" as="image" href="media/shots/home.png" />
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
     <style>
       :root {
-        --bg: #0b0f14;
-        --panel: rgba(24, 31, 40, 0.78);
-        --panel-solid: #161d26;
-        --rim: rgba(255, 255, 255, 0.12);
-        --rim-strong: rgba(255, 255, 255, 0.22);
-        --text: #e8edf2;
-        --muted: #9aa5b3;
-        --faint: #66727f;
-        --accent: #3ddc84;
-        --accent-soft: rgba(61, 220, 132, 0.14);
-        --on-accent: #06180e;
-        --warm: #f2c14e;
-        --pixel: "Pixelify Sans", ui-monospace, "Courier New", monospace;
+        --bg: #06080b;
+        --ink: #0c1016;
+        --line: rgba(255, 255, 255, 0.07);
+        --line-strong: rgba(255, 255, 255, 0.16);
+        --text: #eef2f6;
+        --muted: #98a3b1;
+        --faint: #5d6875;
+        --green: #3ddc84;
+        --blue: #4f9df7;
+        --purple: #a77bf3;
+        --orange: #f59e3b;
+        --pink: #f06baa;
+        --a: var(--green);
+        --display: "Silkscreen", "Pixelify Sans", ui-monospace, monospace;
+        --pixel: "Pixelify Sans", ui-monospace, monospace;
         --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        --radius: 14px;
-        --width: 1080px;
+        --width: 1200px;
+        --gutter: clamp(20px, 4vw, 48px);
       }
       *,
       *::before,
@@ -54,7 +59,7 @@
       }
       html {
         scroll-behavior: smooth;
-        scroll-padding-top: 76px;
+        scroll-padding-top: 72px;
       }
       body {
         margin: 0;
@@ -64,470 +69,914 @@
         -webkit-font-smoothing: antialiased;
         overflow-x: hidden;
       }
-      /* The same lighting as the mod's menu: two soft lights on a dark room. */
-      body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        z-index: -1;
-        background:
-          radial-gradient(60vw 50vh at 85% -5%, rgba(61, 220, 132, 0.2), transparent 70%),
-          radial-gradient(55vw 50vh at 5% 105%, rgba(61, 170, 220, 0.14), transparent 70%);
-        pointer-events: none;
-      }
       img {
         max-width: 100%;
         display: block;
       }
       a {
-        color: var(--accent);
-        text-underline-offset: 3px;
+        color: inherit;
+      }
+      ::selection {
+        background: var(--green);
+        color: #04140b;
       }
       :focus-visible {
-        outline: 2px solid var(--accent);
+        outline: 2px solid var(--a);
         outline-offset: 3px;
-        border-radius: 6px;
       }
       .wrap {
-        width: min(var(--width), 100% - 40px);
+        width: min(var(--width), 100% - var(--gutter) * 2);
         margin-inline: auto;
+        position: relative;
       }
-      h1,
-      h2,
-      h3,
-      .brand,
-      .btn,
-      .eyebrow,
-      .tab,
-      .step-n {
-        font-family: var(--pixel);
-        font-weight: 600;
-        letter-spacing: 0.01em;
-      }
-      h1 {
-        font-size: clamp(2.3rem, 6.2vw, 4.2rem);
-        line-height: 1.04;
-        margin: 0 0 18px;
-      }
-      h2 {
-        font-size: clamp(1.7rem, 3.6vw, 2.5rem);
-        line-height: 1.1;
-        margin: 0 0 10px;
-      }
-      h3 {
-        font-size: 1.2rem;
-        margin: 0 0 6px;
-      }
-      p {
-        margin: 0 0 14px;
-      }
-      .accent {
-        color: var(--accent);
-      }
-      .muted {
-        color: var(--muted);
-      }
-      .sr-only {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        clip-path: inset(50%);
+      .rule {
+        border-top: 1px solid var(--line);
       }
       svg.i {
-        width: 1.25em;
-        height: 1.25em;
+        width: 1.2em;
+        height: 1.2em;
         fill: currentColor;
         flex: none;
         shape-rendering: crispEdges;
       }
 
-      /* Buttons */
+      /* ------------------------------------------------------------ type */
+      h1,
+      h2 {
+        font-family: var(--display);
+        font-weight: 700;
+        text-transform: uppercase;
+        line-height: 1;
+        letter-spacing: -0.09em;
+        margin: 0;
+      }
+      h1 {
+        font-size: clamp(2.3rem, 5.6vw, 5rem);
+      }
+      h2 {
+        font-size: clamp(1.8rem, 4vw, 3.2rem);
+      }
+      h3 {
+        font: 600 1.3rem/1.2 var(--pixel);
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 0 0 14px;
+      }
+      .a {
+        color: var(--a);
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font: 600 0.95rem var(--pixel);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--a);
+        margin-bottom: 18px;
+      }
+      .eyebrow::before {
+        content: "";
+        width: 10px;
+        height: 10px;
+        background: var(--a);
+        box-shadow: 0 0 14px var(--a);
+      }
+      .lede {
+        color: var(--muted);
+        font-size: clamp(1.05rem, 1.7vw, 1.25rem);
+        max-width: 34em;
+      }
+
+      /* ------------------------------------------------------------ buttons: square, with a hard pixel shadow the button presses into */
       .btn {
+        --shadow: rgba(255, 255, 255, 0.18);
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 10px;
-        padding: 13px 22px;
-        border-radius: 10px;
-        border: 1px solid var(--rim-strong);
-        background: rgba(20, 26, 34, 0.85);
-        color: var(--text);
-        font-size: 1.08rem;
+        gap: 12px;
+        padding: 15px 26px;
+        font: 600 1.1rem var(--pixel);
+        letter-spacing: 0.02em;
         text-decoration: none;
+        color: var(--text);
+        background: var(--ink);
+        border: 1px solid var(--line-strong);
+        box-shadow: 5px 5px 0 var(--shadow);
         cursor: pointer;
         transition:
           transform 0.12s ease,
-          box-shadow 0.2s ease,
-          background 0.2s ease,
-          border-color 0.2s ease;
+          box-shadow 0.12s ease,
+          background 0.2s ease;
       }
       .btn:hover {
-        border-color: rgba(255, 255, 255, 0.4);
-        background: rgba(36, 46, 58, 0.9);
-        transform: translateY(-1px);
+        transform: translate(-2px, -2px);
+        box-shadow: 7px 7px 0 var(--shadow);
+        background: #121821;
       }
       .btn:active {
-        transform: translateY(1px);
+        transform: translate(4px, 4px);
+        box-shadow: 1px 1px 0 var(--shadow);
       }
       .btn.primary {
-        background: var(--accent);
-        border-color: transparent;
-        color: var(--on-accent);
-        box-shadow:
-          0 10px 34px -8px rgba(61, 220, 132, 0.55),
-          inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        --shadow: #1c7a47;
+        background: var(--green);
+        border-color: var(--green);
+        color: #04140b;
       }
       .btn.primary:hover {
-        background: #5ae89a;
-        box-shadow:
-          0 14px 44px -8px rgba(61, 220, 132, 0.75),
-          inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        background: #62eda0;
       }
       .btn.small {
-        padding: 8px 14px;
-        font-size: 0.98rem;
+        padding: 9px 16px;
+        font-size: 1rem;
+        box-shadow: 3px 3px 0 var(--shadow);
+      }
+      .btn.small:hover {
+        box-shadow: 5px 5px 0 var(--shadow);
       }
 
-      /* Top bar */
+      /* ------------------------------------------------------------ top bar */
       .nav {
         position: sticky;
         top: 0;
-        z-index: 20;
-        background: rgba(11, 15, 20, 0.72);
+        z-index: 50;
+        background: rgba(6, 8, 11, 0.78);
         backdrop-filter: blur(14px);
         -webkit-backdrop-filter: blur(14px);
-        border-bottom: 1px solid var(--rim);
+        border-bottom: 1px solid var(--line);
       }
       .nav .wrap {
         display: flex;
         align-items: center;
-        gap: 22px;
-        height: 62px;
+        gap: 26px;
+        height: 64px;
       }
       .brand {
         display: inline-flex;
         align-items: center;
-        gap: 10px;
-        color: var(--text);
+        gap: 12px;
+        font: 700 1.2rem var(--display);
+        letter-spacing: -0.06em;
+        text-transform: uppercase;
         text-decoration: none;
-        font-size: 1.25rem;
         margin-right: auto;
       }
       .logo {
         width: 30px;
         height: 30px;
-        color: var(--accent);
-        filter: drop-shadow(0 0 12px rgba(61, 220, 132, 0.55));
+        color: var(--green);
+        filter: drop-shadow(0 0 12px rgba(61, 220, 132, 0.6));
       }
       .logo .ink {
-        fill: var(--on-accent);
+        fill: #04140b;
       }
       .nav-links {
         display: flex;
-        gap: 22px;
+        gap: 26px;
       }
       .nav-links a {
+        position: relative;
         color: var(--muted);
         text-decoration: none;
-        font-size: 0.98rem;
+        font: 500 1.02rem var(--pixel);
+        transition: color 0.15s ease;
+      }
+      .nav-links a::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -6px;
+        height: 2px;
+        background: var(--green);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.2s ease;
       }
       .nav-links a:hover {
         color: var(--text);
       }
+      .nav-links a:hover::after {
+        transform: scaleX(1);
+      }
+      /* An experience bar that fills as you read down the page. */
+      .xp {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1px;
+        height: 3px;
+        background: var(--green);
+        box-shadow: 0 0 12px var(--green);
+        transform: scaleX(0);
+        transform-origin: left;
+      }
 
-      /* Hero */
+      /* ------------------------------------------------------------ hero */
       .hero {
-        text-align: center;
-        padding: clamp(48px, 9vw, 96px) 0 0;
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+      }
+      .hero::before {
+        /* the grid the page is drawn on, fading out toward the edges */
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -2;
+        background:
+          linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 100% 64px,
+          linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 64px 100%;
+        mask-image: radial-gradient(120% 90% at 70% 20%, #000 20%, transparent 75%);
+        -webkit-mask-image: radial-gradient(120% 90% at 70% 20%, #000 20%, transparent 75%);
+      }
+      .hero::after {
+        content: "";
+        position: absolute;
+        z-index: -3;
+        width: 90vw;
+        height: 90vw;
+        max-width: 1100px;
+        max-height: 1100px;
+        right: -18vw;
+        top: -30vw;
+        background: radial-gradient(closest-side, rgba(61, 220, 132, 0.28), transparent);
+        animation: breathe 9s ease-in-out infinite;
+      }
+      @keyframes breathe {
+        50% {
+          transform: scale(1.12) translate(-3%, 4%);
+          opacity: 0.75;
+        }
+      }
+      #motes {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        pointer-events: none;
+      }
+      .hero .wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+        align-items: center;
+        gap: clamp(24px, 4vw, 56px);
+        min-height: min(860px, 100vh - 64px);
+        padding-block: clamp(48px, 7vw, 96px);
       }
       .badge {
         display: inline-flex;
         align-items: center;
-        gap: 9px;
-        padding: 6px 14px;
-        border-radius: 999px;
-        border: 1px solid var(--rim);
-        background: var(--panel);
+        gap: 10px;
+        padding: 7px 14px;
+        border: 1px solid var(--line-strong);
+        background: rgba(12, 16, 22, 0.8);
         color: var(--muted);
-        font-size: 0.9rem;
-        margin-bottom: 26px;
+        font: 500 0.95rem var(--pixel);
+        margin-bottom: 28px;
       }
       .badge .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--accent);
-        box-shadow: 0 0 10px var(--accent);
+        width: 9px;
+        height: 9px;
+        background: var(--green);
+        box-shadow: 0 0 12px var(--green);
+        animation: blink 1.6s steps(2) infinite;
       }
-      .lede {
-        max-width: 620px;
-        margin: 0 auto 30px;
-        color: var(--muted);
-        font-size: clamp(1.05rem, 2vw, 1.22rem);
+      @keyframes blink {
+        50% {
+          opacity: 0.25;
+        }
+      }
+      .hero h1 .line {
+        display: block;
+        overflow: hidden;
+        padding-bottom: 0.06em;
+        white-space: nowrap;
+      }
+      .hero h1 .line > span {
+        display: inline-block;
+      }
+      .js .hero h1 .line > span {
+        transform: translateY(110%);
+        animation: rise 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        animation-delay: calc(var(--n) * 0.12s + 0.1s);
+      }
+      @keyframes rise {
+        to {
+          transform: none;
+        }
+      }
+      .cursor {
+        display: inline-block;
+        width: 0.5em;
+        height: 0.78em;
+        margin-left: 0.08em;
+        background: var(--green);
+        box-shadow: 0 0 24px var(--green);
+        animation: blink 1s steps(2) infinite;
+      }
+      .hero .lede {
+        margin: 26px 0 32px;
       }
       .actions {
         display: flex;
         flex-wrap: wrap;
-        justify-content: center;
-        gap: 12px;
-        margin-bottom: 16px;
+        gap: 18px;
+        margin-bottom: 26px;
       }
-      .hero-foot {
-        color: var(--faint);
-        font-size: 0.93rem;
-        margin: 0;
-      }
-      .hero-foot a {
+      .trust {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 22px;
         color: var(--muted);
+        font: 500 0.98rem var(--pixel);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .trust li {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .trust svg {
+        color: var(--green);
+      }
+
+      /* The menu, standing in space, turning a little toward the mouse, with live notes floating around it. */
+      .stage {
+        position: relative;
+        perspective: 1600px;
+        --rx: 0deg;
+        --ry: 0deg;
       }
       .window {
         position: relative;
-        margin: clamp(36px, 6vw, 60px) auto 0;
-        max-width: 940px;
-        border-radius: 16px;
-        border: 1px solid var(--rim-strong);
-        background: var(--panel-solid);
+        border: 1px solid var(--line-strong);
+        background: #0f141b;
         box-shadow:
-          0 40px 120px -30px rgba(61, 220, 132, 0.35),
-          0 30px 80px -20px rgba(0, 0, 0, 0.8);
-        overflow: hidden;
+          0 50px 140px -30px color-mix(in srgb, var(--a) 55%, transparent),
+          0 30px 70px -20px #000;
+      }
+      .window::before {
+        /* a title bar, so it reads as the game's window */
+        content: "";
+        display: block;
+        height: 26px;
+        border-bottom: 1px solid var(--line);
+        background:
+          radial-gradient(circle at 16px 13px, #ef5350 5px, transparent 5.5px), radial-gradient(circle at 34px 13px, #f2b33d 5px, transparent 5.5px),
+          radial-gradient(circle at 52px 13px, #3ddc84 5px, transparent 5.5px), #0a0e13;
       }
       .window img {
         width: 100%;
         height: auto;
-        image-rendering: auto;
+      }
+      .stage .window {
+        width: 128%;
+        max-width: none;
+        transform: rotateY(calc(-13deg + var(--ry))) rotateX(calc(5deg + var(--rx)));
+        transform-origin: 0 50%;
+        transition: transform 0.25s ease-out;
+        animation: float 7s ease-in-out infinite;
+      }
+      @keyframes float {
+        50% {
+          translate: 0 -10px;
+        }
+      }
+      .chip {
+        position: absolute;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border: 1px solid var(--line-strong);
+        background: rgba(10, 14, 19, 0.94);
+        box-shadow: 0 18px 40px -12px #000;
+        font: 500 0.98rem var(--pixel);
+        white-space: nowrap;
+        animation: bob 5s ease-in-out infinite;
+      }
+      .chip small {
+        display: block;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .chip .face {
+        width: 30px;
+        height: 30px;
+        background: var(--c, var(--green));
+        box-shadow:
+          inset 0 -10px 0 rgba(0, 0, 0, 0.25),
+          inset 6px 10px 0 -2px transparent;
+        position: relative;
+      }
+      .chip .face::before,
+      .chip .face::after {
+        content: "";
+        position: absolute;
+        top: 12px;
+        width: 5px;
+        height: 5px;
+        background: #1b1208;
+      }
+      .chip .face::before {
+        left: 6px;
+      }
+      .chip .face::after {
+        right: 6px;
+      }
+      .chip .go {
+        padding: 4px 10px;
+        background: var(--green);
+        color: #04140b;
+        font-weight: 600;
+      }
+      .chip.one {
+        left: -7%;
+        top: 9%;
+        animation-delay: -1s;
+      }
+      .chip.two {
+        right: -6%;
+        top: 47%;
+        animation-delay: -2.5s;
+      }
+      .chip.three {
+        left: 6%;
+        bottom: -5%;
+        animation-delay: -4s;
+      }
+      @keyframes bob {
+        50% {
+          transform: translateY(-9px);
+        }
+      }
+      .bars {
+        display: inline-flex;
+        align-items: flex-end;
+        gap: 3px;
+        height: 18px;
+      }
+      .bars i {
+        width: 4px;
+        height: 12px;
+        background: var(--purple);
+        animation: talk 0.9s ease-in-out infinite;
+      }
+      .bars i:nth-child(2) {
+        animation-delay: -0.3s;
+      }
+      .bars i:nth-child(3) {
+        animation-delay: -0.6s;
+      }
+      .bars i:nth-child(4) {
+        animation-delay: -0.15s;
+      }
+      @keyframes talk {
+        0%,
+        100% {
+          height: 4px;
+        }
+        50% {
+          height: 18px;
+        }
       }
 
-      /* Sections */
+      /* ------------------------------------------------------------ the running strip */
+      .strip {
+        overflow: hidden;
+        background: var(--green);
+        color: #04140b;
+      }
+      .strip div {
+        display: flex;
+        width: max-content;
+        animation: slide 36s linear infinite;
+      }
+      .strip span {
+        font: 700 1.05rem var(--display);
+        letter-spacing: -0.06em;
+        text-transform: uppercase;
+        padding: 14px 0;
+        white-space: nowrap;
+      }
+      .strip span::after {
+        content: "◆";
+        margin: 0 26px;
+        opacity: 0.55;
+      }
+      @keyframes slide {
+        to {
+          transform: translateX(-50%);
+        }
+      }
+
+      /* ------------------------------------------------------------ sections */
       section {
-        padding: clamp(64px, 10vw, 112px) 0 0;
+        position: relative;
+      }
+      .pad {
+        padding-block: clamp(72px, 10vw, 136px);
       }
       .head {
-        text-align: center;
-        max-width: 640px;
-        margin: 0 auto 36px;
-      }
-      .eyebrow {
-        display: block;
-        color: var(--accent);
-        font-size: 0.95rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        margin-bottom: 10px;
+        max-width: 780px;
+        margin-bottom: clamp(36px, 5vw, 64px);
       }
       .head p {
         color: var(--muted);
-        margin: 0;
-      }
-      .card {
-        background: var(--panel);
-        border: 1px solid var(--rim);
-        border-radius: var(--radius);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        font-size: 1.1rem;
+        margin: 18px 0 0;
+        max-width: 36em;
       }
 
-      /* How it works */
+      /* things come in as you reach them */
+      .js [data-reveal] {
+        opacity: 0;
+        transform: translateY(34px);
+        transition:
+          opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
+          transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+        transition-delay: var(--d, 0s);
+      }
+      .js [data-reveal="left"] {
+        transform: translateX(-46px);
+      }
+      .js [data-reveal="right"] {
+        transform: translateX(46px);
+      }
+      .js [data-reveal="zoom"] {
+        transform: scale(0.92);
+      }
+      .js [data-reveal].in {
+        opacity: 1;
+        transform: none;
+      }
+
+      /* ------------------------------------------------------------ three steps */
       .steps {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
-        counter-reset: step;
-      }
-      .step {
-        padding: 24px;
+        border: 1px solid var(--line);
         position: relative;
       }
-      .step-n {
-        display: inline-grid;
-        place-items: center;
-        width: 38px;
-        height: 38px;
-        border-radius: 10px;
-        background: var(--accent-soft);
-        color: var(--accent);
-        font-size: 1.25rem;
-        margin-bottom: 14px;
+      .step {
+        padding: clamp(24px, 3vw, 40px);
+        border-right: 1px solid var(--line);
+        transition: background 0.3s ease;
+      }
+      .step:last-child {
+        border-right: 0;
+      }
+      .step:hover {
+        background: rgba(61, 220, 132, 0.05);
+      }
+      .step .num {
+        font: 700 clamp(3.4rem, 7vw, 5.6rem) / 1 var(--display);
+        color: transparent;
+        -webkit-text-stroke: 2px rgba(255, 255, 255, 0.3);
+        letter-spacing: -0.08em;
+        display: block;
+        margin-bottom: 22px;
+        transition:
+          color 0.3s ease,
+          -webkit-text-stroke-color 0.3s ease;
+      }
+      .step:hover .num {
+        color: var(--green);
+        -webkit-text-stroke-color: var(--green);
       }
       .step p {
         color: var(--muted);
         margin: 0;
       }
+      .steps::after {
+        /* a line of light that runs across as the steps come into view */
+        content: "";
+        position: absolute;
+        left: 0;
+        top: -1px;
+        height: 2px;
+        width: 100%;
+        background: linear-gradient(90deg, var(--green), transparent);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s;
+      }
+      .steps.in::after {
+        transform: scaleX(1);
+      }
 
-      /* Gallery */
+      /* ------------------------------------------------------------ feature scenes: each has a colour of its own */
+      .scene {
+        --a: var(--green);
+        overflow: hidden;
+        isolation: isolate;
+      }
+      .scene::before {
+        content: "";
+        position: absolute;
+        z-index: -1;
+        inset: 0;
+        background: radial-gradient(70% 60% at var(--gx, 85%) 0%, color-mix(in srgb, var(--a) 22%, transparent), transparent 70%);
+      }
+      .scene .wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr);
+        align-items: center;
+        gap: clamp(28px, 5vw, 72px);
+      }
+      .scene.flip .wrap {
+        grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.9fr);
+      }
+      .scene.flip .copy {
+        order: 2;
+      }
+      .scene.flip {
+        --gx: 15%;
+      }
+      .scene .copy p {
+        color: var(--muted);
+        font-size: 1.1rem;
+        margin: 20px 0 22px;
+      }
+      .ticks {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 10px;
+      }
+      .ticks li {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        font: 500 1.05rem var(--pixel);
+      }
+      .ticks li::before {
+        content: "";
+        flex: none;
+        width: 10px;
+        height: 10px;
+        margin-top: 0.5em;
+        background: var(--a);
+      }
+      .scene .window {
+        transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .scene .window:hover {
+        transform: translateY(-6px) scale(1.01);
+      }
+
+      /* ------------------------------------------------------------ the ping picture */
+      .route {
+        border: 1px solid var(--line-strong);
+        background: #0a0e13;
+        padding: clamp(14px, 2vw, 24px);
+        box-shadow: 0 50px 140px -40px color-mix(in srgb, var(--a) 60%, transparent);
+      }
+      .route svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .route text {
+        font-family: "Pixelify Sans", monospace;
+        fill: #98a3b1;
+        font-size: 15px;
+      }
+      .route .big {
+        font-family: "Silkscreen", monospace;
+        font-weight: 700;
+        font-size: 22px;
+      }
+      .route .dash {
+        stroke-dasharray: 6 8;
+        animation: march 1.2s linear infinite;
+      }
+      @keyframes march {
+        to {
+          stroke-dashoffset: -28;
+        }
+      }
+      .route-note {
+        color: var(--faint);
+        font-size: 0.9rem;
+        margin: 14px 2px 0;
+      }
+
+      /* ------------------------------------------------------------ more, in a grid; a light follows the mouse across each tile */
+      .bento {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-top: 1px solid var(--line);
+        border-left: 1px solid var(--line);
+      }
+      .tile {
+        position: relative;
+        padding: clamp(22px, 2.6vw, 34px);
+        border-right: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        overflow: hidden;
+        --a: var(--green);
+      }
+      .tile::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(260px circle at var(--mx, 50%) var(--my, -40%), color-mix(in srgb, var(--a) 22%, transparent), transparent 70%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+      }
+      .tile:hover::before {
+        opacity: 1;
+      }
+      .tile .slot {
+        display: inline-grid;
+        place-items: center;
+        width: 46px;
+        height: 46px;
+        border: 1px solid color-mix(in srgb, var(--a) 55%, transparent);
+        background: color-mix(in srgb, var(--a) 12%, transparent);
+        color: var(--a);
+        margin-bottom: 18px;
+        transition: transform 0.25s ease;
+      }
+      .tile:hover .slot {
+        transform: translateY(-4px) rotate(-4deg);
+      }
+      .tile .slot svg {
+        width: 26px;
+        height: 26px;
+      }
+      .tile p {
+        color: var(--muted);
+        margin: 0;
+        font-size: 0.99rem;
+      }
+
+      /* ------------------------------------------------------------ numbers */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        border-block: 1px solid var(--line);
+      }
+      .stat {
+        padding: clamp(26px, 4vw, 52px) clamp(14px, 2vw, 28px);
+        border-right: 1px solid var(--line);
+        text-align: center;
+      }
+      .stat:last-child {
+        border-right: 0;
+      }
+      .stat b {
+        display: block;
+        font: 700 clamp(2.4rem, 6vw, 4.6rem) / 1 var(--display);
+        color: var(--green);
+        text-shadow: 0 0 40px rgba(61, 220, 132, 0.45);
+      }
+      .stat span {
+        display: block;
+        margin-top: 10px;
+        color: var(--muted);
+        font: 500 1.02rem var(--pixel);
+      }
+
+      /* ------------------------------------------------------------ download */
+      .get {
+        overflow: hidden;
+        isolation: isolate;
+      }
+      .get::before {
+        content: "";
+        position: absolute;
+        z-index: -1;
+        inset: 0;
+        background: radial-gradient(60% 70% at 50% 100%, rgba(61, 220, 132, 0.22), transparent 70%);
+      }
+      .get .wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: clamp(28px, 5vw, 72px);
+        align-items: center;
+      }
+      .panel {
+        border: 1px solid var(--line-strong);
+        background: rgba(10, 14, 19, 0.92);
+        padding: clamp(20px, 3vw, 34px);
+        box-shadow: 10px 10px 0 rgba(61, 220, 132, 0.18);
+      }
       .tabs {
         display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 8px;
-        margin-bottom: 18px;
+        border: 1px solid var(--line-strong);
+        margin-bottom: 20px;
       }
       .tab {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 9px 16px;
-        border-radius: 10px;
-        border: 1px solid var(--rim);
-        background: var(--panel);
+        flex: 1;
+        padding: 11px 10px;
+        background: transparent;
+        border: 0;
+        border-right: 1px solid var(--line-strong);
         color: var(--muted);
-        font-size: 1rem;
+        font: 600 1.02rem var(--pixel);
         cursor: pointer;
         transition:
-          color 0.15s ease,
-          border-color 0.15s ease,
-          background 0.15s ease;
+          background 0.15s ease,
+          color 0.15s ease;
+      }
+      .tab:last-child {
+        border-right: 0;
       }
       .tab:hover {
         color: var(--text);
-        border-color: var(--rim-strong);
       }
       .tab[aria-selected="true"] {
-        color: var(--accent);
-        background: var(--accent-soft);
-        border-color: rgba(61, 220, 132, 0.5);
+        background: var(--green);
+        color: #04140b;
       }
-      .shot {
-        margin: 0 auto;
-        max-width: 900px;
-      }
-      .shot .window {
-        margin-top: 0;
-      }
-      .shot figcaption {
-        text-align: center;
-        color: var(--muted);
-        margin: 16px auto 0;
-        max-width: 620px;
-        min-height: 3.2em;
-      }
-      .shot img {
-        aspect-ratio: 1710 / 1070;
-        transition: opacity 0.2s ease;
-      }
-
-      /* Features */
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
-      }
-      .feature {
-        padding: 22px;
-        transition:
-          transform 0.15s ease,
-          border-color 0.15s ease;
-      }
-      .feature:hover {
-        transform: translateY(-2px);
-        border-color: var(--rim-strong);
-      }
-      .feature .slot {
-        display: inline-grid;
-        place-items: center;
-        width: 42px;
-        height: 42px;
-        border-radius: 10px;
-        background: var(--accent-soft);
-        color: var(--accent);
-        margin-bottom: 14px;
-      }
-      .feature .slot svg {
-        width: 24px;
-        height: 24px;
-      }
-      .feature p {
-        color: var(--muted);
-        margin: 0;
-        font-size: 0.98rem;
-      }
-
-      /* Download */
-      .install {
-        max-width: 720px;
-        margin: 0 auto;
-        padding: clamp(22px, 4vw, 36px);
-        text-align: center;
-        box-shadow:
-          0 30px 100px -40px rgba(61, 220, 132, 0.45),
-          inset 0 1px 0 rgba(255, 255, 255, 0.06);
-      }
-      .install ol {
-        text-align: left;
-        max-width: 520px;
-        margin: 22px auto 26px;
-        padding-left: 0;
+      .panel ol {
         list-style: none;
+        margin: 0 0 24px;
+        padding: 0;
         counter-reset: s;
       }
-      .install li {
+      .panel li {
         counter-increment: s;
         position: relative;
-        padding: 7px 0 7px 40px;
+        padding: 9px 0 9px 44px;
         color: var(--muted);
+        border-bottom: 1px dashed var(--line);
       }
-      .install li strong {
+      .panel li:last-child {
+        border-bottom: 0;
+      }
+      .panel li strong {
         color: var(--text);
         font-weight: 600;
       }
-      .install li::before {
-        content: counter(s);
+      .panel li::before {
+        content: counter(s, decimal-leading-zero);
         position: absolute;
         left: 0;
-        top: 7px;
-        width: 26px;
-        height: 26px;
-        display: grid;
-        place-items: center;
-        border-radius: 8px;
-        background: var(--accent-soft);
-        color: var(--accent);
-        font: 600 0.95rem var(--pixel);
+        top: 9px;
+        font: 700 1rem var(--display);
+        color: var(--green);
       }
-      .install code {
-        font: 0.92rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        background: rgba(0, 0, 0, 0.35);
-        border: 1px solid var(--rim);
+      .panel code {
+        font: 0.9rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        background: #000;
+        border: 1px solid var(--line);
         padding: 2px 7px;
-        border-radius: 6px;
         color: var(--text);
+      }
+      .panel .btn {
+        width: 100%;
       }
       .versions {
         display: flex;
         flex-wrap: wrap;
-        justify-content: center;
         gap: 6px;
-        margin: 22px 0 12px;
+        margin: 26px 0 10px;
       }
       .pill {
-        padding: 3px 10px;
-        border-radius: 999px;
-        border: 1px solid var(--rim);
+        padding: 4px 10px;
+        border: 1px solid var(--line-strong);
         color: var(--muted);
-        font-size: 0.85rem;
+        font: 500 0.9rem var(--pixel);
       }
       .note {
         color: var(--faint);
         font-size: 0.93rem;
         margin: 0;
       }
+      .note a {
+        color: var(--muted);
+      }
 
-      /* FAQ */
+      /* ------------------------------------------------------------ questions */
       .faq {
-        max-width: 720px;
-        margin: 0 auto;
-        display: grid;
-        gap: 10px;
+        max-width: 860px;
+        border-top: 1px solid var(--line);
       }
       details {
-        padding: 0 20px;
+        border-bottom: 1px solid var(--line);
       }
       summary {
         cursor: pointer;
         list-style: none;
-        padding: 16px 28px 16px 0;
+        padding: 22px 44px 22px 0;
         position: relative;
-        font-weight: 600;
+        font: 600 1.2rem var(--pixel);
+        transition: color 0.15s ease;
+      }
+      summary:hover {
+        color: var(--green);
       }
       summary::-webkit-details-marker {
         display: none;
@@ -535,88 +984,176 @@
       summary::after {
         content: "+";
         position: absolute;
-        right: 0;
-        top: 12px;
-        color: var(--accent);
-        font: 600 1.4rem var(--pixel);
-        transition: transform 0.2s ease;
+        right: 6px;
+        top: 16px;
+        color: var(--green);
+        font: 700 1.6rem var(--display);
+        transition: transform 0.25s ease;
       }
       details[open] summary::after {
         transform: rotate(45deg);
       }
       details p {
         color: var(--muted);
-        padding-bottom: 6px;
+        max-width: 44em;
+        padding-bottom: 12px;
+        animation: open 0.35s ease;
+      }
+      details a {
+        color: var(--green);
+      }
+      @keyframes open {
+        from {
+          opacity: 0;
+          transform: translateY(-6px);
+        }
       }
 
-      /* Footer */
+      /* ------------------------------------------------------------ footer */
       footer {
-        margin-top: clamp(72px, 10vw, 120px);
-        border-top: 1px solid var(--rim);
-        padding: 28px 0 40px;
-        color: var(--faint);
-        font-size: 0.9rem;
+        border-top: 1px solid var(--line);
+        overflow: hidden;
+      }
+      .wordmark {
+        font: 700 clamp(3.2rem, 17vw, 15rem) / 0.85 var(--display);
+        text-transform: uppercase;
+        letter-spacing: -0.1em;
+        color: transparent;
+        -webkit-text-stroke: 1px var(--line-strong);
+        text-align: center;
+        margin: clamp(30px, 5vw, 60px) 0 0;
+        white-space: nowrap;
+        user-select: none;
+        transition:
+          color 0.6s ease,
+          -webkit-text-stroke-color 0.6s ease;
+      }
+      .wordmark:hover {
+        color: var(--green);
+        -webkit-text-stroke-color: var(--green);
       }
       .foot {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 14px 22px;
-        margin-bottom: 16px;
+        gap: 12px 26px;
+        padding-block: 28px 14px;
+        color: var(--muted);
+        font: 500 1rem var(--pixel);
       }
       .foot .brand {
-        font-size: 1.05rem;
-        margin-right: auto;
+        font-size: 1rem;
+        color: var(--text);
       }
       .foot .logo {
         width: 24px;
         height: 24px;
       }
       .foot a {
-        color: var(--muted);
         text-decoration: none;
       }
       .foot a:hover {
-        color: var(--text);
+        color: var(--green);
       }
       .legal {
-        margin: 0;
+        color: var(--faint);
+        font-size: 0.86rem;
         line-height: 1.5;
-      }
-      .legal a {
-        color: var(--muted);
+        margin: 0;
+        padding-bottom: 36px;
       }
 
-      @media (max-width: 860px) {
-        .steps,
-        .grid {
+      /* ------------------------------------------------------------ smaller screens */
+      @media (max-width: 980px) {
+        .hero .wrap,
+        .scene .wrap,
+        .scene.flip .wrap,
+        .get .wrap {
           grid-template-columns: 1fr;
+        }
+        .hero .wrap {
+          min-height: 0;
+        }
+        .scene.flip .copy {
+          order: 0;
+        }
+        .stage .window {
+          width: 100%;
+          transform: none;
+          animation: none;
+        }
+        .chip.one {
+          left: -2%;
+          top: -4%;
+        }
+        .chip.two {
+          right: -2%;
+          top: auto;
+          bottom: 22%;
+        }
+        .chip.three {
+          left: 4%;
+          bottom: -7%;
+        }
+        .stage {
+          margin-top: 26px;
         }
         .nav-links {
           display: none;
         }
+        .bento {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 640px) {
         body {
           font-size: 16px;
         }
-        .badge {
-          font-size: 0.82rem;
-          white-space: nowrap;
+        .steps,
+        .bento {
+          grid-template-columns: 1fr;
         }
-        .badge .wide {
+        .step {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .step:last-child {
+          border-bottom: 0;
+        }
+        .stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .stat:nth-child(2) {
+          border-right: 0;
+        }
+        .stat:nth-child(-n + 2) {
+          border-bottom: 1px solid var(--line);
+        }
+        .chip {
+          font-size: 0.82rem;
+          padding: 7px 10px;
+        }
+        .chip.two {
           display: none;
         }
-      }
-      @media (min-width: 861px) and (max-width: 1000px) {
-        .grid {
-          grid-template-columns: repeat(2, 1fr);
+        .actions .btn {
+          width: 100%;
         }
       }
       @media (prefers-reduced-motion: reduce) {
         html {
           scroll-behavior: auto;
         }
-        * {
+        *,
+        *::before,
+        *::after {
+          animation: none !important;
           transition: none !important;
+        }
+        .js [data-reveal],
+        .js .hero h1 .line > span {
+          opacity: 1;
+          transform: none;
         }
       }
     </style>
@@ -625,8 +1162,8 @@
     <svg width="0" height="0" style="position: absolute" aria-hidden="true">
       <defs>
         <symbol id="jh" viewBox="0 0 32 32">
-          <rect width="32" height="32" rx="8" fill="currentColor" />
-          <path d="M8 0h16a8 8 0 0 1 8 8v8H0V8a8 8 0 0 1 8-8" fill="#fff" opacity=".12" />
+          <rect width="32" height="32" fill="currentColor" />
+          <path d="M0 0h32v16H0z" fill="#fff" opacity=".12" />
           <path class="ink" d="M13 7h11v4h-4v11h-3v3H9v-3H6v-6h5v5h5V11h-3z" />
         </symbol>
       </defs>
@@ -636,60 +1173,98 @@
       <div class="wrap">
         <a class="brand" href="#top" aria-label="JavaHost home"><svg class="logo" aria-hidden="true"><use href="#jh" /></svg>JavaHost</a>
         <div class="nav-links">
-          <a href="#how">How it works</a><a href="#look">Look inside</a><a href="#features">Features</a><a href="#faq">Questions</a>
+          <a href="#how">How it works</a><a href="#features">Features</a><a href="#download">Download</a><a href="#faq">Questions</a>
           <a href="https://github.com/IbrahimMas1/javahost">GitHub</a>
         </div>
         <a class="btn small primary" href="#download"><svg class="i" aria-hidden="true"><use href="media/icons.svg#download" /></svg>Download</a>
       </div>
+      <div class="xp" id="xp" aria-hidden="true"></div>
     </nav>
 
     <main id="top">
+      <!-- ============================================================ hero -->
       <header class="hero">
+        <canvas id="motes" aria-hidden="true"></canvas>
         <div class="wrap">
-          <div class="badge"><span class="dot"></span><span><span id="version">JavaHost</span> · Minecraft 1.21 to 26.3<span class="wide"> · Fabric</span></span></div>
-          <h1>Play your world with friends.<br /><span class="accent">No server needed.</span></h1>
-          <p class="lede">
-            JavaHost turns your singleplayer world into one your friends can join in a click. Invites, voice chat, mods and shared packs
-            are built in.
-          </p>
-          <div class="actions">
-            <a class="btn primary" data-download href="https://github.com/IbrahimMas1/javahost/releases/latest"
-              ><svg class="i" aria-hidden="true"><use href="media/icons.svg#download" /></svg><span data-download-label>Download JavaHost</span></a
-            >
-            <a class="btn" href="#how"><svg class="i" aria-hidden="true"><use href="media/icons.svg#play" /></svg>How it works</a>
+          <div>
+            <div class="badge"><span class="dot"></span><span><span id="version">JavaHost</span> · Minecraft 1.21 to 26.3</span></div>
+            <h1>
+              <span class="line" style="--n: 0"><span>Play with</span></span>
+              <span class="line" style="--n: 1"><span>friends.</span></span>
+              <span class="line" style="--n: 2"><span class="a">No server.<span class="cursor" aria-hidden="true"></span></span></span>
+            </h1>
+            <p class="lede" data-reveal style="--d: 0.45s">
+              JavaHost turns your singleplayer world into one your friends can join in a click. Invites, voice chat, mods and shared packs
+              are built in.
+            </p>
+            <div class="actions" data-reveal style="--d: 0.55s">
+              <a class="btn primary" data-download href="https://github.com/IbrahimMas1/javahost/releases/latest"
+                ><svg class="i" aria-hidden="true"><use href="media/icons.svg#download" /></svg><span data-download-label>Download JavaHost</span></a
+              >
+              <a class="btn" href="#how"><svg class="i" aria-hidden="true"><use href="media/icons.svg#play" /></svg>How it works</a>
+            </div>
+            <ul class="trust" data-reveal style="--d: 0.65s">
+              <li><svg class="i" aria-hidden="true"><use href="media/icons.svg#check" /></svg>Free forever</li>
+              <li><svg class="i" aria-hidden="true"><use href="media/icons.svg#check" /></svg>Open source</li>
+              <li><svg class="i" aria-hidden="true"><use href="media/icons.svg#check" /></svg>No account</li>
+            </ul>
           </div>
-          <p class="hero-foot">Free and open source · No account · <a href="#download">Windows, Mac and Linux</a></p>
-          <div class="window">
-            <img
-              src="media/shots/home.png"
-              width="1710"
-              height="1070"
-              alt="The JavaHost menu in Minecraft: your character, an Invite friends button and the friends who are online, each with Join or Invite"
-            />
+          <div class="stage" id="stage" data-reveal="zoom" style="--d: 0.3s">
+            <div class="chip one" aria-hidden="true">
+              <span class="face" style="--c: #c98a5a"></span>
+              <span>AlexPlays is hosting<small>Cherry Valley · 3 of 8</small></span>
+              <span class="go">Join</span>
+            </div>
+            <div class="chip two" aria-hidden="true">
+              <svg class="i" style="color: var(--orange)"><use href="media/icons.svg#zap" /></svg>
+              <span>Connected directly<small>no relay in between</small></span>
+            </div>
+            <div class="chip three" aria-hidden="true">
+              <span class="bars"><i></i><i></i><i></i><i></i></span>
+              <span>LunaBuilds is talking<small>proximity voice</small></span>
+            </div>
+            <div class="window">
+              <img
+                src="media/shots/home.png"
+                width="1710"
+                height="1070"
+                alt="The JavaHost menu in Minecraft: your character, an Invite friends button and the friends who are online, each with Join or Invite"
+              />
+            </div>
           </div>
         </div>
       </header>
 
-      <section id="how">
+      <div class="strip" aria-hidden="true">
+        <div>
+          <span>No port forwarding</span><span>No monthly bill</span><span>One-click invites</span><span>Proximity voice</span><span>Mods and modpacks</span
+          ><span>Direct connection</span><span>Open source</span><span>Your PC is the server</span><span>No port forwarding</span><span>No monthly bill</span
+          ><span>One-click invites</span><span>Proximity voice</span><span>Mods and modpacks</span><span>Direct connection</span><span>Open source</span
+          ><span>Your PC is the server</span>
+        </div>
+      </div>
+
+      <!-- ============================================================ how it works -->
+      <section id="how" class="pad">
         <div class="wrap">
-          <div class="head">
+          <div class="head" data-reveal>
             <span class="eyebrow">How it works</span>
-            <h2>Three steps. About a minute.</h2>
+            <h2>Three steps.<br />About a <span class="a">minute.</span></h2>
             <p>Your PC is the server, so there is nothing to rent and nothing to set up on your router.</p>
           </div>
-          <div class="steps">
-            <article class="card step">
-              <span class="step-n">1</span>
+          <div class="steps" data-reveal>
+            <article class="step">
+              <span class="num">01</span>
               <h3>Host your world</h3>
               <p>Open any world and press Host. From the title screen it's one click: the world opens and hosting starts.</p>
             </article>
-            <article class="card step">
-              <span class="step-n">2</span>
+            <article class="step">
+              <span class="num">02</span>
               <h3>Invite a friend</h3>
               <p>Add friends by their Minecraft name, then press Invite. A Join button pops up in their game. No codes to copy.</p>
             </article>
-            <article class="card step">
-              <span class="step-n">3</span>
+            <article class="step">
+              <span class="num">03</span>
               <h3>Play together</h3>
               <p>They're in. Talk with voice chat, and your resource packs and shaders come along if they want them.</p>
             </article>
@@ -697,77 +1272,205 @@
         </div>
       </section>
 
-      <section id="look">
-        <div class="wrap">
-          <div class="head">
-            <span class="eyebrow">Look inside</span>
-            <h2>Everything is behind one key.</h2>
-            <p>Press <strong>J</strong> in game and it's all there. Real screenshots; the player names are made up.</p>
-          </div>
-          <div class="tabs" role="tablist" aria-label="Screens">
-            <button class="tab" role="tab" aria-selected="true" aria-controls="shot" data-shot="friends"><svg class="i" aria-hidden="true"><use href="media/icons.svg#users" /></svg>Friends</button>
-            <button class="tab" role="tab" aria-selected="false" aria-controls="shot" tabindex="-1" data-shot="host"><svg class="i" aria-hidden="true"><use href="media/icons.svg#wifi" /></svg>Host</button>
-            <button class="tab" role="tab" aria-selected="false" aria-controls="shot" tabindex="-1" data-shot="wheel"><svg class="i" aria-hidden="true"><use href="media/icons.svg#sliders" /></svg>Quick menu</button>
-            <button class="tab" role="tab" aria-selected="false" aria-controls="shot" tabindex="-1" data-shot="mods"><svg class="i" aria-hidden="true"><use href="media/icons.svg#package" /></svg>Mods</button>
-          </div>
-          <figure class="shot" id="shot" role="tabpanel">
-            <div class="window">
-              <img id="shot-img" src="media/shots/friends.png" width="1710" height="1070" loading="lazy" alt="" />
+      <!-- ============================================================ feature scenes -->
+      <div id="features">
+        <section class="scene pad rule" style="--a: var(--green)">
+          <div class="wrap">
+            <div class="copy" data-reveal="left">
+              <span class="eyebrow">Hosting</span>
+              <h2>Your PC is<br />the <span class="a">server.</span></h2>
+              <p>Pick a world and it opens with hosting already on. Close the game and it's off again. That's the whole setup.</p>
+              <ul class="ticks">
+                <li>One click from the title screen</li>
+                <li>Friends-only until you say otherwise</li>
+                <li>Automatic backups while friends play</li>
+              </ul>
             </div>
-            <figcaption id="shot-text"></figcaption>
-          </figure>
-        </div>
-      </section>
-
-      <section id="features">
-        <div class="wrap">
-          <div class="head">
-            <span class="eyebrow">Features</span>
-            <h2>The whole multiplayer kit.</h2>
+            <div class="window" data-reveal="right">
+              <img src="media/shots/host.png" width="1710" height="1070" loading="lazy" alt="The Host page listing saved worlds, each with Play and Host buttons" />
+            </div>
           </div>
-          <div class="grid">
-            <article class="card feature">
-              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#zap" /></svg></span>
-              <h3>Low ping</h3>
-              <p>Friends connect straight to your PC whenever their router allows it, so nothing sits in between. A relay steps in only when it has to.</p>
+        </section>
+
+        <section class="scene flip pad rule" style="--a: var(--blue)">
+          <div class="wrap">
+            <div class="copy" data-reveal="right">
+              <span class="eyebrow">Friends</span>
+              <h2>Invite.<br />Join. <span class="a">Done.</span></h2>
+              <p>Add friends by name and see who's online or already hosting. One button brings them in, and one brings you to them.</p>
+              <ul class="ticks">
+                <li>Star your favourites</li>
+                <li>Invite everyone online at once</li>
+                <li>Chat and screenshots, end-to-end encrypted</li>
+              </ul>
+            </div>
+            <div class="window" data-reveal="left">
+              <img src="media/shots/friends.png" width="1710" height="1070" loading="lazy" alt="The Friends page with friends online, Invite buttons, favourite stars and a Recent activity list" />
+            </div>
+          </div>
+        </section>
+
+        <section class="scene pad rule" style="--a: var(--orange)">
+          <div class="wrap">
+            <div class="copy" data-reveal="left">
+              <span class="eyebrow">Low ping</span>
+              <h2>Straight<br />to <span class="a">you.</span></h2>
+              <p>
+                Tools like this usually send every packet through a relay that may be a continent away. JavaHost connects your friend's
+                game straight to yours whenever both routers allow it.
+              </p>
+              <ul class="ticks">
+                <li>Nothing to forward on your router</li>
+                <li>A relay steps in only when it has to</li>
+                <li>The menu shows how you're connected, and the ping</li>
+              </ul>
+            </div>
+            <div data-reveal="right">
+              <div class="route">
+                <svg viewBox="0 0 640 360" role="img" aria-label="Two ways to connect. Through a far-away relay, packets take a long detour. Connected directly, they go straight between the two players.">
+                  <path id="detour" d="M110 270 C 150 60, 490 60, 530 270" fill="none" stroke="#5d6875" stroke-width="2" class="dash" />
+                  <rect x="282" y="70" width="76" height="46" fill="#0c1016" stroke="#5d6875" stroke-width="2" />
+                  <text x="320" y="99" text-anchor="middle">relay</text>
+                  <text x="320" y="48" text-anchor="middle" class="big">≈ 240 ms</text>
+                  <rect width="10" height="10" x="-5" y="-5" fill="#98a3b1">
+                    <animateMotion dur="3.4s" repeatCount="indefinite"><mpath href="#detour" /></animateMotion>
+                  </rect>
+                  <rect width="10" height="10" x="-5" y="-5" fill="#98a3b1">
+                    <animateMotion dur="3.4s" begin="-1.7s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#detour" /></animateMotion>
+                  </rect>
+                  <path d="M150 290 L 490 290" fill="none" stroke="#f59e3b" stroke-width="14" opacity="0.18" />
+                  <path id="direct" d="M150 290 L 490 290" fill="none" stroke="#f59e3b" stroke-width="4" />
+                  <text x="320" y="268" text-anchor="middle" class="big" style="fill: #f59e3b">direct</text>
+                  <rect width="12" height="12" x="-6" y="-6" fill="#fff">
+                    <animateMotion dur="0.7s" repeatCount="indefinite"><mpath href="#direct" /></animateMotion>
+                  </rect>
+                  <rect width="12" height="12" x="-6" y="-6" fill="#fff">
+                    <animateMotion dur="0.7s" begin="-0.35s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#direct" /></animateMotion>
+                  </rect>
+                  <g>
+                    <rect x="70" y="250" width="80" height="80" fill="#3ddc84" />
+                    <rect x="70" y="298" width="80" height="32" fill="#000" opacity="0.22" />
+                    <rect x="88" y="278" width="14" height="14" fill="#04140b" />
+                    <rect x="118" y="278" width="14" height="14" fill="#04140b" />
+                    <text x="110" y="352" text-anchor="middle">you</text>
+                  </g>
+                  <g>
+                    <rect x="490" y="250" width="80" height="80" fill="#4f9df7" />
+                    <rect x="490" y="298" width="80" height="32" fill="#000" opacity="0.22" />
+                    <rect x="508" y="278" width="14" height="14" fill="#04140b" />
+                    <rect x="538" y="278" width="14" height="14" fill="#04140b" />
+                    <text x="530" y="352" text-anchor="middle">your friend</text>
+                  </g>
+                </svg>
+              </div>
+              <p class="route-note">
+                The 240 ms is a real measurement: a home connection in the Middle East reaching a friend in the same country through the
+                nearest free public relay.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="scene flip pad rule" style="--a: var(--purple)">
+          <div class="wrap">
+            <div class="copy" data-reveal="right">
+              <span class="eyebrow">Voice chat</span>
+              <h2>Hear who's<br /><span class="a">near.</span></h2>
+              <p>Voices fade with distance, so a friend across the map sounds across the map. Or switch the whole world to party voice.</p>
+              <ul class="ticks">
+                <li>Push to talk or open mic</li>
+                <li>A volume slider for every friend</li>
+                <li>Nothing extra to install</li>
+              </ul>
+            </div>
+            <div class="window" data-reveal="left">
+              <img src="media/shots/voice.png" width="1710" height="1070" loading="lazy" alt="The Voice chat page: push to talk or voice activation, nearby players or everyone in the world" />
+            </div>
+          </div>
+        </section>
+
+        <section class="scene pad rule" style="--a: var(--pink)">
+          <div class="wrap">
+            <div class="copy" data-reveal="left">
+              <span class="eyebrow">Mods</span>
+              <h2>Mods, minus<br />the <span class="a">homework.</span></h2>
+              <p>Browse mods and modpacks from inside the game and install with one click. Nobody has to compare mod lists again.</p>
+              <ul class="ticks">
+                <li>A friend joining gets the same mods automatically</li>
+                <li>Their own mods are put aside and come back after</li>
+                <li>One-click performance mods</li>
+              </ul>
+            </div>
+            <div class="window" data-reveal="right">
+              <img src="media/shots/mods.png" width="1710" height="1070" loading="lazy" alt="The Mods page with a search box, categories and Install buttons" />
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ============================================================ and more -->
+      <section class="pad rule">
+        <div class="wrap">
+          <div class="head" data-reveal>
+            <span class="eyebrow">And more</span>
+            <h2>The whole<br />multiplayer <span class="a">kit.</span></h2>
+          </div>
+          <div class="bento">
+            <article class="tile" data-reveal style="--a: var(--pink)">
+              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#sliders" /></svg></span>
+              <h3>Quick menu</h3>
+              <p>Hold Z while playing for a ring of shortcuts: invite, mute, party voice, a screenshot, the invite code.</p>
             </article>
-            <article class="card feature">
-              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#users" /></svg></span>
-              <h3>Friends</h3>
-              <p>See who's online or hosting, star your favourites, check when someone was last on, and invite everyone at once.</p>
+            <article class="tile" data-reveal style="--a: var(--blue); --d: 0.08s">
+              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#globe" /></svg></span>
+              <h3>Public worlds</h3>
+              <p>List your world for anyone to find, or join someone else's. Visitors can look around until you trust them to build.</p>
             </article>
-            <article class="card feature">
-              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#mic" /></svg></span>
-              <h3>Voice chat</h3>
-              <p>Push to talk or open mic. Voices fade with distance, or the host can switch the whole world to party voice.</p>
+            <article class="tile" data-reveal style="--a: var(--green); --d: 0.16s">
+              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#shield" /></svg></span>
+              <h3>Your rules</h3>
+              <p>Set game modes, kick or ban, and lock world rules like difficulty or keep inventory so they stay put.</p>
             </article>
-            <article class="card feature">
-              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#package" /></svg></span>
-              <h3>Mods made easy</h3>
-              <p>Browse and install mods and modpacks from the menu. A friend joining a modded world gets the right mods automatically.</p>
-            </article>
-            <article class="card feature">
+            <article class="tile" data-reveal style="--a: var(--purple)">
               <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#lock" /></svg></span>
               <h3>Private</h3>
-              <p>Invites, chat and screenshots are end-to-end encrypted between you and your friend. There is no JavaHost account.</p>
+              <p>Invites, chat and screenshots are encrypted between you and your friend. There is no JavaHost account to make.</p>
             </article>
-            <article class="card feature">
-              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#shield" /></svg></span>
-              <h3>Your world, your rules</h3>
-              <p>Friends-only by default. Set game modes, kick or ban, lock world rules, and keep automatic backups.</p>
+            <article class="tile" data-reveal style="--a: var(--orange); --d: 0.08s">
+              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#image" /></svg></span>
+              <h3>Shared look</h3>
+              <p>Guests are offered your resource packs and shader settings, so everyone sees the same world you built.</p>
+            </article>
+            <article class="tile" data-reveal style="--a: var(--green); --d: 0.16s">
+              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#upload" /></svg></span>
+              <h3>Send a world</h3>
+              <p>Give a friend a copy of the world you're in, or a backup, without leaving the game.</p>
             </article>
           </div>
         </div>
       </section>
 
-      <section id="download">
+      <div class="stats" id="stats">
+        <div class="stat"><b data-count="0">0</b><span>servers to rent</span></div>
+        <div class="stat"><b data-count="1">1</b><span>click to invite</span></div>
+        <div class="stat"><b data-count="8">8</b><span>Minecraft versions</span></div>
+        <div class="stat"><b data-count="0" data-prefix="$">$0</b><span>forever</span></div>
+      </div>
+
+      <!-- ============================================================ download -->
+      <section id="download" class="get pad">
         <div class="wrap">
-          <div class="head">
+          <div data-reveal="left">
             <span class="eyebrow">Download</span>
-            <h2>Get JavaHost.</h2>
-            <p>Free and open source. Your normal Minecraft stays untouched.</p>
+            <h2>Get<br /><span class="a">JavaHost.</span></h2>
+            <p class="lede" style="margin-top: 20px">Free and open source. It gets its own launcher profile, so your normal Minecraft stays untouched.</p>
+            <div class="versions" aria-label="Supported Minecraft versions">
+              <span class="pill">26.3</span><span class="pill">26.2</span><span class="pill">26.1.x</span><span class="pill">1.21.11</span
+              ><span class="pill">1.21.9–10</span><span class="pill">1.21.6–8</span><span class="pill">1.21.4</span><span class="pill">1.21–1.21.1</span>
+            </div>
+            <p class="note">For Fabric. JavaHost keeps itself up to date. <a href="https://github.com/IbrahimMas1/javahost/releases">All downloads</a></p>
           </div>
-          <div class="card install">
+          <div class="panel" data-reveal="right">
             <div class="tabs" role="tablist" aria-label="Your computer">
               <button class="tab" role="tab" aria-selected="true" aria-controls="os-panel" data-os="win">Windows</button>
               <button class="tab" role="tab" aria-selected="false" aria-controls="os-panel" tabindex="-1" data-os="mac">Mac</button>
@@ -784,65 +1487,58 @@
             <a class="btn primary" data-download href="https://github.com/IbrahimMas1/javahost/releases/latest"
               ><svg class="i" aria-hidden="true"><use href="media/icons.svg#download" /></svg><span data-download-label>Download JavaHost</span></a
             >
-            <div class="versions" aria-label="Supported Minecraft versions">
-              <span class="pill">26.3</span><span class="pill">26.2</span><span class="pill">26.1.x</span><span class="pill">1.21.11</span
-              ><span class="pill">1.21.9–10</span><span class="pill">1.21.6–8</span><span class="pill">1.21.4</span><span class="pill">1.21–1.21.1</span>
-            </div>
-            <p class="note">
-              The installer sets up Fabric and JavaHost in their own launcher profile, and JavaHost keeps itself up to date.
-              <a href="https://github.com/IbrahimMas1/javahost/releases">All downloads</a>
-            </p>
           </div>
         </div>
       </section>
 
-      <section id="faq">
+      <!-- ============================================================ questions -->
+      <section id="faq" class="pad rule">
         <div class="wrap">
-          <div class="head">
+          <div class="head" data-reveal>
             <span class="eyebrow">Questions</span>
-            <h2>Good to know.</h2>
+            <h2>Good to <span class="a">know.</span></h2>
           </div>
-          <div class="faq">
-            <details class="card">
+          <div class="faq" data-reveal>
+            <details>
               <summary>Do my friends need JavaHost too?</summary>
               <p>
                 Yes, for one-click invites, voice, shared packs and modded worlds: send them this page. Someone without it can still join
                 with the address shown on your Host tab.
               </p>
             </details>
-            <details class="card">
+            <details>
               <summary>Does it change my normal Minecraft?</summary>
               <p>No. The installer makes a separate JavaHost profile and folder. It can copy your settings, packs and worlds over if you like.</p>
             </details>
-            <details class="card">
+            <details>
               <summary>Will it work with my router?</summary>
               <p>
                 Almost always, with nothing to configure. JavaHost first tries to connect you and your friend directly, then your router's
                 own port opening, then IPv6, and finally a relay. The Host tab shows which ways are working.
               </p>
             </details>
-            <details class="card">
+            <details>
               <summary>Which Minecraft versions work?</summary>
               <p>
                 Java Edition 1.21 to 1.21.11 and 26.1 to 26.3, with Fabric. You pick one in the installer, and each version gets its own
                 profile. Friends need the same version to play together.
               </p>
             </details>
-            <details class="card">
+            <details>
               <summary>Can we play with mods?</summary>
               <p>
                 Yes. Install mods or modpacks from the Mods tab. When a friend joins your modded world, JavaHost downloads the same mods
                 for them, restarts their game and brings them back in. Their own mods are kept safe.
               </p>
             </details>
-            <details class="card">
+            <details>
               <summary>Is it private?</summary>
               <p>
                 Invites, chat and screenshots are encrypted with a key only you and that friend share. They are delivered through
                 <a href="https://ntfy.sh">ntfy.sh</a>, a public message service that can't read them. The game itself connects player to player.
               </p>
             </details>
-            <details class="card">
+            <details>
               <summary>My microphone is silent on Mac.</summary>
               <p>Give the Minecraft Launcher microphone access in System Settings → Privacy &amp; Security → Microphone, then restart the game.</p>
             </details>
@@ -852,6 +1548,7 @@
     </main>
 
     <footer>
+      <div class="wordmark" aria-hidden="true">JavaHost</div>
       <div class="wrap">
         <div class="foot">
           <a class="brand" href="#top"><svg class="logo" aria-hidden="true"><use href="#jh" /></svg>JavaHost</a>
@@ -872,54 +1569,148 @@
       (() => {
         const $ = (s) => document.querySelector(s);
         const $$ = (s) => [...document.querySelectorAll(s)];
+        const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
         const RELEASES = "https://github.com/IbrahimMas1/javahost/releases/latest";
 
-        // Arrow keys move between tabs in a tab list, as they do in any app.
-        function tablist(buttons, pick) {
-          buttons.forEach((button, index) => {
-            button.addEventListener("click", () => pick(button));
-            button.addEventListener("keydown", (event) => {
-              const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
-              if (step) {
-                const next = buttons[(index + step + buttons.length) % buttons.length];
-                pick(next);
-                next.focus();
+        // ---------------------------------------------------------------- things come in as you reach them
+        if ("IntersectionObserver" in window && !calm) {
+          const seen = new IntersectionObserver(
+            (entries) => {
+              for (const entry of entries) {
+                if (entry.isIntersecting) {
+                  entry.target.classList.add("in");
+                  seen.unobserve(entry.target);
+                }
               }
-            });
-          });
+            },
+            { rootMargin: "0px 0px -8% 0px", threshold: 0.08 },
+          );
+          $$("[data-reveal]").forEach((el) => seen.observe(el));
+        } else {
+          $$("[data-reveal]").forEach((el) => el.classList.add("in"));
         }
-        function select(buttons, chosen) {
-          buttons.forEach((button) => {
-            const on = button === chosen;
-            button.setAttribute("aria-selected", String(on));
-            button.tabIndex = on ? 0 : -1;
+
+        // ---------------------------------------------------------------- the experience bar
+        const xp = $("#xp");
+        let ticking = false;
+        addEventListener(
+          "scroll",
+          () => {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(() => {
+              const room = document.documentElement.scrollHeight - innerHeight;
+              xp.style.transform = "scaleX(" + (room > 0 ? Math.min(1, scrollY / room) : 0) + ")";
+              ticking = false;
+            });
+          },
+          { passive: true },
+        );
+
+        // ---------------------------------------------------------------- the menu turns a little toward the mouse
+        const stage = $("#stage");
+        if (stage && !calm && matchMedia("(pointer: fine)").matches) {
+          addEventListener("mousemove", (event) => {
+            const x = event.clientX / innerWidth - 0.5;
+            const y = event.clientY / innerHeight - 0.5;
+            stage.style.setProperty("--ry", (x * 7).toFixed(2) + "deg");
+            stage.style.setProperty("--rx", (-y * 5).toFixed(2) + "deg");
           });
         }
 
-        // ---------------------------------------------------------------- the screenshots
-        const shots = {
-          friends: ["media/shots/friends.png", "Friends: Invite or Join on every row, a star for favourites, and a list of who came online or started hosting.", "The Friends page with friends online, Invite buttons, favourite stars and a Recent activity list"],
-          host: ["media/shots/host.png", "Host: pick a world on the title screen and it opens with hosting already on.", "The Host page listing saved worlds, each with Play and Host buttons"],
-          wheel: ["media/shots/wheel.jpg", "Quick menu: hold Z while playing for invite, mute, party voice, a screenshot or the invite code.", "A ring of six shortcut tiles over the game: Menu, Invite, Capture, Voice, Party and Copy code"],
-          mods: ["media/shots/mods.png", "Mods: search Modrinth by category and install with one click, with progress in the corner.", "The Mods page with a search box, categories and Install buttons"],
-        };
-        const shotTabs = $$("[data-shot]");
-        function showShot(button) {
-          const [src, text, alt] = shots[button.dataset.shot];
-          select(shotTabs, button);
-          const img = $("#shot-img");
-          img.style.opacity = 0;
-          const next = new Image();
-          next.onload = next.onerror = () => {
-            img.src = src;
-            img.alt = alt;
-            img.style.opacity = 1;
-          };
-          next.src = src;
-          $("#shot-text").textContent = text;
+        // ---------------------------------------------------------------- a light follows the mouse across each tile
+        $$(".tile").forEach((tile) => {
+          tile.addEventListener("mousemove", (event) => {
+            const box = tile.getBoundingClientRect();
+            tile.style.setProperty("--mx", event.clientX - box.left + "px");
+            tile.style.setProperty("--my", event.clientY - box.top + "px");
+          });
+        });
+
+        // ---------------------------------------------------------------- the numbers spin, then land
+        function countUp() {
+          if (calm) return;
+          $$("[data-count]").forEach((el, index) => {
+            const target = el.dataset.count;
+            const prefix = el.dataset.prefix || "";
+            let turns = 0;
+            const spin = setInterval(
+              () => {
+                turns++;
+                el.textContent = prefix + (turns < 10 + index * 3 ? Math.floor(Math.random() * 90 + 10) : target);
+                if (turns >= 10 + index * 3) clearInterval(spin);
+              },
+              55,
+            );
+          });
         }
-        tablist(shotTabs, showShot);
-        showShot(shotTabs[0]);
+        if ("IntersectionObserver" in window) {
+          const once = new IntersectionObserver(
+            (entries) => {
+              if (entries.some((entry) => entry.isIntersecting)) {
+                once.disconnect();
+                countUp();
+              }
+            },
+            { threshold: 0.4 },
+          );
+          once.observe($("#stats"));
+        }
+
+        // ---------------------------------------------------------------- motes drifting up behind the headline
+        const canvas = $("#motes");
+        if (canvas && !calm) {
+          const ctx = canvas.getContext("2d");
+          const colours = ["#3ddc84", "#3ddc84", "#3ddc84", "#4f9df7", "#a77bf3"];
+          let motes = [];
+          let width = 0;
+          let height = 0;
+          let running = false;
+          function size() {
+            const box = canvas.getBoundingClientRect();
+            const ratio = Math.min(2, devicePixelRatio || 1);
+            width = box.width;
+            height = box.height;
+            canvas.width = width * ratio;
+            canvas.height = height * ratio;
+            ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+            const count = Math.round(Math.min(70, width / 22));
+            motes = Array.from({ length: count }, () => ({
+              x: Math.random() * width,
+              y: Math.random() * height,
+              s: 2 + Math.floor(Math.random() * 3) * 2,
+              v: 0.15 + Math.random() * 0.45,
+              c: colours[Math.floor(Math.random() * colours.length)],
+              p: Math.random() * Math.PI * 2,
+            }));
+          }
+          function draw(time) {
+            if (!running) return;
+            ctx.clearRect(0, 0, width, height);
+            for (const m of motes) {
+              m.y -= m.v;
+              if (m.y < -10) {
+                m.y = height + 10;
+                m.x = Math.random() * width;
+              }
+              ctx.globalAlpha = 0.18 + 0.32 * (0.5 + 0.5 * Math.sin(time / 900 + m.p));
+              ctx.fillStyle = m.c;
+              ctx.fillRect(Math.round(m.x + Math.sin(time / 1700 + m.p) * 8), Math.round(m.y), m.s, m.s);
+            }
+            requestAnimationFrame(draw);
+          }
+          size();
+          addEventListener("resize", size);
+          // Only while the top of the page is on screen.
+          new IntersectionObserver((entries) => {
+            const visible = entries[0].isIntersecting;
+            if (visible && !running) {
+              running = true;
+              requestAnimationFrame(draw);
+            }
+            running = visible;
+          }).observe(canvas);
+        }
 
         // ---------------------------------------------------------------- downloads
         const os = {
@@ -931,12 +1722,26 @@
         let current = "win";
         function pickOs(key) {
           current = key;
-          select(osTabs, osTabs.find((button) => button.dataset.os === key));
+          osTabs.forEach((button) => {
+            const on = button.dataset.os === key;
+            button.setAttribute("aria-selected", String(on));
+            button.tabIndex = on ? 0 : -1;
+          });
           $("#run-step").innerHTML = os[key].step;
           $$("[data-download]").forEach((link) => (link.href = os[key].url || RELEASES));
           $$("[data-download-label]").forEach((label) => (label.textContent = "Download for " + os[key].name));
         }
-        tablist(osTabs, (button) => pickOs(button.dataset.os));
+        osTabs.forEach((button, index) => {
+          button.addEventListener("click", () => pickOs(button.dataset.os));
+          button.addEventListener("keydown", (event) => {
+            const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+            if (step) {
+              const next = osTabs[(index + step + osTabs.length) % osTabs.length];
+              pickOs(next.dataset.os);
+              next.focus();
+            }
+          });
+        });
         const platform = navigator.userAgentData?.platform || navigator.platform || navigator.userAgent;
         pickOs(/Mac|iPhone|iPad/i.test(platform) ? "mac" : /Linux|X11/i.test(platform) && !/Android/i.test(navigator.userAgent) ? "linux" : "win");
 

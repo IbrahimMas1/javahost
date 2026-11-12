@@ -4,9 +4,11 @@ A single page with no build step: `index.html` holds the CSS and JavaScript. To 
 
 ## What's on it
 
-Top to bottom: the headline with the download button, how it works in three steps, a small gallery of the menus, six features, install steps for Windows, Mac and Linux, and common questions. It is meant to stay this short.
+Top to bottom: the headline with the download button and the menu standing beside it, a running strip, how it works in three steps, five feature scenes (hosting, friends, low ping, voice, mods), six more features in a grid, four numbers, install steps for Windows, Mac and Linux, and common questions.
 
-The look follows the mod's menu: a dark room lit by two soft lights, glass cards, the green accent, Pixelify Sans for headings and buttons (Google Fonts) and Pixelarticons (`media/icons.svg`). Body text uses the visitor's system font. There are no external scripts.
+The look: a near-black page drawn on a visible grid, very large pixel headlines (Silkscreen), Pixelify Sans for labels and buttons, the visitor's system font for body text, square buttons with a hard pixel shadow, and Pixelarticons (`media/icons.svg`). Each feature scene takes one of the mod's five accent colours. Fonts come from Google Fonts; there are no external scripts.
+
+Motion, all in `index.html`: the headline rises in line by line with a blinking block cursor; the menu in the hero is tilted in 3D and turns toward the mouse, with three floating notes; pixel motes drift up behind it (a small canvas, paused when off screen); sections slide in as you reach them; an experience bar under the top bar fills as you scroll; the steps get a line of light; packets travel the two routes in the low-ping picture (SVG); a light follows the mouse across the grid tiles; the numbers spin before landing. With "reduce motion" on, all of it is switched off and everything is simply there.
 
 ## Media
 
@@ -26,6 +28,6 @@ The download buttons point at the latest GitHub release. When GitHub's API answe
 
 ## Accessibility
 
-- The gallery and the computer picker are real tab lists: click, or use the arrow keys.
-- Questions are plain `<details>` elements, so they work without JavaScript.
-- With "reduce motion" on, transitions and smooth scrolling are off.
+- The computer picker is a real tab list: click, or use the arrow keys.
+- Questions are plain `<details>` elements, so they work without JavaScript; so does the rest of the page (nothing is hidden unless the script is running to reveal it).
+- With "reduce motion" on, animations, transitions and smooth scrolling are off.
