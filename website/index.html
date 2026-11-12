@@ -508,8 +508,8 @@
         animation-delay: -2.5s;
       }
       .chip.three {
-        left: 6%;
-        bottom: -5%;
+        right: 2%;
+        bottom: -7%;
         animation-delay: -4s;
       }
       @keyframes bob {
@@ -546,6 +546,186 @@
         50% {
           height: 18px;
         }
+      }
+
+      /* ------------------------------------------------------------ the players: real 3D, built from boxes that wear a skin */
+      .cast {
+        position: absolute;
+        left: -12%;
+        bottom: -15%;
+        z-index: 3;
+        display: flex;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+      .player {
+        --u: 8px;
+        --c: var(--green);
+        position: relative;
+        width: calc(var(--u) * 16);
+        height: calc(var(--u) * 32);
+        perspective: 900px;
+        pointer-events: auto;
+        cursor: grab;
+        touch-action: pan-y;
+        user-select: none;
+      }
+      .player:active {
+        cursor: grabbing;
+      }
+      .player.friend {
+        --u: 6.5px;
+        --c: var(--blue);
+        margin-left: calc(var(--u) * -2);
+        margin-bottom: calc(var(--u) * 3);
+        z-index: -1;
+      }
+      .player::after {
+        /* the pool of light they stand in */
+        content: "";
+        position: absolute;
+        z-index: -1;
+        left: 50%;
+        bottom: calc(var(--u) * -2.6);
+        width: 170%;
+        height: calc(var(--u) * 6);
+        transform: translateX(-50%);
+        background:
+          radial-gradient(closest-side, rgba(0, 0, 0, 0.75) 0 28%, transparent 62%), radial-gradient(closest-side, color-mix(in srgb, var(--c) 70%, transparent), transparent);
+      }
+      .player .tag {
+        position: absolute;
+        left: 50%;
+        top: calc(var(--u) * -4.2);
+        transform: translateX(-50%);
+        padding: 2px 9px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        font: 500 0.88rem var(--pixel);
+        white-space: nowrap;
+        pointer-events: none;
+      }
+      .player .turn,
+      .player .sway,
+      .player .part {
+        position: absolute;
+        transform-style: preserve-3d;
+      }
+      .player .turn {
+        inset: 0;
+        transform: rotateX(var(--tilt, -7deg)) rotateY(var(--turn, 24deg));
+      }
+      .player .sway {
+        inset: 0;
+        animation: sway 6s ease-in-out infinite;
+      }
+      @keyframes sway {
+        0%,
+        100% {
+          transform: rotateY(-5deg);
+        }
+        50% {
+          transform: rotateY(5deg) translateY(calc(var(--u) * -0.35));
+        }
+      }
+      .player .face {
+        position: absolute;
+        background-image: var(--skin);
+        background-size: calc(var(--u) * 64) calc(var(--u) * 64);
+        image-rendering: pixelated;
+        backface-visibility: hidden;
+      }
+      .player .head {
+        transform-origin: 50% 100%;
+        transform: rotateY(var(--hy, 0deg)) rotateX(var(--hx, 0deg));
+      }
+      .player .armR,
+      .player .armL,
+      .player .legR,
+      .player .legL {
+        transform-origin: 50% calc(var(--u) * 1);
+      }
+      .player .armR {
+        animation: arm-r 3.4s ease-in-out infinite;
+      }
+      .player .armL {
+        animation: arm-l 3.4s ease-in-out infinite;
+      }
+      @keyframes arm-r {
+        0%,
+        100% {
+          transform: rotateX(5deg) rotateZ(3deg);
+        }
+        50% {
+          transform: rotateX(-5deg) rotateZ(6deg);
+        }
+      }
+      @keyframes arm-l {
+        0%,
+        100% {
+          transform: rotateX(-5deg) rotateZ(-3deg);
+        }
+        50% {
+          transform: rotateX(5deg) rotateZ(-6deg);
+        }
+      }
+      .player.waving .armL {
+        animation: wave 2.3s ease-in-out;
+      }
+      @keyframes wave {
+        0%,
+        100% {
+          transform: rotateZ(-4deg);
+        }
+        14%,
+        46%,
+        78% {
+          transform: rotateZ(-160deg);
+        }
+        30%,
+        62% {
+          transform: rotateZ(-132deg);
+        }
+      }
+      /* while the page scrolls they walk on the spot */
+      .player.walking .legR,
+      .player.walking .armL {
+        animation: step-a 0.42s ease-in-out infinite alternate;
+      }
+      .player.walking .legL,
+      .player.walking .armR {
+        animation: step-b 0.42s ease-in-out infinite alternate;
+      }
+      @keyframes step-a {
+        from {
+          transform: rotateX(30deg);
+        }
+        to {
+          transform: rotateX(-30deg);
+        }
+      }
+      @keyframes step-b {
+        from {
+          transform: rotateX(-30deg);
+        }
+        to {
+          transform: rotateX(30deg);
+        }
+      }
+      /* one more, standing on top of the download box */
+      .panel {
+        position: relative;
+      }
+      .get .player {
+        position: absolute;
+        right: 34px;
+        bottom: calc(100% - 1px);
+        margin: 0;
+        z-index: 1;
+        --u: 5px;
+      }
+      .get .player::after {
+        display: none;
       }
 
       /* ------------------------------------------------------------ the running strip */
@@ -850,8 +1030,8 @@
 
       /* ------------------------------------------------------------ download */
       .get {
-        overflow: hidden;
         isolation: isolate;
+        padding-top: clamp(150px, 17vw, 250px);
       }
       .get::before {
         content: "";
@@ -1092,11 +1272,22 @@
           bottom: 22%;
         }
         .chip.three {
-          left: 4%;
+          right: 2%;
           bottom: -7%;
         }
         .stage {
           margin-top: 26px;
+          margin-bottom: 70px;
+        }
+        .cast {
+          left: 0;
+          bottom: -24%;
+        }
+        .player {
+          --u: 5.5px;
+        }
+        .player.friend {
+          --u: 4.6px;
         }
         .nav-links {
           display: none;
@@ -1138,6 +1329,26 @@
         }
         .actions .btn {
           width: 100%;
+        }
+        .get .player {
+          display: none;
+        }
+        /* On a phone the players stand under the window instead of in front of it. */
+        .stage {
+          display: flex;
+          flex-direction: column;
+          margin-bottom: 30px;
+        }
+        .cast {
+          position: relative;
+          left: auto;
+          bottom: auto;
+          order: 2;
+          justify-content: center;
+          margin-top: 64px;
+        }
+        .chip.three {
+          display: none;
         }
       }
       @media (prefers-reduced-motion: reduce) {
@@ -1222,6 +1433,10 @@
             <div class="chip three" aria-hidden="true">
               <span class="bars"><i></i><i></i><i></i><i></i></span>
               <span>LunaBuilds is talking<small>proximity voice</small></span>
+            </div>
+            <div class="cast" aria-hidden="true">
+              <div class="player host" data-skin="media/skin-host.png" style="--turn: 30deg"><span class="tag">You</span></div>
+              <div class="player friend" data-skin="media/skin-friend.png" data-waves style="--turn: 6deg"><span class="tag">AlexPlays</span></div>
             </div>
             <div class="window">
               <img
@@ -1471,6 +1686,7 @@
             <p class="note">For Fabric. JavaHost keeps itself up to date. <a href="https://github.com/IbrahimMas1/javahost/releases">All downloads</a></p>
           </div>
           <div class="panel" data-reveal="right">
+            <div class="player friend" data-skin="media/skin-friend.png" data-waves style="--turn: -26deg" aria-hidden="true"><span class="tag">See you in game</span></div>
             <div class="tabs" role="tablist" aria-label="Your computer">
               <button class="tab" role="tab" aria-selected="true" aria-controls="os-panel" data-os="win">Windows</button>
               <button class="tab" role="tab" aria-selected="false" aria-controls="os-panel" tabindex="-1" data-os="mac">Mac</button>
@@ -1616,6 +1832,113 @@
             stage.style.setProperty("--ry", (x * 7).toFixed(2) + "deg");
             stage.style.setProperty("--rx", (-y * 5).toFixed(2) + "deg");
           });
+        }
+
+        // ---------------------------------------------------------------- the players
+        // Each is six boxes (head, body, arms, legs) whose faces show the right patch of a 64x64 skin, placed in 3D with
+        // CSS. Sizes are in "u", one skin pixel, so the whole figure scales with one variable.
+        const BOXES = [
+          // name, x, y, width, height, depth, then where each face is on the skin: top, bottom, right, front, left, back
+          ["head", 4, 0, 8, 8, 8, [8, 0, 16, 0, 0, 8, 8, 8, 16, 8, 24, 8]],
+          ["torso", 4, 8, 8, 12, 4, [20, 16, 28, 16, 16, 20, 20, 20, 28, 20, 32, 20]],
+          ["armR", 0, 8, 4, 12, 4, [44, 16, 48, 16, 40, 20, 44, 20, 48, 20, 52, 20]],
+          ["armL", 12, 8, 4, 12, 4, [36, 48, 40, 48, 32, 52, 36, 52, 40, 52, 44, 52]],
+          ["legR", 4, 20, 4, 12, 4, [4, 16, 8, 16, 0, 20, 4, 20, 8, 20, 12, 20]],
+          ["legL", 8, 20, 4, 12, 4, [20, 48, 24, 48, 16, 52, 20, 52, 24, 52, 28, 52]],
+        ];
+        const u = (n) => "calc(var(--u) * " + n + ")";
+        const players = $$(".player").map((el) => {
+          el.style.setProperty("--skin", "url(" + el.dataset.skin + ")");
+          const turn = document.createElement("div");
+          const sway = document.createElement("div");
+          turn.className = "turn";
+          sway.className = "sway";
+          turn.append(sway);
+          el.append(turn);
+          for (const [name, x, y, w, h, d, at] of BOXES) {
+            const part = document.createElement("div");
+            part.className = "part " + name;
+            part.style.cssText = "left:" + u(x) + ";top:" + u(y) + ";width:" + u(w) + ";height:" + u(h);
+            const faces = [
+              // width, height, skin x, skin y, where it goes, how brightly it's lit
+              [w, d, at[0], at[1], "rotateX(90deg) translateZ(" + u(h / 2) + ")", 1.12],
+              [w, d, at[2], at[3], "rotateX(-90deg) translateZ(" + u(h / 2) + ")", 0.5],
+              [d, h, at[4], at[5], "rotateY(-90deg) translateZ(" + u(w / 2) + ")", 0.78],
+              [w, h, at[6], at[7], "translateZ(" + u(d / 2) + ")", 1],
+              [d, h, at[8], at[9], "rotateY(90deg) translateZ(" + u(w / 2) + ")", 0.78],
+              [w, h, at[10], at[11], "rotateY(180deg) translateZ(" + u(d / 2) + ")", 0.6],
+            ];
+            for (const [fw, fh, sx, sy, transform, light] of faces) {
+              const face = document.createElement("div");
+              face.className = "face";
+              face.style.cssText =
+                "width:" + u(fw) + ";height:" + u(fh) + ";left:" + u((w - fw) / 2) + ";top:" + u((h - fh) / 2) +
+                ";background-position:" + u(-sx) + " " + u(-sy) + ";transform:" + transform + ";filter:brightness(" + light + ")";
+              part.append(face);
+            }
+            sway.append(part);
+          }
+          const player = { el, turn: parseFloat(el.style.getPropertyValue("--turn")) || 24, hy: 0, hx: 0, wantY: 0, wantX: 0 };
+          // Drag to turn them round.
+          let dragFrom = null;
+          el.addEventListener("pointerdown", (event) => {
+            dragFrom = { x: event.clientX, turn: player.turn };
+            el.setPointerCapture(event.pointerId);
+          });
+          el.addEventListener("pointermove", (event) => {
+            if (dragFrom) {
+              player.turn = dragFrom.turn + (event.clientX - dragFrom.x) * 0.7;
+              el.style.setProperty("--turn", player.turn.toFixed(1) + "deg");
+            }
+          });
+          const drop = () => (dragFrom = null);
+          el.addEventListener("pointerup", drop);
+          el.addEventListener("pointercancel", drop);
+          el.addEventListener("click", () => wave(player));
+          return player;
+        });
+        function wave(player) {
+          if (calm || player.el.classList.contains("waving")) return;
+          player.el.classList.add("waving");
+          setTimeout(() => player.el.classList.remove("waving"), 2300);
+        }
+        if (!calm && players.length) {
+          // Their heads follow the mouse, easing toward it.
+          addEventListener("mousemove", (event) => {
+            for (const player of players) {
+              const box = player.el.getBoundingClientRect();
+              const dx = event.clientX - (box.left + box.width / 2);
+              const dy = event.clientY - (box.top + box.height * 0.15);
+              const body = ((player.turn % 360) + 540) % 360 - 180; // which way the body faces, -180..180
+              player.wantY = Math.max(-55, Math.min(55, dx * 0.11 - body));
+              player.wantX = Math.max(-28, Math.min(28, -dy * 0.07));
+            }
+          });
+          (function look() {
+            for (const player of players) {
+              player.hy += (player.wantY - player.hy) * 0.12;
+              player.hx += (player.wantX - player.hx) * 0.12;
+              const head = player.el.querySelector(".head");
+              if (head) {
+                head.style.setProperty("--hy", player.hy.toFixed(1) + "deg");
+                head.style.setProperty("--hx", player.hx.toFixed(1) + "deg");
+              }
+            }
+            requestAnimationFrame(look);
+          })();
+          // A friend waves now and then; everyone walks on the spot while the page scrolls.
+          setInterval(() => players.filter((player) => "waves" in player.el.dataset).forEach(wave), 7000);
+          setTimeout(() => players.filter((player) => "waves" in player.el.dataset).forEach(wave), 1600);
+          let stop = 0;
+          addEventListener(
+            "scroll",
+            () => {
+              players.forEach((player) => player.el.classList.add("walking"));
+              clearTimeout(stop);
+              stop = setTimeout(() => players.forEach((player) => player.el.classList.remove("walking")), 220);
+            },
+            { passive: true },
+          );
         }
 
         // ---------------------------------------------------------------- a light follows the mouse across each tile

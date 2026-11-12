@@ -10,6 +10,12 @@ The look: a near-black page drawn on a visible grid, very large pixel headlines 
 
 Motion, all in `index.html`: the headline rises in line by line with a blinking block cursor; the menu in the hero is tilted in 3D and turns toward the mouse, with three floating notes; pixel motes drift up behind it (a small canvas, paused when off screen); sections slide in as you reach them; an experience bar under the top bar fills as you scroll; the steps get a line of light; packets travel the two routes in the low-ping picture (SVG); a light follows the mouse across the grid tiles; the numbers spin before landing. With "reduce motion" on, all of it is switched off and everything is simply there.
 
+## The 3D players
+
+The characters in the hero and on the download box are real 3D, built in the page with CSS: six boxes each (head, body, arms, legs), every face showing its patch of a 64x64 player skin. No 3D library, no model files. They sway, their heads follow the mouse, one waves now and then (or when clicked), they walk on the spot while the page scrolls, and they can be dragged round. The code is the "players" block in `index.html`'s script and styles; a player is any `<div class="player" data-skin="...">`.
+
+The skins (`media/skin-host.png`, `media/skin-friend.png`) are original pixel art painted by `scripts/gen-website-skins.py`, not Mojang's textures. Run it again to change colours or add a character.
+
 ## Media
 
 - `media/shots/`: screenshots of the real menus, taken by the automated game test at 1710x1070 (`build/run/clientGameTest/screenshots` after `./gradlew :26.3:runClientGameTest`). Player names are made up, and none of them shows an invite code or an address. To refresh them, copy the new files over the old names.
