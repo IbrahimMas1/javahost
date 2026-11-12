@@ -236,9 +236,10 @@ public class JavaHostScreen extends BaseScreen {
 
 		// Sidebar: two groups share the height between the logo and the two rows pinned to the bottom.
 		groupLabels.clear();
-		int accountY = height - 28;
+		int accountH = compact ? 22 : 26;
+		int accountY = height - accountH - 6;
 		int tabTop = 34;
-		int tabsBottom = accountY - 4;
+		int tabsBottom = accountY - 5;
 		int rows = PLAY.size() + TOOLS.size() + 1;
 		boolean labels = (tabsBottom - tabTop - 2 * 13 - 6) / rows >= 16;
 		int headH = labels ? 13 : 5;
@@ -253,8 +254,8 @@ public class JavaHostScreen extends BaseScreen {
 			}
 		}
 		// Settings and you, pinned to the bottom of the sidebar.
-		sidebarWidgets.add(addWidget(new SidebarTab(6, accountY - step, sideW - 12, step - 2, Tab.SETTINGS, compact)));
-		sidebarWidgets.add(addWidget(new SidebarTab(6, accountY, sideW - 12, 22, Tab.ACCOUNT, compact)));
+		sidebarWidgets.add(addWidget(new SidebarTab(6, accountY - step - 1, sideW - 12, step - 2, Tab.SETTINGS, compact)));
+		sidebarWidgets.add(addWidget(new SidebarTab(6, accountY, sideW - 12, accountH, Tab.ACCOUNT, compact)));
 
 		if (page == null) {
 			page = tab.factory.get();
@@ -356,8 +357,7 @@ public class JavaHostScreen extends BaseScreen {
 		layoutPage();
 
 		// The hub: the blurred game behind a dark tint, a darker sidebar, and a soft glow of the accent colour on top.
-		g.fill(0, 0, width, height, Theme.withAlpha(Theme.HUB, openAnim));
-		g.fillGradient(sideW, 0, width, Math.min(height, 110), Theme.withAlpha(Theme.ACCENT, 0.11f * openAnim), Theme.withAlpha(Theme.ACCENT, 0));
+		drawBackdrop(g);
 
 		// Open animation: everything settles into place.
 		float scale = 0.975f + 0.025f * openAnim;
@@ -367,9 +367,11 @@ public class JavaHostScreen extends BaseScreen {
 		Draw.translate(g, -width / 2f, -height / 2f);
 
 		g.fill(0, 0, sideW, height, Theme.HUB_SIDEBAR);
-		g.fill(sideW, 0, sideW + 1, height, Theme.GLASS_EDGE);
+		g.fillGradient(sideW, 0, sideW + 1, height, Theme.withAlpha(Theme.ACCENT, 0.45f), 0x16FFFFFF);
 
-		Icons.logo(g, compact ? (sideW - 16) / 2 : 10, 9, 16);
+		int logoX = compact ? (sideW - 16) / 2 : 10;
+		Draw.glow(g, logoX + 8, 17, 24, 22, Theme.withAlpha(Theme.ACCENT, 0.30f));
+		Icons.logo(g, logoX, 9, 16);
 		if (!compact) {
 			Draw.text(g, "JavaHost", 32, 13, Theme.TEXT);
 		}
@@ -391,7 +393,8 @@ public class JavaHostScreen extends BaseScreen {
 			Draw.truncated(g, titleX, 10, (int) (Draw.font().width(title) * 1.25f), 12, page.title());
 		}
 		Draw.textFit(g, page.subtitle(), titleW, titleX, 25, Theme.MUTED);
-		g.fill(contentX, HEADER + 2, contentX + contentW, HEADER + 3, Theme.withAlpha(Theme.BORDER, 0.7f));
+		g.fill(contentX, HEADER + 2, contentX + contentW, HEADER + 3, 0x16FFFFFF);
+		g.fill(contentX, HEADER + 2, contentX + 28, HEADER + 3, Theme.withAlpha(Theme.ACCENT, 0.8f)); // a short accent rule under the title
 
 		g.nextStratum();
 		drawTabIndicator(g);
@@ -674,6 +677,40 @@ public class JavaHostScreen extends BaseScreen {
 	}
 
 	/** The selected-tab highlight, sliding smoothly between tabs. */
+	private final long openedAt = System.nanoTime();
+	private static final int MOTES = 16;
+
+	private static float frac(float v) {
+		return v - (float) Math.floor(v);
+	}
+
+	/**
+	 * The hub's atmosphere: the blurred game under a dark tint, two big soft lights that drift slowly (the accent
+	 * colour and its neighbour), a few motes rising like fireflies, and a darker floor.
+	 */
+	private void drawBackdrop(GuiGraphicsExtractor g) {
+		float t = (System.nanoTime() - openedAt) / 1e9f;
+		int areaW = width - sideW;
+		g.fill(0, 0, width, height, Theme.withAlpha(Theme.HUB, openAnim));
+		Draw.glow(g, sideW + Math.round(areaW * (0.76f + 0.07f * (float) Math.sin(t * 0.13f))),
+				Math.round(height * (0.02f + 0.05f * (float) Math.sin(t * 0.09f + 1))),
+				Math.round(areaW * 0.66f), Math.round(height * 0.74f), Theme.withAlpha(Theme.ACCENT, 0.18f * openAnim));
+		Draw.glow(g, sideW + Math.round(areaW * (0.10f + 0.06f * (float) Math.sin(t * 0.1f + 2))),
+				Math.round(height * (1.02f + 0.05f * (float) Math.sin(t * 0.12f))),
+				Math.round(areaW * 0.58f), Math.round(height * 0.66f), Theme.withAlpha(Theme.ACCENT_ALT, 0.20f * openAnim));
+		for (int i = 0; i < MOTES; i++) {
+			float seed = (i + 1) * 0.6180339f;
+			float rise = frac(seed * 3.1f + t * (0.010f + 0.018f * frac(seed * 7.3f))); // 0 at the floor, 1 at the top
+			float x = frac(seed * 5.7f) + 0.015f * (float) Math.sin(t * 0.5f + i);
+			float twinkle = 0.55f + 0.45f * (float) Math.sin(t * (0.7f + frac(seed * 2.3f)) + i * 1.7f);
+			float fade = Math.min(1, Math.min(rise, 1 - rise) * 5); // appear and vanish gently
+			int size = 2 + i % 3;
+			Draw.glow(g, sideW + Math.round(x * areaW), Math.round((1 - rise) * height), size, size,
+					Theme.withAlpha(i % 4 == 0 ? Theme.ACCENT_ALT : Theme.ACCENT, 0.55f * twinkle * fade * openAnim));
+		}
+		g.fillGradient(0, height / 2, width, height, 0x00000000, Theme.withAlpha(0x88000000, openAnim));
+	}
+
 	private void drawTabIndicator(GuiGraphicsExtractor g) {
 		SidebarTab selected = null;
 		for (AbstractWidget widget : sidebarWidgets) {
@@ -688,8 +725,12 @@ public class JavaHostScreen extends BaseScreen {
 		indicatorH = Draw.approach(indicatorH, selected.getHeight(), 0.3f);
 		int y = Math.round(indicatorY);
 		int h = Math.round(indicatorH);
-		Draw.roundRect(g, selected.getX(), y, selected.getWidth(), h, 5, 0x24FFFFFF);
-		Draw.roundRect(g, selected.getX(), y + 5, 2, h - 10, 1, Theme.ACCENT);
+		// A pill tinted with the accent colour, lit from its left edge.
+		Draw.roundRect(g, selected.getX(), y, selected.getWidth(), h, 5, 0x18FFFFFF);
+		g.enableScissor(selected.getX(), y, selected.getX() + selected.getWidth(), y + h);
+		Draw.glow(g, selected.getX(), y + h / 2, Math.min(44, selected.getWidth()), h, Theme.withAlpha(Theme.ACCENT, 0.42f));
+		g.disableScissor();
+		Draw.roundRect(g, selected.getX(), y + 4, 2, h - 8, 1, Theme.ACCENT);
 	}
 
 	/** One entry in the sidebar. */
@@ -735,12 +776,23 @@ public class JavaHostScreen extends BaseScreen {
 			int color = selected ? Theme.TEXT : Theme.mix(Theme.MUTED, Theme.TEXT, hover);
 			int iconX = compact ? getX() + (getWidth() - Icons.SIZE) / 2 : getX() + 8;
 			if (target == Tab.ACCOUNT) {
-				// Your face and name instead of an icon.
-				int face = 12;
-				int faceX = compact ? getX() + (getWidth() - face) / 2 : getX() + 6;
-				Faces.draw(g, Identity.id(), faceX, getY() + (getHeight() - face) / 2, face);
+				// You: your face with a status dot, your name, and how friends see you right now.
+				boolean hosting = com.javahost.client.host.HostController.isHosting();
+				boolean hidden = Config.get().appearOffline;
+				int dot = hidden ? Theme.FAINT : hosting ? Theme.ACCENT : minecraft.level != null ? Theme.INFO : Theme.ACCENT;
+				int face = compact ? 12 : 16;
+				int faceX = compact ? getX() + (getWidth() - face) / 2 : getX() + 5;
+				int faceY = getY() + (getHeight() - face) / 2;
+				if (!selected && !compact) {
+					Draw.roundRect(g, getX(), getY(), getWidth(), getHeight(), 5, 0x0CFFFFFF); // a quiet card of its own
+				}
+				Faces.draw(g, Identity.id(), faceX, faceY, face);
+				Draw.roundRect(g, faceX + face - 4, faceY + face - 4, 6, 6, 3, 0xFF0B0E13);
+				Draw.roundRect(g, faceX + face - 3, faceY + face - 3, 4, 4, 2, dot);
 				if (!compact) {
-					Draw.textFit(g, Identity.name(), getWidth() - 26, getX() + 23, getY() + (getHeight() - 8) / 2 + 1, color);
+					String status = hidden ? "Appearing offline" : hosting ? "Hosting" : minecraft.level != null ? "In a world" : "Online";
+					Draw.textFit(g, Identity.name(), getWidth() - 31, getX() + 26, getY() + 4, color);
+					Draw.textFit(g, status, getWidth() - 31, getX() + 26, getY() + 14, Theme.mix(Theme.FAINT, Theme.MUTED, hover));
 				}
 				return;
 			}

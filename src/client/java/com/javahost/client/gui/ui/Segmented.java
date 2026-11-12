@@ -111,14 +111,15 @@ public class Segmented<T> extends AbstractWidget {
 		int y = getY();
 		int[] edges = edges();
 		int n = options.size();
-		Draw.bordered(g, x, y, edges[n], getHeight(), 4, Theme.FIELD, isFocused() ? Theme.FAINT : Theme.BORDER);
+		Draw.roundRect(g, x, y, edges[n], getHeight(), 4, isFocused() ? 0x60FFFFFF : 0x24FFFFFF);
+		Draw.roundRect(g, x + 1, y + 1, edges[n] - 2, getHeight() - 2, 3, 0xF20B0F14);
 		// The highlight slides between segments, easing both its position and its width.
 		int from = Math.max(0, Math.min(n - 1, (int) Math.floor(slide)));
 		int to = Math.min(n - 1, from + 1);
 		float t = slide - from;
 		float hx = edges[from] + (edges[to] - edges[from]) * t;
 		float hw = (edges[from + 1] - edges[from]) + ((edges[to + 1] - edges[to]) - (edges[from + 1] - edges[from])) * t;
-		Draw.roundRect(g, x + 2 + Math.round(hx), y + 2, Math.round(hw) - 4, getHeight() - 4, 3, active ? Theme.CARD_HOVER : Theme.CARD);
+		Draw.roundRect(g, x + 2 + Math.round(hx), y + 2, Math.round(hw) - 4, getHeight() - 4, 3, active ? Theme.withAlpha(Theme.ACCENT, 0.20f) : 0x14FFFFFF);
 		for (int i = 0; i < n; i++) {
 			int sx = x + edges[i];
 			int seg = edges[i + 1] - edges[i];

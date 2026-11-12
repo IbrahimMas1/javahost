@@ -127,7 +127,7 @@ public abstract class Page {
 	// ---------------------------------------------------------------- drawing helpers for pages
 
 	protected static void card(GuiGraphicsExtractor g, int x, int y, int w, int h) {
-		Draw.panel(g, x, y, w, h, 6, Theme.CARD);
+		Draw.glassCard(g, x, y, w, h, 6);
 	}
 
 	protected static void sectionLabel(GuiGraphicsExtractor g, String text, int x, int y) {

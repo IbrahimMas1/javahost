@@ -154,6 +154,9 @@ public class ProfilePage extends Page {
 			return;
 		}
 		card(g, left, top, 96, 134);
+		g.enableScissor(left + 1, top + 1, left + 95, top + 133);
+		Draw.stage(g, left + 48, top + 4, 126, 52);
+		g.disableScissor();
 		int right = left + 108;
 		int rightW = width - 108;
 		Draw.scaledText(g, Draw.fit(friend.name(), (int) (rightW / 1.5f)), right, top + 2, 1.5f, Theme.TEXT);

@@ -105,6 +105,55 @@ public final class Draw {
 		//?}
 	}
 
+	private static final net.minecraft.resources.Identifier GLOW = net.minecraft.resources.Identifier.fromNamespaceAndPath("javahost", "textures/gui/glow.png");
+
+	/**
+	 * A soft round light of {@code color}, brightest at ({@code cx}, {@code cy}) and gone at the radii. Used for the
+	 * hub's lighting: the glow behind the model, under big buttons, in the background.
+	 */
+	public static void glow(GuiGraphicsExtractor g, int cx, int cy, int rx, int ry, int color) {
+		if ((color >>> 24) == 0 || rx <= 0 || ry <= 0) {
+			return;
+		}
+		int x = cx - rx;
+		int y = cy - ry;
+		//? if >=1.21.6 {
+		g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, GLOW, x, y, 0, 0, rx * 2, ry * 2, 128, 128, 128, 128, color);
+		//?} else if >=1.21.2 {
+		/*g.blit(net.minecraft.client.renderer.RenderType::guiTextured, GLOW, x, y, 0, 0, rx * 2, ry * 2, 128, 128, 128, 128, color);
+		*///?} else {
+		/*com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+		g.setColor(((color >> 16) & 0xFF) / 255f, ((color >> 8) & 0xFF) / 255f, (color & 0xFF) / 255f, (color >>> 24) / 255f);
+		g.blit(GLOW, x, y, rx * 2, ry * 2, 0, 0, 128, 128, 128, 128);
+		g.setColor(1, 1, 1, 1);
+		*///?}
+	}
+
+	/**
+	 * Stage lighting for a 3D model {@code height} tall standing in a box that starts at {@code top}: a glow of the
+	 * accent colour behind it (reaching {@code spread} to each side), a lit floor, and its shadow on it.
+	 */
+	public static void stage(GuiGraphicsExtractor g, int cx, int top, int height, int spread) {
+		int feet = top + height - 2;
+		glow(g, cx, top + Math.round(height * 0.46f), spread, Math.round(height * 0.66f), Theme.withAlpha(Theme.ACCENT, 0.24f));
+		glow(g, cx, feet, Math.round(spread * 0.7f), 10, Theme.withAlpha(Theme.ACCENT, 0.60f));
+		glow(g, cx, feet, Math.round(spread * 0.38f), 5, 0xC0000000);
+	}
+
+	/**
+	 * A glass card: a translucent dark sheet with a light rim and a highlight along its top edge, so the hub's
+	 * lighting shows through a little and the card looks lifted off the background.
+	 */
+	public static void glassCard(GuiGraphicsExtractor g, int x, int y, int w, int h, int r) {
+		if (w <= 2 || h <= 2) {
+			return;
+		}
+		roundRect(g, x, y + 1, w, h, r, 0x30000000); // a hint of shadow under it
+		roundRect(g, x, y, w, h, r, Theme.RIM);
+		roundRect(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), Theme.SURFACE);
+		g.fill(x + r, y + 1, x + w - r, y + 2, 0x12FFFFFF);
+	}
+
 	public static void shadow(GuiGraphicsExtractor g, int x, int y, int w, int h, int r) {
 		for (int i = 4; i >= 1; i--) {
 			roundRect(g, x - i, y - i + 2, w + i * 2, h + i * 2, r + i, Theme.withAlpha(Theme.SHADOW, 0.25f));

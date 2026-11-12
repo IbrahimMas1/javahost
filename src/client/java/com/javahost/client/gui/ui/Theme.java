@@ -10,9 +10,12 @@ public final class Theme {
 	public static final int GLASS_SIDEBAR = 0x9A0B0E13;
 	public static final int GLASS_EDGE = 0x30FFFFFF;
 	/** The full-screen hub: a dark tint over the blurred game, a darker sidebar, and the same tint without the game. */
-	public static final int HUB = 0xEC12161C;
-	public static final int HUB_SIDEBAR = 0x7A090C10;
-	public static final int HUB_SOLID = 0xFF14181E;
+	public static final int HUB = 0xC40E1217;
+	public static final int HUB_SIDEBAR = 0x70070A0E;
+	public static final int HUB_SOLID = 0xFF10141A;
+	/** Glass cards on the hub: the sheet, and its light rim. */
+	public static final int SURFACE = 0xB81B222B;
+	public static final int RIM = 0x24FFFFFF;
 	/** A lighter scrim behind glass windows, so the blur stays visible. */
 	public static final int SCRIM_GLASS = 0x60070A0E;
 	public static final int CARD = 0xFF1E252E;
@@ -30,6 +33,8 @@ public final class Theme {
 	public static int ACCENT_HOVER = 0xFF5AE89A;
 	public static int ACCENT_DARK = 0xFF1F6B44;
 	public static int ON_ACCENT = 0xFF0B1F14;
+	/** The accent's neighbour on the colour wheel: the second light in the hub's background. */
+	public static int ACCENT_ALT = 0xFF3DB8DC;
 
 	/** The accent themes: name -> base colour. Hover, dark and text-on-accent shades are derived. */
 	public static final java.util.Map<String, Integer> ACCENTS = new java.util.LinkedHashMap<>();
@@ -48,6 +53,20 @@ public final class Theme {
 		ACCENT_HOVER = mix(base, 0xFFFFFFFF, 0.18f);
 		ACCENT_DARK = mix(base, 0xFF0B0F14, 0.62f);
 		ON_ACCENT = mix(base, 0xFF000000, 0.85f);
+		ACCENT_ALT = shiftHue(base, 48);
+	}
+
+	/** {@code color} turned {@code degrees} around the colour wheel, keeping how light and how vivid it is. */
+	static int shiftHue(int color, float degrees) {
+		float r = ((color >> 16) & 0xFF) / 255f, g = ((color >> 8) & 0xFF) / 255f, b = (color & 0xFF) / 255f;
+		float max = Math.max(r, Math.max(g, b)), min = Math.min(r, Math.min(g, b)), d = max - min;
+		float h = d == 0 ? 0 : max == r ? ((g - b) / d + 6) % 6 : max == g ? (b - r) / d + 2 : (r - g) / d + 4;
+		h = ((h * 60 + degrees) % 360 + 360) % 360 / 60;
+		float s = max == 0 ? 0 : d / max;
+		float c = max * s, x = c * (1 - Math.abs(h % 2 - 1)), m = max - c;
+		float[] rgb = h < 1 ? new float[] {c, x, 0} : h < 2 ? new float[] {x, c, 0} : h < 3 ? new float[] {0, c, x}
+				: h < 4 ? new float[] {0, x, c} : h < 5 ? new float[] {x, 0, c} : new float[] {c, 0, x};
+		return 0xFF000000 | (Math.round((rgb[0] + m) * 255) << 16) | (Math.round((rgb[1] + m) * 255) << 8) | Math.round((rgb[2] + m) * 255);
 	}
 	public static final int WARNING = 0xFFF2B33D;
 	public static final int DANGER = 0xFFEF5350;

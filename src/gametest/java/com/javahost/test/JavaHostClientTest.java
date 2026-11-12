@@ -79,6 +79,10 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		config.voiceEnabled = false;
 		config.autoAcceptHostPacks = true;
 
+		if ("hub".equals(System.getenv("JAVAHOST_TEST_ONLY"))) {
+			quickHub(context); // a one-minute look at the menu while working on it
+			return;
+		}
 		guestReceivesHostPacks(context);
 		hostingASingleplayerWorld(context);
 		JavaHost.LOGGER.info("[JavaHost test] ALL CHECKS PASSED");
@@ -321,6 +325,18 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			return file;
 		} catch (IOException e) {
 			throw new AssertionError(e);
+		}
+	}
+
+	/** Just the menu, in a hosted world: Home with friends, then every tab at the laptop size. */
+	private static void quickHub(ClientGameTestContext context) {
+		try (TestSingleplayerContext world = context.worldBuilder().create()) {
+			TestCompat.waitForChunks(world);
+			context.runOnClient(mc -> HostController.start(mc.getSingleplayerServer()));
+			context.waitTicks(20);
+			hubWithFriends(context);
+			reviewAtScale(context, 4, 1710, 1070);
+			context.runOnClient(mc -> HostController.stop());
 		}
 	}
 
