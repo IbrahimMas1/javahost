@@ -145,6 +145,7 @@ public class JavaHostClient implements ClientModInitializer {
 		});
 		ClientLifecycleEvents.CLIENT_STARTED.register(minecraft -> {
 			Popups.startFriends();
+			com.javahost.client.host.Relays.refresh(); // know the relays before the first join needs one
 			com.javahost.client.mods.ModSets.reportLastResult();
 			com.javahost.mods.ModCheck.warmUp(); // the mod list, ready for hosting and for the Mods tab
 			// Our game vouches for worlds we host (guests check this before trusting the world is ours).

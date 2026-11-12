@@ -68,6 +68,8 @@ public final class Config {
 	public boolean appearOffline = false;
 	/** Let friends connect straight to this PC through both routers (no relay) when it's possible. */
 	public boolean directLink = true;
+	/** Extra JavaHost relays of your own ("host:port"), tried alongside the official list. */
+	public java.util.List<String> relays = new java.util.ArrayList<>();
 	/** The menu's text and icons: "PIXEL" (the game's font, pixel icons) or "SMOOTH" (Inter, smooth icons); see Fonts. */
 	public String menuFont = "PIXEL";
 	/** The first-time welcome tour has been shown (or skipped). */
@@ -117,6 +119,9 @@ public final class Config {
 				if (config != null) {
 					if (config.settingsBackup == null) {
 						config.settingsBackup = new HashMap<>();
+					}
+					if (config.relays == null) {
+						config.relays = new java.util.ArrayList<>();
 					}
 					if (config.recentJoins == null) {
 						config.recentJoins = new java.util.ArrayList<>();

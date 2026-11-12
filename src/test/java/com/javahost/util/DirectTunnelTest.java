@@ -107,6 +107,84 @@ class DirectTunnelTest {
 	}
 
 	@Test
+	void whenThereIsNoDirectWayTheyMeetAtTheRelay() throws Exception {
+		byte[] token = new byte[16];
+		new Random(13).nextBytes(token);
+		InetSocketAddress nowhere = new InetSocketAddress("192.0.2.77", 4000); // an address nothing answers at
+		try (ServerSocket game = echoServer(); RelayServer relay = new RelayServer(0).start();
+				DirectTunnel host = DirectTunnel.host(game.getLocalPort()); DirectTunnel guest = DirectTunnel.guest()) {
+			InetSocketAddress relayAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), relay.port());
+			assertTrue(guest.pingRelays(List.of(relayAddress, nowhere)).get(3, TimeUnit.SECONDS).containsKey(relayAddress), "the relay answers a ping");
+			host.expect(41, token, List.of(nowhere), relayAddress);
+			long start = System.currentTimeMillis();
+			int port = guest.connect(41, token, List.of(nowhere), relayAddress).get(8, TimeUnit.SECONDS);
+			assertTrue(System.currentTimeMillis() - start >= 1400, "direct is given its chance before the relay is used");
+			byte[] sent = new byte[300_000];
+			new Random(6).nextBytes(sent);
+			byte[] back = new byte[sent.length];
+			try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
+				socket.getOutputStream().write(sent);
+				socket.setSoTimeout(20_000);
+				new DataInputStream(socket.getInputStream()).readFully(back);
+				assertTrue(guest.viaRelay(41) && host.connectedViaRelay() == 1, "both ends know this one goes through the relay");
+			}
+			assertArrayEquals(sent, back, "the game's data crosses the relay unchanged");
+			assertEquals(1, relay.rooms());
+			assertTrue(relay.forwarded() > 200);
+		}
+	}
+
+	@Test
+	void directWinsWhenBothWouldWork() throws Exception {
+		byte[] token = new byte[16];
+		try (ServerSocket game = echoServer(); RelayServer relay = new RelayServer(0).start();
+				DirectTunnel host = DirectTunnel.host(game.getLocalPort()); DirectTunnel guest = DirectTunnel.guest()) {
+			InetSocketAddress relayAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), relay.port());
+			host.expect(42, token, List.of(local(guest)), relayAddress);
+			guest.connect(42, token, List.of(local(host)), relayAddress).get(5, TimeUnit.SECONDS);
+			assertTrue(!guest.viaRelay(42) && host.connectedViaRelay() == 0, "a link that can be direct never goes through the relay");
+		}
+	}
+
+	@Test
+	void theRelayOnlyServesPlayersWhoProvedTheirAddress() throws Exception {
+		try (RelayServer relay = new RelayServer(0).start(); java.net.DatagramSocket stranger = new java.net.DatagramSocket()) {
+			InetSocketAddress relayAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), relay.port());
+			stranger.setSoTimeout(1500);
+			// Joining without the cookie gets a challenge, not a place in the room.
+			byte[] join = {'J', 4, 0, 0, 0, 9};
+			stranger.send(new java.net.DatagramPacket(join, join.length, relayAddress));
+			java.net.DatagramPacket answer = new java.net.DatagramPacket(new byte[64], 64);
+			stranger.receive(answer);
+			assertEquals(6, answer.getData()[1], "challenged");
+			assertEquals(0, relay.rooms());
+			// A made-up cookie is no better.
+			byte[] forged = {'J', 4, 0, 0, 0, 9, 1, 2, 3, 4, 5, 6, 7, 8};
+			stranger.send(new java.net.DatagramPacket(forged, forged.length, relayAddress));
+			stranger.receive(answer);
+			assertEquals(6, answer.getData()[1]);
+			assertEquals(0, relay.rooms());
+			// Data for a room we're not in goes nowhere, and junk is ignored.
+			byte[] data = new byte[200];
+			data[0] = 'J';
+			data[1] = 2;
+			data[5] = 9;
+			stranger.send(new java.net.DatagramPacket(data, data.length, relayAddress));
+			stranger.send(new java.net.DatagramPacket(new byte[3], 3, relayAddress));
+			Thread.sleep(300);
+			assertEquals(0, relay.forwarded());
+			// A ping is answered with nothing bigger than itself.
+			byte[] ping = new byte[400];
+			ping[0] = 'J';
+			ping[1] = 7;
+			stranger.send(new java.net.DatagramPacket(ping, ping.length, relayAddress));
+			stranger.receive(answer);
+			assertEquals(8, answer.getData()[1]);
+			assertTrue(answer.getLength() <= 16);
+		}
+	}
+
+	@Test
 	void theWrongTokenGetsNowhere() throws Exception {
 		byte[] token = new byte[16];
 		byte[] wrong = new byte[16];

@@ -34,7 +34,11 @@ public final class DirectLink {
 	private static final SecureRandom RANDOM = new SecureRandom();
 	private static final int MAX_ADDRESSES = 8;
 
-	private record Waiting(UUID host, CompletableFuture<List<InetSocketAddress>> answer) {
+	/** The host's answer: where it can be reached, and the relay to meet at if that fails (or null). */
+	private record Answer(List<InetSocketAddress> addresses, InetSocketAddress relay) {
+	}
+
+	private record Waiting(UUID host, CompletableFuture<Answer> answer) {
 	}
 
 	private static volatile DirectTunnel hostTunnel;
@@ -58,6 +62,7 @@ public final class DirectLink {
 		try {
 			DirectTunnel tunnel = DirectTunnel.host(gamePort);
 			hostTunnel = tunnel;
+			Relays.refresh();
 			tunnel.findPublicAddress().thenAccept(address -> JavaHost.LOGGER.info("[Direct] ready for friends ({})",
 					address == null ? "no public address found: same network and IPv6 only"
 							: tunnel.portVaries() ? "this router changes ports per destination: may not work for everyone" : "public address found"));
@@ -87,8 +92,11 @@ public final class DirectLink {
 			return "";
 		}
 		int players = tunnel.connected();
+		int relayed = tunnel.connectedViaRelay();
 		if (players > 0) {
-			return players == 1 ? "1 friend is connected straight to you." : players + " friends are connected straight to you.";
+			String direct = players - relayed == 0 ? "" : players - relayed == 1 ? "1 friend is connected straight to you." : (players - relayed) + " friends are connected straight to you.";
+			String through = relayed == 0 ? "" : relayed == 1 ? "1 through a JavaHost relay." : relayed + " through a JavaHost relay.";
+			return (direct + " " + through).trim();
 		}
 		return tunnel.portVaries() ? "Friends connect straight to you when their router allows it (yours is strict)."
 				: "Friends with JavaHost connect straight to you: no relay, lowest ping.";
@@ -112,15 +120,38 @@ public final class DirectLink {
 			if (token.length != 16 || theirs.isEmpty()) {
 				return;
 			}
-			tunnel.findPublicAddress().thenAccept(address -> {
-				tunnel.expect(session, token, theirs);
+			// Their round trip to each relay they can reach; with ours, that picks the relay nearest to both of us.
+			java.util.Map<InetSocketAddress, Integer> theirRelays = new java.util.HashMap<>();
+			if (body.has("relays")) {
+				for (java.util.Map.Entry<String, JsonElement> entry : body.getAsJsonObject("relays").entrySet()) {
+					InetSocketAddress relay = theirRelays.size() < MAX_ADDRESSES ? DirectTunnel.parse(entry.getKey()) : null;
+					if (relay != null && Relays.addresses().contains(relay)) {
+						theirRelays.put(relay, Math.max(0, Math.min(5000, entry.getValue().getAsInt())));
+					}
+				}
+			}
+			tunnel.findPublicAddress().thenCompose(address -> tunnel.pingRelays(List.copyOf(theirRelays.keySet()))).thenAccept(ourRelays -> {
+				InetSocketAddress relay = null;
+				int best = Integer.MAX_VALUE;
+				for (java.util.Map.Entry<InetSocketAddress, Integer> entry : ourRelays.entrySet()) {
+					int total = entry.getValue() + theirRelays.get(entry.getKey());
+					if (total < best) {
+						best = total;
+						relay = entry.getKey();
+					}
+				}
+				tunnel.expect(session, token, theirs, relay);
 				JsonObject answer = new JsonObject();
 				answer.addProperty("session", session);
 				JsonArray ours = new JsonArray();
 				tunnel.candidates().forEach(ours::add);
 				answer.add("addresses", ours);
+				if (relay != null) {
+					answer.addProperty("relay", text(relay));
+				}
 				Friends.sendPunch(friend, "punch-ok", answer);
-				JavaHost.LOGGER.info("[Direct] {} is coming through directly", friend.name());
+				JavaHost.LOGGER.info("[Direct] {} is coming through ({})", friend.name(),
+						relay == null ? "directly, no relay to fall back on" : "directly if possible, else by the " + Relays.name(relay) + " relay, about " + best + " ms");
 			});
 		} catch (RuntimeException e) {
 			JavaHost.LOGGER.debug("[Direct] ignored a punch from {}: {}", friend.name(), e.toString());
@@ -146,18 +177,23 @@ public final class DirectLink {
 		guestSession = session;
 		byte[] token = new byte[16];
 		RANDOM.nextBytes(token);
-		CompletableFuture<List<InetSocketAddress>> answer = new CompletableFuture<>();
+		CompletableFuture<Answer> answer = new CompletableFuture<>();
 		WAITING.put(session, new Waiting(host.id(), answer));
-		return tunnel.findPublicAddress().thenCompose(address -> {
+		return tunnel.findPublicAddress().thenCompose(address -> tunnel.pingRelays(Relays.addresses())).thenCompose(relayTimes -> {
 			JsonObject body = new JsonObject();
 			body.addProperty("session", session);
 			body.addProperty("token", Base64.getEncoder().encodeToString(token));
 			JsonArray ours = new JsonArray();
-			tunnel.candidates().forEach(ours::add);
+			(noDirect() ? List.of("192.0.2.2:9") : tunnel.candidates()).forEach(ours::add);
 			body.add("addresses", ours);
+			if (!relayTimes.isEmpty()) {
+				JsonObject relays = new JsonObject();
+				relayTimes.forEach((relay, ms) -> relays.addProperty(text(relay), ms));
+				body.add("relays", relays);
+			}
 			Friends.sendPunch(host, "punch", body);
 			return answer.orTimeout(6, TimeUnit.SECONDS);
-		}).thenCompose(theirs -> tunnel.connect(session, token, theirs).orTimeout(8, TimeUnit.SECONDS)).whenComplete((port, error) -> {
+		}).thenCompose(theirs -> tunnel.connect(session, token, theirs.addresses(), theirs.relay()).orTimeout(9, TimeUnit.SECONDS)).whenComplete((port, error) -> {
 			WAITING.remove(session);
 			if (error != null) {
 				tunnel.close();
@@ -171,8 +207,13 @@ public final class DirectLink {
 			Waiting waiting = WAITING.get(body.get("session").getAsInt());
 			if (waiting != null && waiting.host().equals(friend.id())) {
 				List<InetSocketAddress> theirs = addresses(body.getAsJsonArray("addresses"));
-				if (!theirs.isEmpty()) {
-					waiting.answer().complete(theirs);
+				// Only a relay from our own list: the host can pick among them, not send us somewhere else.
+				InetSocketAddress relay = body.has("relay") ? DirectTunnel.parse(body.get("relay").getAsString()) : null;
+				if (relay != null && !Relays.addresses().contains(relay)) {
+					relay = null;
+				}
+				if (!theirs.isEmpty() || relay != null) {
+					waiting.answer().complete(new Answer(theirs, relay));
 				}
 			}
 		} catch (RuntimeException e) {
@@ -180,8 +221,16 @@ public final class DirectLink {
 		}
 	}
 
+	/** Development only: pretend there's no direct way (so the automated tests can exercise the relay). */
+	private static boolean noDirect() {
+		return System.getProperty("javahost.test.noDirect") != null && net.fabricmc.loader.api.FabricLoader.getInstance().isDevelopmentEnvironment();
+	}
+
 	private static List<InetSocketAddress> addresses(JsonArray array) {
 		List<InetSocketAddress> out = new ArrayList<>();
+		if (noDirect()) {
+			return List.of(new InetSocketAddress("192.0.2.1", 9)); // an address nothing answers at
+		}
 		if (array != null) {
 			for (JsonElement element : array) {
 				InetSocketAddress address = out.size() < MAX_ADDRESSES ? DirectTunnel.parse(element.getAsString()) : null;
@@ -191,6 +240,20 @@ public final class DirectLink {
 			}
 		}
 		return out;
+	}
+
+	private static String text(InetSocketAddress address) {
+		String host = address.getAddress().getHostAddress();
+		return (host.contains(":") ? "[" + host + "]" : host) + ":" + address.getPort();
+	}
+
+	/** How we're connected to the host: "direct", the relay's name ("UAE relay"), or null when not on a JavaHost link. */
+	public static String guestRoute() {
+		DirectTunnel tunnel = guestTunnel;
+		if (tunnel == null || tunnel.isClosed() || tunnel.connected() == 0) {
+			return null;
+		}
+		return tunnel.viaRelay(guestSession) ? Relays.name(tunnel.relayOf(guestSession)) + " relay" : "direct";
 	}
 
 	/** Round trip to the host over the direct link, in milliseconds; -1 when we aren't on one. */

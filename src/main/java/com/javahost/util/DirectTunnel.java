@@ -43,6 +43,8 @@ public final class DirectTunnel implements AutoCloseable {
 	private static final int DATA_HEADER = 10; // magic, type, session 4, first 4 of the token
 	private static final String[][] STUN_SERVERS = {{"stun.cloudflare.com", "3478"}, {"stun.l.google.com", "19302"}, {"stun1.l.google.com", "19302"}};
 	private static final long PROBE_FOR_MS = 12_000;
+	/** A relay is only tried once going direct has had this long: direct is always the better way when it works. */
+	private static final long RELAY_AFTER_MS = 1_500;
 	private static final long SILENT_MS = 30_000;
 
 	private final DatagramSocket socket;
@@ -70,10 +72,16 @@ public final class DirectTunnel implements AutoCloseable {
 		volatile Socket stream;
 		volatile ServerSocket listener;
 		volatile boolean over;
+		/** Where the two of us can meet if our routers won't let us through to each other (a JavaHost relay), or null. */
+		final InetSocketAddress relay;
+		volatile boolean relayJoined;
+		volatile byte[] relayCookie;
+		volatile long relayAskedAt;
 
-		Session(int id, byte[] token, List<InetSocketAddress> candidates) {
+		Session(int id, byte[] token, List<InetSocketAddress> candidates, InetSocketAddress relay) {
 			this.id = id;
 			this.token = token;
+			this.relay = relay;
 			this.candidates = List.copyOf(candidates);
 			this.kcp = new Kcp((data, length) -> {
 				InetSocketAddress to = remote;
@@ -274,10 +282,15 @@ public final class DirectTunnel implements AutoCloseable {
 	 * sending toward them so the router lets them in; their stream is connected to the game when they arrive.
 	 */
 	public void expect(int id, byte[] token, List<InetSocketAddress> theirAddresses) {
+		expect(id, token, theirAddresses, null);
+	}
+
+	/** As {@link #expect(int, byte[], List)}, also waiting for them at {@code relay} in case there's no direct way (may be null). */
+	public void expect(int id, byte[] token, List<InetSocketAddress> theirAddresses, InetSocketAddress relay) {
 		if (serverPort == 0 || token.length != TOKEN || sessions.size() >= 64) {
 			return;
 		}
-		sessions.putIfAbsent(id, new Session(id, token.clone(), theirAddresses));
+		sessions.putIfAbsent(id, new Session(id, token.clone(), theirAddresses, relay));
 	}
 
 	/**
@@ -285,9 +298,85 @@ public final class DirectTunnel implements AutoCloseable {
 	 * game to, or fails if the host can't be reached directly in time.
 	 */
 	public CompletableFuture<Integer> connect(int id, byte[] token, List<InetSocketAddress> theirAddresses) {
-		Session session = new Session(id, token.clone(), theirAddresses);
+		return connect(id, token, theirAddresses, null);
+	}
+
+	/**
+	 * As {@link #connect(int, byte[], List)}; if going direct hasn't worked after a moment, meets the host at
+	 * {@code relay} instead (may be null: then it's direct or nothing).
+	 */
+	public CompletableFuture<Integer> connect(int id, byte[] token, List<InetSocketAddress> theirAddresses, InetSocketAddress relay) {
+		Session session = new Session(id, token.clone(), theirAddresses, relay);
 		sessions.put(id, session);
 		return session.ready;
+	}
+
+	/** Whether session {@code id} goes through its relay rather than straight to the other player. */
+	public boolean viaRelay(int id) {
+		Session session = sessions.get(id);
+		return session != null && session.relay != null && session.relay.equals(session.remote);
+	}
+
+	/** The relay session {@code id} was given (whether or not it's in use), or null. */
+	public InetSocketAddress relayOf(int id) {
+		Session session = sessions.get(id);
+		return session == null ? null : session.relay;
+	}
+
+	/** How many connected sessions go through a relay. */
+	public int connectedViaRelay() {
+		int count = 0;
+		for (Session session : sessions.values()) {
+			if (session.remote != null && !session.over && session.remote.equals(session.relay)) {
+				count++;
+			}
+		}
+		return count;
+	}
+
+	private final Map<Integer, long[]> pings = new ConcurrentHashMap<>();
+	private final Map<Integer, InetSocketAddress> pinged = new ConcurrentHashMap<>();
+
+	/**
+	 * Measures the round trip to each relay, in milliseconds. Completes after about 0.4 s with the ones that answered
+	 * (a relay that's down or unreachable is simply missing).
+	 */
+	public CompletableFuture<Map<InetSocketAddress, Integer>> pingRelays(List<InetSocketAddress> relays) {
+		CompletableFuture<Map<InetSocketAddress, Integer>> result = new CompletableFuture<>();
+		if (relays.isEmpty()) {
+			result.complete(Map.of());
+			return result;
+		}
+		java.util.concurrent.ThreadLocalRandom random = java.util.concurrent.ThreadLocalRandom.current();
+		List<Integer> mine = new ArrayList<>();
+		for (InetSocketAddress relay : relays) {
+			for (int attempt = 0; attempt < 2; attempt++) {
+				int nonce = random.nextInt();
+				mine.add(nonce);
+				pinged.put(nonce, relay);
+				pings.put(nonce, new long[] {System.nanoTime(), -1});
+				byte[] packet = new byte[6];
+				header(packet, RelayServer.PING, nonce);
+				transmit(packet, relay);
+			}
+		}
+		IoExecutor.NET.execute(() -> {
+			try {
+				Thread.sleep(400);
+			} catch (InterruptedException e) {
+				// answer with what we have
+			}
+			Map<InetSocketAddress, Integer> times = new java.util.HashMap<>();
+			for (int nonce : mine) {
+				long[] timing = pings.remove(nonce);
+				InetSocketAddress relay = pinged.remove(nonce);
+				if (timing != null && relay != null && timing[1] >= 0) {
+					times.merge(relay, (int) Math.max(1, timing[1]), Math::min);
+				}
+			}
+			result.complete(times);
+		});
+		return result;
 	}
 
 	/** How long the round trip to the other player is on session {@code id}, in ms (0 = not known yet, -1 = no such session). */
@@ -328,6 +417,16 @@ public final class DirectTunnel implements AutoCloseable {
 		} catch (IOException | RuntimeException e) {
 			// an address we can't send to (no IPv6 here, say): the others may work
 		}
+	}
+
+	private void joinRelay(Session session) {
+		byte[] cookie = session.relayCookie;
+		byte[] packet = new byte[cookie == null ? 6 : 14];
+		header(packet, RelayServer.JOIN, session.id);
+		if (cookie != null) {
+			System.arraycopy(cookie, 0, packet, 6, 8);
+		}
+		transmit(packet, session.relay);
 	}
 
 	private void probe(Session session, InetSocketAddress to, boolean answer) {
@@ -388,11 +487,29 @@ public final class DirectTunnel implements AutoCloseable {
 			return;
 		}
 		int id = ((data[2] & 0xFF) << 24) | ((data[3] & 0xFF) << 16) | ((data[4] & 0xFF) << 8) | (data[5] & 0xFF);
+		byte type = data[1];
+		if (type == RelayServer.PONG) {
+			long[] timing = pings.get(id);
+			if (timing != null && from.equals(pinged.get(id)) && timing[1] < 0) {
+				timing[1] = (System.nanoTime() - timing[0]) / 1_000_000L;
+			}
+			return;
+		}
 		Session session = sessions.get(id);
 		if (session == null || session.over) {
 			return;
 		}
-		byte type = data[1];
+		if (type == RelayServer.CHALLENGE || type == RelayServer.OK) {
+			if (from.equals(session.relay)) {
+				if (type == RelayServer.OK) {
+					session.relayJoined = true;
+				} else if (length >= 14) {
+					session.relayCookie = java.util.Arrays.copyOfRange(data, 6, 14);
+					joinRelay(session); // prove we're at this address, at once
+				}
+			}
+			return;
+		}
 		if (type == PROBE || type == CLOSE) {
 			if (length < 6 + TOKEN || !MessageDigest.isEqual(session.token, java.util.Arrays.copyOfRange(data, 6, 6 + TOKEN))) {
 				return; // not from the player we're expecting
@@ -449,6 +566,18 @@ public final class DirectTunnel implements AutoCloseable {
 				session.probedAt = time;
 				for (InetSocketAddress candidate : session.candidates) {
 					probe(session, candidate, false);
+				}
+				if (session.relay != null) {
+					// Take our place at the relay straight away (asking again until it says we're in), but only start
+					// talking through it once going direct has had its chance. The guest speaks first there; the host
+					// just answers, so a link that could be direct is never made through the relay.
+					if (!session.relayJoined && time - session.relayAskedAt >= 400) {
+						session.relayAskedAt = time;
+						joinRelay(session);
+					}
+					if (serverPort == 0 && session.relayJoined && time - session.startedAt >= RELAY_AFTER_MS) {
+						probe(session, session.relay, false);
+					}
 				}
 			}
 			return;

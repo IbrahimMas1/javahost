@@ -160,6 +160,14 @@ final class MultiplayerTest {
 	// ================================================================ host
 
 	static void host(ClientGameTestContext context) {
+		// A JavaHost relay for this run, on this computer; both games are told about it.
+		try {
+			new com.javahost.util.RelayServer(25581).start();
+		} catch (IOException e) {
+			throw new AssertionError("couldn't start the test relay", e);
+		}
+		System.setProperty("javahost.relays", "127.0.0.1:25581");
+		com.javahost.client.host.Relays.reload();
 		Config config = Config.get();
 		config.useUpnp = Boolean.getBoolean("javahost.testUpnp"); // touching the real router is opt-in
 		config.useIpv6 = true;
@@ -623,9 +631,15 @@ final class MultiplayerTest {
 		String wrongKey = com.javahost.util.FriendCrypto.encodePublic(com.javahost.util.FriendCrypto.newSigningKeyPair().getPublic());
 		setSignKey(context, host.id(), wrongKey);
 		Presence.Status status = context.computeOnClient(mc -> Presence.of(host.id()).orElseThrow());
+		int[] straight = {0};
 		context.runOnClient(mc -> InviteFlow.join(status.asInvite(host.name())));
-		context.waitFor(mc -> com.javahost.client.friends.Notifications.items().stream().anyMatch(i -> i.text().contains("Couldn't confirm")),
-				3 * ONE_MINUTE);
+		context.waitFor(mc -> {
+			if ("direct".equals(com.javahost.client.host.DirectLink.guestRoute())) {
+				straight[0]++; // seen on the straight-through link at some point during these attempts
+			}
+			return com.javahost.client.friends.Notifications.items().stream().anyMatch(i -> i.text().contains("Couldn't confirm"));
+		}, 3 * ONE_MINUTE);
+		check(straight[0] > 0, "one of those attempts went straight to the host's game, player to player, with no relay");
 		context.waitFor(mc -> mc.level == null && !(mc.gui.screen() instanceof ConnectScreen), ONE_MINUTE);
 		check(true, "a world that can't prove it's the friend's is left at once, by every route, with a clear message");
 		context.takeScreenshot("mp-guest-unconfirmed-world");
@@ -867,6 +881,8 @@ final class MultiplayerTest {
 	// ================================================================ guest
 
 	static void guest(ClientGameTestContext context) {
+		System.setProperty("javahost.relays", "127.0.0.1:25581");
+		com.javahost.client.host.Relays.reload();
 		Config config = Config.get();
 		config.voiceEnabled = true;
 		config.tourDone = true;
@@ -913,15 +929,20 @@ final class MultiplayerTest {
 		context.takeScreenshot("mp-guest-invite");
 		// 2.0: this join goes straight through to the host's game (no router port, no relay), arranged over the
 		// friends' sealed messages. Everything after it (packs, voice, game modes) then runs over that link.
+		// Here the two pretend there's no direct way between them, so they meet at a JavaHost relay (one runs inside
+		// the host's test). The straight-through way is used a little later, by the join with the wrong key.
 		System.setProperty("javahost.test.preferRoute", "Direct");
+		System.setProperty("javahost.test.noDirect", "true");
 		context.clickScreenButton("Join");
 		context.waitFor(mc -> (mc.player != null && mc.level != null && mc.gui.screen() == null)
 				|| mc.gui.screen() instanceof DisconnectedScreen, 3 * ONE_MINUTE);
 		System.clearProperty("javahost.test.preferRoute");
+		System.clearProperty("javahost.test.noDirect");
 		String refusedInvite = context.computeOnClient(mc -> mc.gui.screen() instanceof DisconnectedScreen d ? d.getNarrationMessage().getString() : null);
 		check(refusedInvite == null, "guest joined the host's world by clicking Join" + (refusedInvite == null ? "" : " (refused: " + refusedInvite + ")"));
-		int directPing = com.javahost.client.host.DirectLink.guestPing();
-		check(directPing >= 0, "that join went over a direct player-to-player link (round trip " + directPing + " ms)");
+		String linkRoute = com.javahost.client.host.DirectLink.guestRoute();
+		check(linkRoute != null && linkRoute.endsWith("relay"), "with no direct way between them, that join went through the JavaHost relay ("
+				+ linkRoute + ", round trip " + com.javahost.client.host.DirectLink.guestPing() + " ms)");
 		VoiceClient.setTestTone(true);
 		waitForShared(context, "host-set-creative", 2 * ONE_MINUTE);
 		context.waitFor(mc -> mc.gameMode != null && mc.gameMode.getPlayerMode() == GameType.CREATIVE, ONE_MINUTE);

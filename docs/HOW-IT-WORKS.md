@@ -20,6 +20,7 @@ The details behind the features in the [README](../README.md): how friends conne
 - Each game asks a public STUN server how its connection looks from the internet, the two swap those addresses over the same sealed messages invites use, and then both send to each other at the same moment. Each router sees its own player speaking first and lets the answers back in. No port is opened on your router and nothing needs setting up.
 - The game's normal connection then travels over that link, with lost packets re-sent quickly so a shaky line doesn't freeze the game. It is the same connection Minecraft always makes: your login is still checked and the traffic is still encrypted by the game.
 - It works on most home connections. A few routers and some mobile networks give every destination a different port, which blocks it: after a few seconds the join simply carries on with the other ways in (your router's open port, IPv6, the relay).
+- **When there's no direct way,** the two games meet at a JavaHost relay if one is listed: a small server that passes their packets on without being able to read them. Both games measure their ping to each relay and pick the one nearest to both. Anyone can run one ([relay/README.md](../relay/README.md)). With no JavaHost relay in reach, the join goes on to the other ways in, ending with e4mc's relay.
 - This is for friends, who have a private channel to arrange it. Invite codes and public worlds use the other ways in.
 
 ## Public worlds (beta)

@@ -59,6 +59,12 @@ public class HomePage extends Page {
 			int guests = HostController.guests().size();
 			return guests == 0 ? "You're hosting. Invite a friend to get started." : "You're hosting " + Draw.count(guests, "friend") + ".";
 		}
+		String route = com.javahost.client.host.DirectLink.guestRoute();
+		if (route != null) {
+			// In a friend's world over a JavaHost link: say how, and how fast.
+			int ping = com.javahost.client.host.DirectLink.guestPing();
+			return (route.equals("direct") ? "Connected straight to the host" : "Connected through the " + route) + (ping > 0 ? " · " + ping + " ms" : "") + ".";
+		}
 		int online = Presence.onlineFriends().size();
 		return online > 0 ? Draw.count(online, "friend") + " online right now." : "Host, talk, and play together.";
 	}
