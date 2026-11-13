@@ -1,35 +1,30 @@
 # JavaHost website
 
-One page, `index.html`, with its CSS and JavaScript inline. It is **built**: edit the parts in `../website-src/parts/` and run
+One page, `index.html`, with its CSS and JavaScript inline. No build step: edit the file. To look at it locally, serve this folder with any static server, for example `python3 -m http.server 4173 --directory website`.
 
-    sh website-src/tools/build.sh
+## The design
 
-from the repository root. That stitches the parts together and draws the page's pixel art into it (`website-src/tools/gen.py`, Python standard library only). Don't edit `index.html` by hand; the next build would overwrite it.
+Simple on purpose. A black page on one four-column grid (the faint vertical lines), with one idea per screen:
 
-To look at it locally, serve this folder with any static server, for example `python3 -m http.server 4173 --directory website`.
+1. **Hero:** a three-line pixel headline, one sentence, one very large download button, and two 3D players.
+2. **Hosting**, **Friends**, **Low ping:** each a label, a headline, a sentence and one picture, in its own colour.
+3. **And more:** voice and mods side by side, then four small extras.
+4. **Install:** the download button again, and three steps.
+5. **FAQ**, then the footer.
 
-## What's on it
+Rules to keep when editing:
 
-A day in a small world, from morning to night, with one idea per screen:
+- **Spacing** comes from one scale: 8, 16, 24, 32, 48, 64, 96, 128, 160. Sections are padded `clamp(96px, 10vw, 160px)`.
+- **Three kinds of type:** Silkscreen for headlines, Geist for text, Geist Mono for small labels (all from Google Fonts).
+- **One accent per section** (`--a`), used for the label, the headline and a soft light at the top of the section. Green is the brand colour and the only colour buttons use.
+- **Short copy.** A headline of two to four words, one sentence under it. If something needs a paragraph, it belongs in `docs/HOW-IT-WORKS.md`.
+- Adding something means taking something else out.
 
-1. **Hero (morning):** the headline, two buttons, and a floating island made of voxel blocks in CSS 3D with two 3D players on it. It assembles on load, turns slowly, leans toward the mouse and can be dragged.
-2. **How it works:** three cards.
-3. **Features, pinned:** the game window stays still while Hosting, Friends, Voice and Mods scroll past beside it. The screenshot changes with a stepped pixel wipe, the sky behind changes colour (green, blue, purple, pink), a rail and a big numeral show the step, and one label points at the control that matters. On phones, with reduced motion or without JavaScript it is four stacked bands.
-4. **Low ping (sunset):** an animated picture of the relay detour against the direct line.
-5. **Try it (dusk):** a working miniature of the mod's menu, marked as a demo. Start hosting shows a code, inviting a friend brings their 3D character in, voice shows talking bars. Nothing is sent anywhere.
-6. **Night:** the remaining features, four numbers, the download box, the questions, and a campfire footer.
+Motion is light: the headline rises in, sections ease in as you reach them, packets travel the two routes in the low-ping picture, the footer wordmark drifts. With "reduce motion" on it is all off. If the script fails or is switched off, the content still shows.
 
-Spacing follows one 8 px scale: sections are padded `clamp(96px, 11vw, 168px)`, content is at most 1200 px wide, text lines about 60 characters, and decorations never sit on text or screenshots. Keep it that way: when adding something, take something else out.
+## The 3D players
 
-**Light and dark.** The button in the top bar (a pixel moon or sun) switches theme. By default the page follows the visitor's system setting; a choice is remembered in the browser (`localStorage` key `javahost-theme`). A small script in `<head>` sets `data-theme` on `<html>` before anything is drawn, so there is no flash. The dark theme is the same page after dark: near-black with the grid, each section lit by its own colour, a moon over a night-time island. All of it lives in `parts/3d-dark.css`; `gen.py` draws the night textures and also writes the copy of the dark rules used when JavaScript is off. `?theme=dark` or `?theme=light` forces a theme for one load.
-
-With "reduce motion" on, all motion is off and everything is simply there. If the script fails or is switched off, the content still shows.
-
-Test hooks (harmless, for checking renders): `?step=1..4`, `?at=<section id>&off=N`, `?demo=hosting|invited|voice|party`, `?tab=home|friends|host|voice|mods`, `?still`.
-
-## Everything is original
-
-No Mojang or Microsoft artwork is used. The block textures, sky, sun, moon, clouds and hills are drawn by `gen.py`; the player skins (`media/skin-*.png`) are original pixel art too (the first two are painted by `scripts/gen-website-skins.py`). The players are six CSS boxes each, wearing a skin; there is no 3D library.
+The two characters in the hero are real 3D built with CSS: six boxes each, every face showing its patch of a 64x64 skin. No 3D library. Their heads follow the mouse, they can be dragged round, and one waves. The skins (`media/skin-host.png`, `media/skin-friend.png`) are original pixel art painted by `scripts/gen-website-skins.py`, not Mojang's textures.
 
 ## Media
 
@@ -45,4 +40,4 @@ No Mojang or Microsoft artwork is used. The block textures, sky, sun, moon, clou
 
 `.github/workflows/pages.yml` deploys this folder to GitHub Pages (https://ibrahimmas1.github.io/javahost/) whenever `website/` changes on `main`, or from a manual run.
 
-The download buttons point at the latest GitHub release. When GitHub's API answers, they link straight to the right installer for the visitor's computer (`.exe`, `.dmg`, or the installer `.jar` on Linux) and the badge shows the newest version; without it they open the releases page.
+The download buttons point at the latest GitHub release. When GitHub's API answers, they link straight to the right installer for the visitor's computer (`.exe`, `.dmg`, or the installer `.jar` on Linux) and the footer shows the newest version; without it they open the releases page.
