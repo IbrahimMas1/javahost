@@ -1,10 +1,10 @@
-
       /* ------------------------------------------------------------ hero: morning. A banded, dithered sky; the island floats in it. */
       .hero {
         position: relative;
         isolation: isolate;
         overflow: hidden;
         background: #1d63de;
+        color: #fff;
         --deep: #0d3a94;
         --fg: #fff;
         --slab: var(--green);
@@ -15,8 +15,8 @@
         inset: 0;
         z-index: -3;
         background:
-          linear-gradient(rgba(255, 255, 255, 0.06) 2px, transparent 2px) 0 62px / 100% 64px,
-          linear-gradient(90deg, rgba(255, 255, 255, 0.06) 2px, transparent 2px) calc(50% + 31px) 0 / 64px 100%,
+          linear-gradient(rgba(255, 255, 255, 0.05) 2px, transparent 2px) 0 62px / 100% 64px,
+          linear-gradient(90deg, rgba(255, 255, 255, 0.05) 2px, transparent 2px) calc(50% + 31px) 0 / 64px 100%,
           var(--sky-day) 0 100% / 32px var(--sky-day-h) repeat-x;
         image-rendering: pixelated;
       }
@@ -24,73 +24,31 @@
         z-index: -2;
       }
       .sun {
-        right: 3%;
-        top: 5%;
-        width: 152px;
-        height: 152px;
+        width: 128px;
+        height: 128px;
       }
       .sun .art {
         width: 100%;
         height: 100%;
-        animation: sun 2.4s steps(2) infinite;
       }
-      @keyframes sun {
-        50% {
-          scale: 1.06;
-        }
+      .hero .sun {
+        right: var(--s5);
+        top: var(--s5);
       }
-      .bank {
-        left: 50%;
+      .hero .bank {
         bottom: -32px;
-        display: flex;
-        width: 4800px;
-        margin-left: -2400px;
-      }
-      .bank .art {
-        width: 2400px;
-      }
-      #motes {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        z-index: -1;
-        pointer-events: none;
       }
       .hero .wrap {
         display: grid;
-        grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         align-items: center;
-        gap: clamp(16px, 2vw, 32px);
-        min-height: min(880px, 100vh - 64px);
-        padding-block: clamp(40px, 5vw, 72px) clamp(130px, 13vw, 190px);
+        gap: var(--s5);
+        min-height: min(860px, 100vh - var(--nav));
+        padding-block: var(--s7) var(--s9);
       }
       .hero-copy {
         position: relative;
         z-index: 2;
-      }
-      .badge {
-        --so: 4px;
-        --sh: var(--deep);
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        padding: 6px 14px 7px;
-        background: var(--ink);
-        color: #dbe6ff;
-        font: 500 1rem var(--pixel);
-        margin: 4px 4px 30px;
-      }
-      .badge .dot {
-        width: 10px;
-        height: 10px;
-        background: var(--green);
-        animation: blink 1.6s steps(2) infinite;
-      }
-      @keyframes blink {
-        50% {
-          opacity: 0.25;
-        }
       }
       .hero h1 {
         color: #fff;
@@ -118,7 +76,7 @@
         }
       }
       .hero h1 .a {
-        margin: 0.08em 0 0 4px;
+        margin: 0.12em 0 0 4px;
         box-shadow:
           0 -4px 0 0 var(--slab),
           0 4px 0 0 var(--slab),
@@ -135,34 +93,34 @@
         height: 0.7em;
         margin-left: 0.1em;
         background: currentColor;
-        animation: blink 1s steps(2) infinite;
       }
       .hero .lede {
-        max-width: 27em;
-        margin: 30px 0 30px;
-        color: #fff;
-        text-shadow: 2px 2px 0 rgba(13, 58, 148, 0.7);
+        max-width: 30em;
+        margin-top: var(--s4);
+        font-size: 1.25rem;
+        text-wrap: pretty;
+        text-shadow: 0 2px 0 rgba(13, 58, 148, 0.45);
       }
       .actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 22px;
-        margin-bottom: 30px;
+        gap: var(--s3);
+        margin-top: var(--s4);
       }
       .trust {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px 24px;
-        font: 600 1.05rem var(--pixel);
-        margin: 0;
+        gap: var(--s1) var(--s3);
+        margin: var(--s4) 0 0;
         padding: 0;
         list-style: none;
-        text-shadow: 2px 2px 0 rgba(13, 58, 148, 0.7);
+        font: 600 1rem var(--pixel);
+        text-shadow: 0 2px 0 rgba(13, 58, 148, 0.7);
       }
       .trust li {
         display: inline-flex;
         align-items: center;
-        gap: 10px;
+        gap: var(--s1);
       }
       .trust svg {
         width: 22px;
@@ -188,10 +146,9 @@
       .stage .fallback {
         /* shown only when the script could not build the island */
         position: absolute;
-        left: 0;
         top: 50%;
-        left: 8%;
-        width: 96%;
+        left: 0;
+        width: 100%;
         height: auto;
         translate: 0 -50%;
         box-shadow:
@@ -201,12 +158,9 @@
       .js .stage:not(.plain) .fallback {
         display: none;
       }
-      /* the players and the notes around them are drawn by the script: without it they step aside */
+      /* the players and the island are drawn by the script: without it they step aside */
       html:not(.js) .player,
-      html:not(.js) .perch,
-      html:not(.js) .chip,
       html:not(.js) .floaty,
-      .stage.plain .chip,
       .stage.plain .floaty {
         display: none;
       }
@@ -461,91 +415,6 @@
       }
 
       /* notes from the game, pinned around the island */
-      .chip {
-        --so: 6px;
-        --sh: rgba(8, 24, 80, 0.55);
-        position: absolute;
-        z-index: 2;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 9px 14px 10px;
-        background: var(--ink);
-        color: #fff;
-        font: 500 1.02rem/1.25 var(--pixel);
-        white-space: nowrap;
-        animation: chip 5s ease-in-out infinite;
-      }
-      @keyframes chip {
-        50% {
-          transform: translateY(-9px);
-        }
-      }
-      .chip small {
-        display: block;
-        color: #9fb0d6;
-        font-size: 0.88rem;
-      }
-      .chip .mug {
-        width: 32px;
-        height: 32px;
-        background: var(--skin) -32px -32px / 256px 256px;
-        image-rendering: pixelated;
-      }
-      .chip .go {
-        padding: 3px 10px 4px;
-        background: var(--green);
-        color: #04140b;
-        font-weight: 600;
-        box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18);
-      }
-      .chip.one {
-        left: -11%;
-        top: 1%;
-        animation-delay: -1s;
-      }
-      .chip.two {
-        right: -5%;
-        bottom: 15%;
-        animation-delay: -2.5s;
-      }
-      .chip.three {
-        left: -3%;
-        bottom: 12%;
-        animation-delay: -4s;
-      }
-      .bars {
-        display: inline-flex;
-        align-items: flex-end;
-        gap: 3px;
-        height: 20px;
-      }
-      .bars i {
-        width: 4px;
-        height: 20px;
-        background: var(--purple);
-        transform-origin: 50% 100%;
-        animation: talk 0.9s steps(4) infinite;
-      }
-      .bars i:nth-child(2) {
-        animation-delay: -0.3s;
-      }
-      .bars i:nth-child(3) {
-        animation-delay: -0.6s;
-      }
-      .bars i:nth-child(4) {
-        animation-delay: -0.15s;
-      }
-      @keyframes talk {
-        0%,
-        100% {
-          transform: scaleY(0.25);
-        }
-        50% {
-          transform: scaleY(1);
-        }
-      }
-
       /* ------------------------------------------------------------ the players: real 3D, built from boxes that wear a skin */
       .player {
         --u: 5px;
@@ -590,9 +459,60 @@
         padding: 2px 9px 3px;
         background: rgba(4, 8, 24, 0.72);
         color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 6px;
         font: 500 0.92rem var(--pixel);
         white-space: nowrap;
         text-shadow: none;
+      }
+      .player[data-nodrag] {
+        cursor: inherit;
+      }
+      .player.turning .turn {
+        transition: transform 0.45s ease;
+      }
+      /* in the demo a name tag shows who is talking, or that your microphone is muted */
+      .player .tag .bars,
+      .player .tag .off {
+        display: none;
+      }
+      .player.talking .tag .bars {
+        display: inline-flex;
+      }
+      .player.muted .tag .off {
+        display: block;
+        width: 14px;
+        height: 14px;
+        color: #ff9da1;
+      }
+      .bars {
+        display: inline-flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 14px;
+      }
+      .bars i {
+        width: 3px;
+        height: 14px;
+        background: var(--purple);
+        transform-origin: bottom;
+        animation: talk 0.9s ease-in-out infinite;
+      }
+      .bars i:nth-child(2) {
+        animation-delay: -0.3s;
+      }
+      .bars i:nth-child(3) {
+        animation-delay: -0.6s;
+      }
+      @keyframes talk {
+        0%,
+        100% {
+          transform: scaleY(0.3);
+        }
+        50% {
+          transform: scaleY(1);
+        }
       }
       .player .turn,
       .player .sway,

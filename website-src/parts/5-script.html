@@ -1,12 +1,71 @@
-
     <script>
       (() => {
-        const $ = (s) => document.querySelector(s);
-        const $$ = (s) => [...document.querySelectorAll(s)];
+        const html = document.documentElement;
+        const $ = (s, root = document) => root.querySelector(s);
+        const $$ = (s, root = document) => [...root.querySelectorAll(s)];
         const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
         const watching = "IntersectionObserver" in window;
+        const params = new URLSearchParams(location.search);
         const clamp = (n, low, high) => Math.max(low, Math.min(high, n));
         const RELEASES = "https://github.com/IbrahimMas1/javahost/releases/latest";
+
+        // Each part of the page is set up on its own, so one failing never takes the others with it.
+        function part(name, setup) {
+          try {
+            setup();
+          } catch (problem) {
+            console.warn("JavaHost page: " + name + " is off.", problem);
+          }
+        }
+        // Tells `changed` whether an element is on screen, so its animation can rest while it isn't.
+        function watch(el, changed, margin) {
+          if (!el) return;
+          if (!watching) return changed(true);
+          new IntersectionObserver((entries) => changed(entries[entries.length - 1].isIntersecting), { rootMargin: margin || "0px" }).observe(el);
+        }
+        // Work that follows the scroll, done at most once per frame.
+        const onScroll = [];
+        let lastY = scrollY;
+        let scrollDir = 1;
+        let scrollQueued = false;
+        function scrolled() {
+          scrollQueued = false;
+          const moved = scrollY - lastY;
+          lastY = scrollY;
+          if (moved) scrollDir = moved > 0 ? 1 : -1;
+          for (const task of onScroll) task();
+        }
+        function queueScroll() {
+          if (scrollQueued) return;
+          scrollQueued = true;
+          requestAnimationFrame(scrolled);
+        }
+        addEventListener("scroll", queueScroll, { passive: true });
+        addEventListener("resize", queueScroll);
+        function make(tag, className, text) {
+          const node = document.createElement(tag);
+          if (className) node.className = className;
+          if (text != null) node.textContent = text;
+          return node;
+        }
+        const OWN = new Set(["copy", "star", "mic-off"]);
+        const iconHref = (name) => (OWN.has(name) ? "#" : "media/icons.svg#") + name;
+        function icon(name) {
+          const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+          svg.setAttribute("class", "i");
+          svg.setAttribute("aria-hidden", "true");
+          use.setAttribute("href", iconHref(name));
+          svg.append(use);
+          return svg;
+        }
+        // Play a one-shot CSS animation again from the start.
+        function again(el, name) {
+          if (calm || !el) return;
+          el.classList.remove(name);
+          void el.offsetWidth;
+          el.classList.add(name);
+        }
 
         // ---------------------------------------------------------------- the island
         // A small voxel world drawn with CSS 3D. Blocks live in a map; only the faces the camera can ever see are made
@@ -211,61 +270,52 @@
         }
 
         // ---------------------------------------------------------------- things come in as you reach them
-        const arriving = $$("[data-reveal], [data-build]");
-        // the first screen comes in straight away, in its own order (each has a delay)
-        $$("#hero [data-reveal]").forEach((el) => el.classList.add("in"));
-        if (watching && !calm) {
-          const seen = new IntersectionObserver(
-            (entries) => {
-              for (const entry of entries) {
-                if (entry.isIntersecting) {
-                  entry.target.classList.add("in");
-                  seen.unobserve(entry.target);
+        part("reveal", () => {
+          const arriving = $$("[data-reveal]");
+          $$("#hero [data-reveal]").forEach((el) => el.classList.add("in"));
+          if (watching && !calm) {
+            const seen = new IntersectionObserver(
+              (entries) => {
+                for (const entry of entries) {
+                  if (entry.isIntersecting) {
+                    entry.target.classList.add("in");
+                    seen.unobserve(entry.target);
+                  }
                 }
-              }
-            },
-            { rootMargin: "0px 0px -8% 0px", threshold: 0.08 },
-          );
-          arriving.forEach((el) => seen.observe(el));
-        } else {
-          arriving.forEach((el) => el.classList.add("in"));
-        }
-
-        // ---------------------------------------------------------------- scrolling: the experience bar, and depth
-        // Each scene's backdrop gets --sy, how far the scene's middle is from the middle of the screen (in hundreds of
-        // pixels). Its layers multiply that by their own depth, so far things lag behind near ones. Only scenes on screen
-        // are measured, and the number is set on the backdrop alone so nothing else has to be restyled.
-        const xp = $("#xp");
-        const live = new Set();
-        if (watching && !calm) {
-          const near = new IntersectionObserver((entries) => entries.forEach((entry) => (entry.isIntersecting ? live.add(entry.target) : live.delete(entry.target))), {
-            rootMargin: "15% 0px",
-          });
-          $$("[data-scene]").forEach((el) => near.observe(el));
-        }
-        let ticking = false;
-        function scrolled() {
-          ticking = false;
-          const room = document.documentElement.scrollHeight - innerHeight;
-          xp.style.transform = "scaleX(" + (room > 0 ? Math.min(1, scrollY / room) : 0) + ")";
-          const middle = innerHeight / 2;
-          const moves = [];
-          for (const el of live) {
-            const box = el.getBoundingClientRect();
-            moves.push([el.querySelector(".decor"), ((box.top + box.height / 2 - middle) / 100).toFixed(2)]);
+              },
+              { rootMargin: "0px 0px -8% 0px", threshold: 0.08 },
+            );
+            arriving.forEach((el) => seen.observe(el));
+          } else {
+            arriving.forEach((el) => el.classList.add("in"));
           }
-          for (const [backdrop, sy] of moves) if (backdrop) backdrop.style.setProperty("--sy", sy);
-        }
-        addEventListener(
-          "scroll",
-          () => {
-            if (!ticking) {
-              ticking = true;
-              requestAnimationFrame(scrolled);
+        });
+
+        // ---------------------------------------------------------------- the experience bar, and depth
+        // Each scene's backdrop gets --sy, how far the scene's middle is from the middle of the screen (in hundreds of
+        // pixels). Its layers multiply that by their own depth, so far things lag behind near ones.
+        part("depth", () => {
+          const xp = $("#xp");
+          const live = new Set();
+          if (watching && !calm) {
+            const near = new IntersectionObserver((entries) => entries.forEach((entry) => (entry.isIntersecting ? live.add(entry.target) : live.delete(entry.target))), {
+              rootMargin: "15% 0px",
+            });
+            $$("[data-scene]").forEach((el) => near.observe(el));
+          }
+          onScroll.push(() => {
+            const room = html.scrollHeight - innerHeight;
+            xp.style.transform = "scaleX(" + (room > 0 ? Math.min(1, scrollY / room) : 0) + ")";
+            const middle = innerHeight / 2;
+            const moves = [];
+            for (const el of live) {
+              const box = el.getBoundingClientRect();
+              moves.push([el.querySelector(".decor"), ((box.top + box.height / 2 - middle) / 100).toFixed(2)]);
             }
-          },
-          { passive: true },
-        );
+            for (const [backdrop, sy] of moves) if (backdrop) backdrop.style.setProperty("--sy", sy);
+          });
+          queueScroll();
+        });
 
         // ---------------------------------------------------------------- the players
         // Each is six boxes (head, body, arms, legs) whose faces show the right patch of a 64x64 skin, placed in 3D with
@@ -280,18 +330,16 @@
           ["legL", 8, 20, 4, 12, 4, [20, 48, 24, 48, 16, 52, 20, 52, 24, 52, 28, 52]],
         ];
         const u = (n) => "calc(var(--u) * " + n + ")";
+        const cast = {}; // the ones with a part to play in the demo, by name
         const players = $$(".player").map((el) => {
           el.style.setProperty("--skin", "url(" + el.dataset.skin + ")");
-          const turn = document.createElement("div");
-          const sway = document.createElement("div");
-          turn.className = "turn";
-          sway.className = "sway";
+          const turn = make("div", "turn");
+          const sway = make("div", "sway");
           turn.append(sway);
           el.append(turn);
           for (const [name, x, y, w, h, d, at] of BOXES) {
-            const part = document.createElement("div");
-            part.className = "part " + name;
-            part.style.cssText = "left:" + u(x) + ";top:" + u(y) + ";width:" + u(w) + ";height:" + u(h);
+            const piece = make("div", "part " + name);
+            piece.style.cssText = "left:" + u(x) + ";top:" + u(y) + ";width:" + u(w) + ";height:" + u(h);
             const faces = [
               // width, height, skin x, skin y, where it goes, how brightly it's lit
               [w, d, at[0], at[1], "rotateX(90deg) translateZ(" + u(h / 2) + ")", 1.12],
@@ -302,115 +350,101 @@
               [w, h, at[10], at[11], "rotateY(180deg) translateZ(" + u(d / 2) + ")", 0.6],
             ];
             for (const [fw, fh, sx, sy, transform, light] of faces) {
-              const face = document.createElement("div");
-              face.className = "face";
+              const face = make("div", "face");
               face.style.cssText =
                 "width:" + u(fw) + ";height:" + u(fh) + ";left:" + u((w - fw) / 2) + ";top:" + u((h - fh) / 2) +
                 ";background-position:" + u(-sx) + " " + u(-sy) + ";transform:" + transform + ";filter:brightness(" + light + ")";
-              part.append(face);
+              piece.append(face);
             }
-            sway.append(part);
+            sway.append(piece);
           }
-          const player = {
-            el,
-            head: el.querySelector(".head"),
-            onIsland: island.contains(el),
-            shown: true,
-            turn: parseFloat(el.style.getPropertyValue("--turn")) || 24,
-            hy: 0,
-            hx: 0,
-            wantY: 0,
-            wantX: 0,
-          };
-          // Drag to turn them round.
-          let dragFrom = null;
-          el.addEventListener("pointerdown", (event) => {
-            dragFrom = { x: event.clientX, turn: player.turn };
-            el.setPointerCapture(event.pointerId);
-            event.stopPropagation();
-          });
-          el.addEventListener("pointermove", (event) => {
-            if (dragFrom) {
-              player.turn = dragFrom.turn + (event.clientX - dragFrom.x) * 0.7;
-              el.style.setProperty("--turn", player.turn.toFixed(1) + "deg");
-            }
-          });
-          const drop = () => (dragFrom = null);
-          el.addEventListener("pointerup", drop);
-          el.addEventListener("pointercancel", drop);
-          el.addEventListener("click", () => {
-            wave(player);
-            hop(player);
-          });
+          // In the demo a name tag shows who is talking, or that you are muted.
+          const label = $(".tag b", el);
+          if (label && el.dataset.who) {
+            const bars = make("span", "bars");
+            bars.append(make("i"), make("i"), make("i"));
+            const off = icon("mic-off");
+            off.classList.add("off");
+            label.append(bars, off);
+          }
+          const home = parseFloat(el.style.getPropertyValue("--turn")) || 24;
+          const player = { el, home, turn: home, hy: 0, hx: 0, head: $(".head", el), onIsland: !!island && island.contains(el), seen: !watching, busy: false, timer: 0 };
+          if (el.dataset.who) cast[el.dataset.who] = player;
+          watch(el, (on) => (player.seen = on));
+          if (!("nodrag" in el.dataset)) {
+            // Drag to turn them round.
+            let dragFrom = null;
+            el.addEventListener("pointerdown", (event) => {
+              dragFrom = { x: event.clientX, turn: player.turn };
+              el.setPointerCapture(event.pointerId);
+              event.stopPropagation();
+            });
+            el.addEventListener("pointermove", (event) => {
+              if (dragFrom) turnTo(player, dragFrom.turn + (event.clientX - dragFrom.x) * 0.7);
+            });
+            const drop = () => (dragFrom = null);
+            el.addEventListener("pointerup", drop);
+            el.addEventListener("pointercancel", drop);
+            el.addEventListener("click", () => wave(player));
+          }
           return player;
         });
+        function turnTo(player, degrees, smoothly) {
+          player.turn = degrees;
+          if (smoothly && !calm) {
+            player.el.classList.add("turning");
+            setTimeout(() => player.el.classList.remove("turning"), 500);
+          }
+          player.el.style.setProperty("--turn", degrees.toFixed(1) + "deg");
+        }
         function wave(player) {
-          if (calm || player.el.classList.contains("waving")) return;
+          if (calm || !player || player.el.classList.contains("waving") || player.el.classList.contains("sitting")) return;
           player.el.classList.add("waving");
           setTimeout(() => player.el.classList.remove("waving"), 2300);
         }
-        function hop(player) {
-          if (calm || player.el.classList.contains("sitting")) return;
-          player.el.classList.remove("hop");
-          void player.el.offsetWidth;
-          player.el.classList.add("hop");
-          setTimeout(() => player.el.classList.remove("hop"), 520);
-        }
         if (!calm && players.length) {
-          // Only the ones on screen do anything.
-          if (watching) {
-            const cast = new IntersectionObserver((entries) => {
-              for (const entry of entries) {
-                const player = players.find((p) => p.el === entry.target);
-                if (player) player.shown = entry.isIntersecting;
-              }
-            });
-            players.forEach((player) => cast.observe(player.el));
-          }
-          // Their heads follow the mouse, easing toward it.
-          let mouse = null;
-          addEventListener("mousemove", (event) => (mouse = event), { passive: true });
-          (function look() {
-            const moved = mouse;
-            mouse = null;
+          // Their heads follow the mouse, easing toward it. The loop runs only while a head still has somewhere to go.
+          let mouseX = -1;
+          let mouseY = -1;
+          let looking = false;
+          function look() {
+            let moving = false;
             for (const player of players) {
-              if (!player.shown || !player.head) continue;
-              if (moved) {
-                const box = player.el.getBoundingClientRect();
-                const dx = moved.clientX - (box.left + box.width / 2);
-                const dy = moved.clientY - (box.top + box.height * 0.15);
-                const facing = player.turn + (player.onIsland ? yaw : 0);
-                const body = ((facing % 360) + 540) % 360 - 180; // which way the body faces, -180..180
-                player.wantY = clamp(dx * 0.11 - body, -55, 55);
-                player.wantX = clamp(-dy * 0.07, -28, 28);
-              }
-              if (Math.abs(player.wantY - player.hy) + Math.abs(player.wantX - player.hx) < 0.05) continue;
-              player.hy += (player.wantY - player.hy) * 0.12;
-              player.hx += (player.wantX - player.hx) * 0.12;
+              if (!player.seen || !player.head) continue;
+              const box = player.el.getBoundingClientRect();
+              const dx = mouseX - (box.left + box.width / 2);
+              const dy = mouseY - (box.top + box.height * 0.15);
+              const facing = player.turn + (player.onIsland ? yaw : 0);
+              const body = ((facing % 360) + 540) % 360 - 180; // which way the body faces, -180..180
+              const wantY = clamp(dx * 0.11 - body, -55, 55);
+              const wantX = clamp(-dy * 0.07, -28, 28);
+              if (Math.abs(wantY - player.hy) < 0.3 && Math.abs(wantX - player.hx) < 0.3) continue;
+              player.hy += (wantY - player.hy) * 0.14;
+              player.hx += (wantX - player.hx) * 0.14;
               player.head.style.setProperty("--hy", player.hy.toFixed(1) + "deg");
               player.head.style.setProperty("--hx", player.hx.toFixed(1) + "deg");
+              moving = true;
             }
-            requestAnimationFrame(look);
-          })();
-          // A friend waves now and then; everyone walks on the spot while the page scrolls.
-          const wavers = players.filter((player) => "waves" in player.el.dataset);
-          setInterval(() => wavers.filter((player) => player.shown).forEach(wave), 7000);
-          setTimeout(() => wavers.forEach(wave), 3200);
-          let stop = 0;
+            if (moving) requestAnimationFrame(look);
+            else looking = false;
+          }
           addEventListener(
-            "scroll",
-            () => {
-              players.forEach((player) => player.shown && player.el.classList.add("walking"));
-              clearTimeout(stop);
-              stop = setTimeout(() => players.forEach((player) => player.el.classList.remove("walking")), 220);
+            "mousemove",
+            (event) => {
+              mouseX = event.clientX;
+              mouseY = event.clientY;
+              if (looking) return;
+              looking = true;
+              requestAnimationFrame(look);
             },
             { passive: true },
           );
+          // AlexPlays waves once, after landing on the island.
+          setTimeout(() => wave(players.find((p) => p.onIsland && p.el.classList.contains("friend"))), 3200);
         }
 
         // ---------------------------------------------------------------- the island turns: slowly by itself, toward the mouse, and when dragged
         if (world && !calm) {
-          const chips = $$(".chip");
           let mx = 0;
           let my = 0;
           let pull = 0;
@@ -434,9 +468,9 @@
           const release = () => (grab = null);
           island.addEventListener("pointerup", release);
           island.addEventListener("pointercancel", release);
-          if (watching) new IntersectionObserver((entries) => (onScreen = entries[0].isIntersecting)).observe(stage);
+          watch(stage, (on) => (onScreen = on));
           (function turn(now) {
-            if (onScreen) {
+            if (onScreen && !document.hidden) {
               const wantYaw = clamp(-36 + Math.sin(now / 3600) * 4 + mx * 16 + pull, -62, -10);
               const wantPitch = -27 - my * 6;
               yaw += (wantYaw - yaw) * 0.08;
@@ -444,110 +478,509 @@
               island.style.transform = "rotateX(" + pitch.toFixed(2) + "deg) rotateY(" + yaw.toFixed(2) + "deg)";
               const undo = "rotateY(" + (-yaw).toFixed(2) + "deg) rotateX(" + (-pitch).toFixed(2) + "deg)";
               for (const el of world.billboards) el.style.transform = undo;
-              chips.forEach((chip, index) => (chip.style.translate = (-mx * (10 + index * 8)).toFixed(1) + "px " + (-my * (8 + index * 5)).toFixed(1) + "px"));
             }
             requestAnimationFrame(turn);
           })(0);
         }
 
-        // ---------------------------------------------------------------- a light follows the mouse across each tile
-        $$(".tile").forEach((tile) => {
-          tile.addEventListener("mousemove", (event) => {
-            const box = tile.getBoundingClientRect();
-            tile.style.setProperty("--mx", event.clientX - box.left + "px");
-            tile.style.setProperty("--my", event.clientY - box.top + "px");
+        // ---------------------------------------------------------------- the story: one pinned window, four features, the sky changing behind it
+        let showStep = () => {};
+        part("story", () => {
+          const story = $("#features");
+          const chapters = $$(".chapter", story);
+          if (!story || !chapters.length || calm || !watching) return;
+          const wide = matchMedia("(min-width: 981px)");
+          const shots = $$(".gw-shot", story);
+          const callouts = $$(".gw-callout", story);
+          const nodes = $$(".rail a", story);
+          const fill = $("#rail-fill");
+          const big = $("#pin-big");
+          const scan = $("#gw-scan");
+          let active = 0;
+          let near = false;
+          let tidy = 0;
+          const setPin = () => html.classList.toggle("pin", wide.matches);
+          setPin();
+          wide.addEventListener?.("change", () => {
+            setPin();
+            queueScroll();
           });
+          showStep = (index, way, instant) => {
+            if (index === active) return;
+            const before = active;
+            active = index;
+            const chapter = chapters[index];
+            story.dataset.step = chapter.dataset.key;
+            chapters.forEach((el, i) => el.classList.toggle("on", i === index));
+            nodes.forEach((el, i) => {
+              el.classList.toggle("on", i === index);
+              el.classList.toggle("done", i < index);
+            });
+            callouts.forEach((el) => el.classList.toggle("on", el.dataset.key === chapter.dataset.key));
+            shots.forEach((el, i) => {
+              el.classList.remove("wipe-up", "wipe-down");
+              el.classList.toggle("on", i === index);
+              el.classList.toggle("was", i === before && !instant);
+            });
+            big.textContent = "0" + (index + 1);
+            $("#pin-tab").textContent = chapter.dataset.tab;
+            scan.classList.remove("up", "down");
+            big.classList.remove("flip");
+            if (instant) return;
+            void scan.offsetWidth; // so the animations start again
+            shots[index].classList.add(way > 0 ? "wipe-up" : "wipe-down");
+            scan.classList.add(way > 0 ? "up" : "down");
+            big.classList.add("flip");
+            clearTimeout(tidy);
+            tidy = setTimeout(() => shots.forEach((el) => el.classList.remove("was")), 700);
+          };
+          chapters[0].classList.add("on");
+          nodes[0].classList.add("on");
+          watch(story, (visible) => (near = visible), "20% 0px");
+          onScroll.push(() => {
+            if (!near || !wide.matches) return;
+            const middle = innerHeight * 0.52;
+            const centres = chapters.map((chapter) => {
+              const box = chapter.getBoundingClientRect();
+              return (box.top + box.bottom) / 2;
+            });
+            let best = 0;
+            centres.forEach((centre, i) => {
+              if (Math.abs(centre - middle) < Math.abs(centres[best] - middle)) best = i;
+            });
+            const last = centres.length - 1;
+            fill.style.setProperty("--p", clamp((middle - centres[0]) / (centres[last] - centres[0] || 1), 0, 1).toFixed(3));
+            showStep(best, scrollDir);
+          });
+          // The window turns a little toward the mouse.
+          const pin = $("#pin-in");
+          if (matchMedia("(pointer: fine)").matches) {
+            let queued = false;
+            let x = 0;
+            let y = 0;
+            addEventListener(
+              "mousemove",
+              (event) => {
+                x = event.clientX / innerWidth - 0.5;
+                y = event.clientY / innerHeight - 0.5;
+                if (queued || !near) return;
+                queued = true;
+                requestAnimationFrame(() => {
+                  queued = false;
+                  pin.style.setProperty("--ry", (x * 6).toFixed(2) + "deg");
+                  pin.style.setProperty("--rx", (-y * 4).toFixed(2) + "deg");
+                });
+              },
+              { passive: true },
+            );
+          }
         });
 
-        // ---------------------------------------------------------------- the numbers spin, then land
-        function countUp() {
-          if (calm) return;
-          $$("[data-count]").forEach((el, index) => {
-            const target = el.dataset.count;
-            const prefix = el.dataset.prefix || "";
-            let turns = 0;
-            const spin = setInterval(
-              () => {
-                turns++;
-                el.textContent = prefix + (turns < 10 + index * 3 ? Math.floor(Math.random() * 9 + 1) : target);
-                if (turns >= 10 + index * 3) clearInterval(spin);
-              },
-              55,
-            );
+        // ---------------------------------------------------------------- the ping picture: packets rest while it is off screen, and stand still for anyone who asked for no motion
+        part("route", () => {
+          const drawing = $("#route-art");
+          if (!drawing || !drawing.pauseAnimations) return;
+          if (calm) {
+            drawing.setCurrentTime(0.5);
+            drawing.pauseAnimations();
+          } else {
+            watch(drawing, (on) => (on ? drawing.unpauseAnimations() : drawing.pauseAnimations()));
+          }
+        });
+
+        // ---------------------------------------------------------------- the demo: a miniature of the menu that keeps its own little state
+        // Everything here is pretend. Nothing is sent, the microphone is never opened and the clipboard is left alone.
+        const demo = $("#demo");
+        part("demo", () => {
+          if (!demo) return;
+          const tryStage = $("#try-stage");
+          const FRIENDS = [
+            { id: "alex", name: "AlexPlays", idle: "Online" },
+            { id: "luna", name: "LunaBuilds", idle: "Playing" },
+            { id: "mossy", name: "MossyMiner", idle: "Online" },
+          ];
+          const SKINS = { you: "media/skin-host.png", alex: "media/skin-friend.png", luna: "media/skin-luna.png", mossy: "media/skin-mossy.png" };
+          const MODS = { lanterns: "Example Lanterns", biomes: "Example Biomes", critters: "Example Critters" };
+          const fresh = () => ({
+            tab: "home",
+            hosting: false,
+            code: "",
+            copied: false,
+            voice: false,
+            muted: false,
+            party: false,
+            talk: "ptt",
+            limit: 8,
+            friendsOnly: true,
+            who: { alex: "idle", luna: "idle", mossy: "idle" }, // idle, joining or here
+            star: {},
+            mods: {}, // installing or installed
+            view: "discover",
+            ticket: {}, // which invite is the latest, per friend, so a stale timer from an earlier one does nothing
           });
-        }
-        if (watching) {
+          let S = fresh();
+          const here = () => FRIENDS.filter((friend) => S.who[friend.id] === "here");
+          const coming = () => FRIENDS.filter((friend) => S.who[friend.id] !== "idle");
+          const bind = {};
+          const timers = new Set();
+          const talking = new Set();
+          let feed = [];
+          let stageSeen = false;
+          watch(tryStage, (on) => (stageSeen = on));
+          // Later, or straight away for someone who has asked for no motion.
+          function wait(fn, ms) {
+            if (calm) return fn();
+            const timer = setTimeout(() => {
+              timers.delete(timer);
+              fn();
+            }, ms);
+            timers.add(timer);
+          }
+          // What just happened, for screen readers. The menu itself shows it by changing.
+          function note(text) {
+            if (bind.said) bind.said.textContent = text;
+          }
+          function log(id, who, text, good) {
+            feed.unshift({ id, who, text, good, fresh: true });
+            feed.length = Math.min(feed.length, 3);
+          }
+          function newCode() {
+            const letters = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+            const chunk = () => Array.from({ length: 5 }, () => letters[Math.floor(Math.random() * letters.length)]).join("");
+            return "JH-" + chunk() + "-" + chunk();
+          }
+          function goTab(tab) {
+            const activeEl = document.activeElement;
+            const page = activeEl && demo.contains(activeEl) && activeEl.closest(".mm-page");
+            S.tab = tab;
+            // Keep the keyboard's place if the button just pressed is about to be hidden with its page.
+            if (page && page.dataset.page !== tab) $('.mm-nav[data-tab="' + tab + '"]', demo)?.focus({ preventScroll: true });
+          }
+          // Friends walk in along the top of the menu when they join, and out again when hosting stops.
+          const spots = {};
+          $$(".try-spot[data-friend]").forEach((spot) => (spots[spot.dataset.friend] = spot));
+          function walk(id, arriving) {
+            const spot = spots[id];
+            const player = cast[id];
+            if (!spot || !player) return;
+            spot.classList.toggle("here", arriving);
+            if (calm) return;
+            player.busy = true;
+            player.el.classList.add("walking");
+            turnTo(player, arriving ? -80 : 80, !arriving);
+            clearTimeout(player.timer);
+            player.timer = setTimeout(() => {
+              player.busy = false;
+              player.el.classList.remove("walking");
+              turnTo(player, player.home, arriving);
+              if (arriving) wave(player);
+            }, 1500);
+          }
+          function setHosting(on) {
+            if (on === S.hosting) return;
+            S.hosting = on;
+            if (on) {
+              S.ask = "";
+              S.code = newCode();
+              note("Hosting New World. Friends can join now.");
+              log("you", "You", "started hosting New World", true);
+              wave(cast.you);
+            } else {
+              for (const friend of coming()) {
+                if (spots[friend.id]?.classList.contains("here")) walk(friend.id, false);
+                S.who[friend.id] = "idle";
+              }
+              S.code = "";
+              talking.clear();
+              note("Hosting stopped.");
+              log("you", "You", "stopped hosting");
+            }
+          }
+          function invite(id) {
+            const friend = FRIENDS.find((f) => f.id === id);
+            if (!friend || S.who[id] !== "idle") return;
+            if (!S.hosting) {
+              // nothing to invite them to yet: say so in the menu's own header
+              S.ask = friend.name;
+              note("Start hosting first, then invite " + friend.name + ".");
+              return;
+            }
+            if (1 + coming().length >= S.limit) return note("Your world is full.");
+            S.who[id] = "joining";
+            const ticket = (S.ticket[id] = (S.ticket[id] || 0) + 1);
+            const current = () => S.who[id] === "joining" && S.ticket[id] === ticket;
+            note("Invite sent to " + friend.name + ".");
+            log(id, friend.name, "was invited");
+            wait(() => current() && walk(id, true), 500);
+            wait(() => current() && arrive(id), 2000);
+          }
+          function arrive(id) {
+            const friend = FRIENDS.find((f) => f.id === id);
+            if (S.who[id] !== "joining") return;
+            S.who[id] = "here";
+            note(friend.name + " joined, connected directly.");
+            log(id, friend.name, "joined New World", true);
+            if (S.voice) tickTalk();
+            render();
+          }
+          function inviteAll() {
+            if (!S.hosting) {
+              S.ask = "everyone";
+              return note("Start hosting first, then invite everyone.");
+            }
+            const idle = FRIENDS.filter((friend) => S.who[friend.id] === "idle");
+            idle.forEach((friend, index) =>
+              wait(() => {
+                invite(friend.id);
+                render();
+              }, index * 420),
+            );
+          }
+          function setVoice(on) {
+            S.voice = on;
+            note(on ? "Voice chat on. In this demo your real microphone stays off." : "Voice chat off.");
+            if (on) tickTalk();
+            else talking.clear();
+          }
+          function setLimit(limit) {
+            if (limit < 1 + coming().length) return note("There are " + (1 + coming().length) + " of you. Pick a limit that fits everyone.");
+            S.limit = limit;
+          }
+          function copyCode() {
+            if (!S.hosting) return note("No code yet. It appears when you host.");
+            S.copied = true;
+            note("Invite code copied. In this demo your clipboard is untouched.");
+            wait(() => {
+              S.copied = false;
+              render();
+            }, 1600);
+          }
+          function install(id) {
+            if (S.mods[id]) return;
+            S.mods[id] = "installing";
+            const button = $('[data-act="install"][data-mod="' + id + '"]', demo);
+            if (button && !calm) button.append(make("span", "fill"));
+            wait(() => {
+              if (S.mods[id] !== "installing") return;
+              S.mods[id] = "installed";
+              note(MODS[id] + " installed. A friend who joins gets it too.");
+              render();
+            }, 1200);
+          }
+          function reset() {
+            timers.forEach(clearTimeout);
+            timers.clear();
+            for (const friend of FRIENDS) {
+              if (spots[friend.id]?.classList.contains("here")) walk(friend.id, false);
+            }
+            talking.clear();
+            S = fresh();
+            feed = FRIENDS.map((friend) => ({ id: friend.id, who: friend.name, text: "came online" })).reverse();
+            $$(".fill", demo).forEach((fill) => fill.remove());
+            note("The demo is back to the start.");
+          }
+          // Who is talking changes every second and a half while voice is on.
+          function tickTalk() {
+            talking.clear();
+            if (!S.voice) return;
+            const able = ["you", ...here().map((friend) => friend.id)].filter((id) => !(id === "you" && S.muted));
+            if (calm) able.forEach((id) => talking.add(id));
+            else if (able.length) {
+              talking.add(able[Math.floor(Math.random() * able.length)]);
+              if (able.length > 2 && Math.random() < 0.35) talking.add(able[Math.floor(Math.random() * able.length)]);
+            }
+            paintTalk();
+          }
+          function paintTalk() {
+            for (const id in SKINS) {
+              const on = talking.has(id);
+              cast[id]?.el.classList.toggle("talking", on);
+              $('.mm-talk [data-who="' + id + '"]', demo)?.classList.toggle("talking", on);
+            }
+            cast.you?.el.classList.toggle("muted", S.voice && S.muted);
+          }
+          function setButton(button, name, label) {
+            if (!button) return;
+            const use = $("use", button);
+            const text = $("span:not(.fill)", button);
+            if (use && name) use.setAttribute("href", iconHref(name));
+            if (text) text.textContent = label;
+          }
+          const pressed = (selector, test) => $$(selector, demo).forEach((button) => button.setAttribute("aria-pressed", String(test(button))));
+          // Draw the whole menu from the state. Every action changes the state, then calls this.
+          function render() {
+            const friendsHere = here();
+            const total = 1 + friendsHere.length;
+            $$(".mm-nav", demo).forEach((button) => (button.dataset.tab === S.tab ? button.setAttribute("aria-current", "page") : button.removeAttribute("aria-current")));
+            $$(".mm-page", demo).forEach((page) => page.classList.toggle("on", page.dataset.page === S.tab));
+            const homeLine = !S.hosting
+              ? S.ask
+                ? "Start hosting first, then invite " + S.ask + "."
+                : "Host your world, then invite a friend."
+              : friendsHere.length
+                ? "Playing with " + friendsHere.length + (friendsHere.length === 1 ? " friend." : " friends.")
+                : "You're hosting. Invite a friend to get started.";
+            const heads = {
+              home: ["Good to see you", homeLine],
+              friends: ["Friends", !S.hosting && S.ask ? "Start hosting first, then invite " + S.ask + "." : "3 online. Invite them to your world."],
+              host: ["Host a world", S.hosting ? "New World is open to your friends." : "Pick one: it opens and hosting starts."],
+              voice: ["Voice chat", "Talk nearby, or to the whole world."],
+              mods: ["Mods", "Find mods, then play them with friends."],
+            };
+            bind.title.textContent = heads[S.tab][0];
+            bind.sub.textContent = heads[S.tab][1];
+            bind.me.textContent = S.hosting ? "Hosting" : "Online";
+
+            const main = $('[data-act="main"]', demo);
+            setButton(main, S.hosting ? "users" : "wifi", S.hosting ? "Invite friends" : "Start hosting");
+            bind.pill.classList.toggle("on", S.hosting);
+            bind.pill.lastElementChild.textContent = S.hosting ? "Hosting" : "Not hosting";
+
+            const host = $('[data-act="host"]', demo);
+            setButton(host, S.hosting ? "close" : "wifi", S.hosting ? "Stop hosting" : "Start hosting");
+            host.classList.toggle("go", !S.hosting);
+            host.classList.toggle("stop", S.hosting);
+            bind.world.textContent = S.hosting ? total + " of " + S.limit + " players" : "Only you, for now";
+            bind.codebox.classList.toggle("on", S.hosting);
+            bind.code.textContent = S.hosting ? S.code : "appears when you host";
+            setButton($('[data-act="copy"]', demo), S.copied ? "check" : "copy", S.copied ? "Copied" : "Copy");
+
+            for (const friend of FRIENDS) {
+              const state = S.who[friend.id];
+              for (const row of $$('[data-row="' + friend.id + '"]', demo)) {
+                row.classList.toggle("joining", state === "joining");
+                row.classList.toggle("here", state === "here");
+                $("small", row).textContent = state === "joining" ? "Joining…" : state === "here" ? "Playing with you" : friend.idle;
+                const button = $('[data-act="invite"]', row);
+                setButton(button, state === "here" ? "check" : state === "joining" ? "reload" : "play", state === "here" ? "In world" : state === "joining" ? "Sent" : "Invite");
+                button.classList.toggle("go", state === "idle");
+                button.classList.toggle("wait", state === "joining");
+                button.classList.toggle("quiet", state === "here");
+                button.setAttribute("aria-disabled", String(state !== "idle"));
+              }
+            }
+            pressed('[data-act="star"]', (button) => !!S.star[button.dataset.friend]);
+            pressed('[data-act="limit"]', (button) => +button.dataset.limit === S.limit);
+            pressed('[data-act="talk"]', (button) => button.dataset.talk === S.talk);
+            pressed('[data-act="reach"]', (button) => (button.dataset.reach === "party") === S.party);
+            pressed('[data-act="modview"]', (button) => button.dataset.view === S.view);
+            $('[data-act="friends-only"]', demo).setAttribute("aria-checked", String(S.friendsOnly));
+            $('[data-act="voice"]', demo).setAttribute("aria-checked", String(S.voice));
+            $('[data-act="mute"]', demo).setAttribute("aria-checked", String(S.muted));
+
+            bind["chip-voice"].textContent = !S.voice ? "Off" : S.muted ? "Muted" : "On";
+            bind["chip-players"].textContent = total + "/" + S.limit;
+            bind["chip-route"].textContent = friendsHere.length ? "Direct" : "–";
+
+            bind.feed.replaceChildren(
+              ...feed.map((item) => {
+                const line = make("li", item.fresh ? "new" : "");
+                const avatar = make("span", "av xs");
+                avatar.style.setProperty("--skin", "url(" + SKINS[item.id] + ")");
+                const words = make("span", "t" + (item.good ? " good" : ""));
+                words.append(make("b", "", item.who), " " + item.text);
+                line.append(avatar, words, make("time", "", "just now"));
+                item.fresh = false;
+                return line;
+              }),
+            );
+            bind.talkers.replaceChildren(
+              ...[{ id: "you", name: "You" }, ...friendsHere].map((person) => {
+                const line = make("li");
+                line.dataset.who = person.id;
+                const avatar = make("span", "av xs");
+                avatar.style.setProperty("--skin", "url(" + SKINS[person.id] + ")");
+                const bars = make("span", "bars");
+                bars.append(make("i"), make("i"), make("i"));
+                line.append(avatar, person.name, bars);
+                const aside = !S.voice ? "voice off" : person.id === "you" && S.muted ? "muted" : "";
+                if (aside) line.append(make("small", "", aside));
+                return line;
+              }),
+            );
+            let shown = 0;
+            for (const row of $$("[data-mod].mm-row", demo)) {
+              const state = S.mods[row.dataset.mod];
+              const button = $("button", row);
+              row.hidden = S.view === "installed" && state !== "installed";
+              if (!row.hidden) shown++;
+              setButton(button, "", state === "installed" ? "Installed" : state === "installing" ? "Installing…" : "Install");
+              button.classList.toggle("go", state !== "installed");
+              button.classList.toggle("quiet", state === "installed");
+              button.setAttribute("aria-disabled", String(!!state));
+              if (state === "installed") $(".fill", button)?.remove();
+            }
+            bind["mods-empty"].hidden = shown > 0;
+            paintTalk();
+          }
+          $$("[data-bind]", demo).forEach((el) => (bind[el.dataset.bind] = el));
+          feed = FRIENDS.map((friend) => ({ id: friend.id, who: friend.name, text: "came online" })).reverse();
+          demo.addEventListener("click", (event) => {
+            const button = event.target.closest("[data-act]");
+            if (!button || !demo.contains(button)) return;
+            const d = button.dataset;
+            switch (d.act) {
+              case "tab": goTab(d.tab); break;
+              case "main": if (S.hosting) goTab("friends"); else setHosting(true); break;
+              case "host": setHosting(!S.hosting); break;
+              case "invite": invite(d.friend); break;
+              case "invite-all": inviteAll(); break;
+              case "star": S.star[d.friend] = !S.star[d.friend]; break;
+              case "copy": copyCode(); break;
+              case "friends-only": S.friendsOnly = !S.friendsOnly; break;
+              case "limit": setLimit(+d.limit); break;
+              case "voice": setVoice(!S.voice); break;
+              case "mute": S.muted = !S.muted; tickTalk(); break;
+              case "talk": S.talk = d.talk; break;
+              case "reach": S.party = d.reach === "party"; break;
+              case "modview": S.view = d.view; break;
+              case "install": install(d.mod); break;
+              case "reset": reset(); break;
+            }
+            render();
+          });
+          setInterval(() => S.voice && !calm && stageSeen && !document.hidden && (tickTalk(), 0), 1500);
+          render();
+
+          // For looking at the demo in a given state: ?demo=hosting, ?demo=invited, ?demo=voice, ?demo=party, ?tab=friends.
+          // These only press the same buttons a visitor would.
+          const press = (selector) => $(selector, demo)?.click();
+          const state = params.get("demo") || "";
+          if (/^(hosting|invited|voice|party)$/.test(state)) press('[data-act="main"]');
+          if (/^(invited|voice|party)$/.test(state)) press('[data-act="invite"][data-friend="alex"]');
+          if (state === "party") {
+            press('[data-act="invite"][data-friend="luna"]');
+            press('[data-act="invite"][data-friend="mossy"]');
+          }
+          if (state === "voice") {
+            press('[data-act="tab"][data-tab="voice"]');
+            press('[data-act="voice"]');
+          }
+          if (/^(home|friends|host|voice|mods)$/.test(params.get("tab") || "")) press('.mm-nav[data-tab="' + params.get("tab") + '"]');
+        });
+
+        // ---------------------------------------------------------------- the numbers spin once, then land
+        part("numbers", () => {
+          if (calm || !watching) return;
           const once = new IntersectionObserver(
             (entries) => {
-              if (entries.some((entry) => entry.isIntersecting)) {
-                once.disconnect();
-                countUp();
-              }
+              if (!entries.some((entry) => entry.isIntersecting)) return;
+              once.disconnect();
+              $$("[data-count]").forEach((el, index) => {
+                const target = el.dataset.count;
+                const prefix = el.dataset.prefix || "";
+                let turns = 0;
+                const spin = setInterval(() => {
+                  turns++;
+                  el.textContent = prefix + (turns < 10 + index * 3 ? Math.floor(Math.random() * 9 + 1) : target);
+                  if (turns >= 10 + index * 3) clearInterval(spin);
+                }, 55);
+              });
             },
             { threshold: 0.4 },
           );
           once.observe($("#stats"));
-        }
-
-        // ---------------------------------------------------------------- petals from the tree, drifting across the morning sky
-        const canvas = $("#motes");
-        if (canvas && !calm) {
-          const ctx = canvas.getContext("2d");
-          const colours = ["#ffc3da", "#f58ab5", "#ffffff", "#ffc3da", "#ffe9f2"];
-          let motes = [];
-          let width = 0;
-          let height = 0;
-          let running = false;
-          function size() {
-            const box = canvas.getBoundingClientRect();
-            const ratio = Math.min(2, devicePixelRatio || 1);
-            width = box.width;
-            height = box.height;
-            canvas.width = width * ratio;
-            canvas.height = height * ratio;
-            ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-            const count = Math.round(Math.min(46, width / 30));
-            motes = Array.from({ length: count }, () => ({
-              x: Math.random() * width * 1.2,
-              y: Math.random() * height,
-              s: 4 + Math.floor(Math.random() * 2) * 2,
-              vx: -(0.25 + Math.random() * 0.5),
-              vy: 0.2 + Math.random() * 0.45,
-              c: colours[Math.floor(Math.random() * colours.length)],
-              p: Math.random() * Math.PI * 2,
-            }));
-          }
-          function draw(time) {
-            if (!running) return;
-            ctx.clearRect(0, 0, width, height);
-            for (const m of motes) {
-              m.x += m.vx;
-              m.y += m.vy;
-              if (m.y > height + 10 || m.x < -10) {
-                m.y = Math.random() < 0.5 ? -10 : Math.random() * height * 0.6;
-                m.x = m.y < 0 ? Math.random() * width * 1.2 : width + 10;
-              }
-              ctx.globalAlpha = 0.45 + 0.4 * (0.5 + 0.5 * Math.sin(time / 700 + m.p));
-              ctx.fillStyle = m.c;
-              // snapped to a 2px grid so they move like pixels
-              ctx.fillRect(Math.round((m.x + Math.sin(time / 1300 + m.p) * 10) / 2) * 2, Math.round(m.y / 2) * 2, m.s, m.s);
-            }
-            requestAnimationFrame(draw);
-          }
-          size();
-          addEventListener("resize", size);
-          // Only while the top of the page is on screen.
-          if (watching) {
-            new IntersectionObserver((entries) => {
-              const visible = entries[0].isIntersecting;
-              if (visible && !running) {
-                running = true;
-                requestAnimationFrame(draw);
-              }
-              running = visible;
-            }).observe(canvas);
-          }
-        }
+        });
 
         // ---------------------------------------------------------------- downloads
         const os = {
@@ -596,7 +1029,36 @@
             pickOs(current);
           })
           .catch(() => {});
-        document.documentElement.classList.add("ok");
+
+        // ---------------------------------------------------------------- for looking at a part of the page: ?at=try, ?step=2
+        // The page jumps there by itself (no smooth scroll), and the story shows that step without its wipe.
+        part("hooks", () => {
+          if (params.has("measure")) setTimeout(() => (html.dataset.h = html.scrollHeight), 1500);
+          if (["step", "at", "demo", "tab", "still"].some((key) => params.has(key))) {
+            html.classList.add("still");
+            $$("[data-reveal]").forEach((el) => el.classList.add("in"));
+          }
+          const step = +params.get("step");
+          const at = params.get("at");
+          if (!(step >= 1 && step <= 4) && !at) return;
+          const go = () => {
+            html.style.scrollBehavior = "auto";
+            if (step >= 1 && step <= 4) {
+              const chapter = $$(".chapter")[step - 1];
+              const box = chapter.getBoundingClientRect();
+              scrollTo(0, scrollY + box.top + box.height / 2 - innerHeight * 0.52);
+              showStep(step - 1, 1, true);
+            } else {
+              const target = document.getElementById(at);
+              if (target) scrollTo(0, scrollY + target.getBoundingClientRect().top - (+params.get("off") || 0));
+            }
+            queueScroll();
+          };
+          go();
+          setTimeout(go, 300);
+        });
+
+        html.classList.add("ok");
       })();
     </script>
   </body>

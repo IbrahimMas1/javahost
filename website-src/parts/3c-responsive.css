@@ -1,0 +1,291 @@
+
+      /* ------------------------------------------------------------ smaller screens */
+      @media (max-width: 1320px) {
+        .stage {
+          --u: 3.4px;
+        }
+      }
+      @media (max-width: 1180px) {
+        .stage {
+          --u: 3px;
+        }
+        .nav-links {
+          gap: var(--s3);
+        }
+        .mm {
+          grid-template-columns: 132px minmax(0, 1fr);
+        }
+        .mm-home {
+          grid-template-columns: 96px minmax(0, 1fr);
+        }
+        .try-spot[data-friend] {
+          --from: 440px;
+        }
+      }
+      @media (max-width: 1080px) {
+        .stage {
+          --u: 2.6px;
+        }
+        /* the menu needs the width more than the words do */
+        .try .split {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .try .split > :first-child {
+          max-width: 40em;
+        }
+      }
+      @media (max-width: 980px) {
+        .hero .wrap,
+        .split,
+        .get .split,
+        .qa .split,
+        .chapter {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .hero .wrap {
+          min-height: 0;
+          padding-block: var(--s6) var(--s8);
+          gap: var(--s4);
+        }
+        .stage {
+          min-height: 480px;
+          --u: 3.6px;
+        }
+        .floaty {
+          left: 50%;
+          top: 58%;
+        }
+        .nav-links {
+          display: none;
+        }
+        .steps {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .bento {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .qa .head {
+          position: static;
+        }
+        .ping .sun {
+          left: auto;
+          right: 6%;
+          bottom: 72px;
+          width: 160px;
+          height: 160px;
+        }
+        .get .moon {
+          top: var(--s3);
+          width: 64px;
+          height: 64px;
+        }
+      }
+      @media (max-width: 640px) {
+        body {
+          font-size: 1rem;
+        }
+        .hero .lede {
+          font-size: 1.125rem;
+        }
+        /* on a phone the words fill the width: the sky keeps only its clouds at the bottom */
+        .hero .sun,
+        .hero .decor > div:has(> .cloud) {
+          display: none;
+        }
+        .stage {
+          min-height: 380px;
+          --u: 2.5px;
+        }
+        .actions .btn {
+          width: calc(100% - 8px);
+        }
+        .card,
+        .tile,
+        .panel,
+        .route {
+          padding: var(--s3);
+        }
+        .tile.wide .words {
+          padding: var(--s3);
+          gap: var(--s2);
+        }
+        .bento {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .tile.wide {
+          grid-column: auto;
+          grid-row: auto;
+        }
+        .stats .wrap {
+          grid-template-columns: repeat(2, 1fr);
+          row-gap: var(--s5);
+        }
+        .stat:nth-child(2) {
+          border-right: 0;
+        }
+        .gw,
+        .try-game {
+          box-shadow:
+            8px 8px 0 var(--deep),
+            0 30px 60px -20px rgba(4, 8, 24, 0.7);
+        }
+        .route {
+          --so: 8px;
+        }
+        .try .moon,
+        .get .moon {
+          display: none;
+        }
+        .fireside {
+          gap: var(--s1);
+        }
+        .fire {
+          width: 72px;
+          height: 66px;
+        }
+        summary {
+          font-size: 1.125rem;
+          padding: 16px 56px 16px 16px;
+        }
+        summary::after {
+          right: 16px;
+        }
+        details p {
+          padding: 0 16px 16px;
+        }
+        .player {
+          --u: 4px;
+        }
+        /* the demo on a phone: smaller players, the menu's sidebar becomes a row of tabs */
+        .try-stage {
+          --pu: 3.6px;
+        }
+        .try-ledge {
+          height: 160px;
+        }
+        .try-spot.you {
+          --at: 2% !important;
+        }
+        .try-spot[data-friend="alex"] {
+          --at: 28% !important;
+        }
+        .try-spot[data-friend="luna"] {
+          --at: 52% !important;
+        }
+        .try-spot[data-friend="mossy"] {
+          --at: 76% !important;
+        }
+        .try-spot .player .tag b {
+          padding: 1px 3px 2px;
+          font-size: 0.8125rem;
+        }
+        .try-spot[data-friend] {
+          --from: 300px;
+        }
+        .try-bar {
+          letter-spacing: 0.04em;
+          gap: var(--s1);
+          padding-left: 12px;
+        }
+        .mm {
+          grid-template-columns: minmax(0, 1fr);
+          height: auto;
+        }
+        .mm-side {
+          flex-direction: row;
+          padding: 6px;
+          border-right: 0;
+          border-bottom: 2px solid rgba(61, 220, 132, 0.5);
+        }
+        .mm-brand,
+        .mm-cap,
+        .mm-me {
+          display: none;
+        }
+        .mm-nav {
+          flex: 1;
+          flex-direction: column;
+          justify-content: center;
+          gap: 2px;
+          height: 52px;
+          padding: 0;
+          font-size: 13px;
+        }
+        .mm-nav[aria-current="page"]::before {
+          left: 24%;
+          right: 24%;
+          top: auto;
+          bottom: -6px;
+          width: auto;
+          height: 3px;
+        }
+        .mm-main {
+          min-height: 420px;
+          padding: 12px 12px 16px;
+        }
+        .mm-home {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 10px;
+          flex: none;
+        }
+        .mm-you {
+          flex-direction: row;
+          justify-content: space-between;
+        }
+        .mm-you .player {
+          display: none;
+        }
+        .mm-btn.sm {
+          min-height: 36px;
+        }
+        .mm-chips {
+          margin-top: auto;
+          gap: 6px;
+        }
+        .mm-chip {
+          padding: 0 8px;
+          gap: 4px;
+        }
+        .mm-chip svg {
+          display: none;
+        }
+        .mm-set small,
+        .mm-sub {
+          white-space: normal;
+        }
+        .mm-seg button {
+          padding: 0 4px;
+          min-height: 36px;
+        }
+      }
+      /* test renders (?step, ?at, ?demo): show where things end up, not where they start */
+      .still *,
+      .still *::before,
+      .still *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        *,
+        *::before,
+        *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+        .js [data-reveal],
+        .js .hero h1 .line > span {
+          opacity: 1;
+          transform: none;
+        }
+        [data-par] {
+          transform: none;
+        }
+        .puff {
+          display: none;
+        }
+      }
+    </style>
+  </head>

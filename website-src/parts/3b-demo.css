@@ -1,0 +1,797 @@
+
+      /* ------------------------------------------------------------ the demo: a working miniature of the menu, in the mod's own look,
+         with the players standing on top of it. Friends walk in when they join. Nothing is ever sent anywhere. */
+      .try-stage {
+        position: relative;
+        --pu: 5px;
+      }
+      .try-ledge {
+        position: relative;
+        z-index: 2;
+        height: 200px;
+        pointer-events: none;
+      }
+      .try-spot {
+        position: absolute;
+        left: var(--at);
+        bottom: 0;
+      }
+      .try-spot .player {
+        --u: var(--pu);
+        pointer-events: auto;
+      }
+      .try-spot .player::after {
+        width: calc(var(--u) * 18);
+        margin-left: calc(var(--u) * -9);
+        background: rgba(0, 0, 0, 0.35);
+      }
+      /* friends wait off to the right until they are invited, then walk in */
+      .try-spot[data-friend] {
+        transform: translateX(var(--from, 520px));
+        opacity: 0;
+        visibility: hidden;
+        transition:
+          transform 1.5s linear,
+          opacity 0.3s ease 1.2s,
+          visibility 0s 1.5s;
+      }
+      .try-spot[data-friend].here {
+        transform: none;
+        opacity: 1;
+        visibility: visible;
+        transition:
+          transform 1.5s linear,
+          opacity 0.3s ease;
+      }
+      .try-game {
+        position: relative;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: #0b0f14;
+        box-shadow:
+          12px 12px 0 var(--deep),
+          0 40px 90px -30px rgba(0, 0, 0, 0.8);
+      }
+      .try-game::before {
+        /* the strip of ground the players stand on */
+        content: "";
+        display: block;
+        height: 10px;
+        background:
+          linear-gradient(90deg, rgba(0, 0, 0, 0.16) 2px, transparent 2px) 0 0 / 24px 100%,
+          linear-gradient(#7af0b0 0 2px, #3ddc84 2px 6px, #1c7a47 6px);
+      }
+      .try-bar {
+        display: flex;
+        align-items: center;
+        gap: var(--s2);
+        min-height: 40px;
+        padding: 0 8px 0 16px;
+        background: #070a0e;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        color: #98a3b1;
+        font: 600 0.875rem var(--pixel);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .try-bar .live {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--s1);
+        color: var(--green);
+      }
+      .try-bar .live i {
+        width: 8px;
+        height: 8px;
+        background: var(--green);
+      }
+      .try-bar span:nth-child(2) {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .try-bar button {
+        display: none;
+        margin-left: auto;
+        min-height: 28px;
+        padding: 0 12px;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        background: none;
+        color: #c9d1db;
+        font: inherit;
+        letter-spacing: inherit;
+        text-transform: inherit;
+        cursor: pointer;
+      }
+      .js .try-bar button {
+        display: block;
+      }
+      .try-bar button:hover {
+        color: #fff;
+        border-color: #fff;
+      }
+      .try-bar button:focus-visible,
+      .mm :focus-visible {
+        outline: 3px solid #fff;
+        outline-offset: 2px;
+      }
+      /* without the script the demo can't do anything, so it says so instead of offering buttons that do nothing */
+      .try-off {
+        margin-top: var(--s3);
+        color: var(--mut);
+        font-size: 1rem;
+      }
+      .js .try-off {
+        display: none;
+      }
+
+      /* ---- the miniature menu, in the mod's own look: dark glass panels, rounded corners, a green accent */
+      .mm {
+        position: relative;
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        height: 404px;
+        overflow: hidden;
+        color: #e8edf2;
+        font: 500 14px/1.25 var(--pixel);
+        background:
+          radial-gradient(90% 70% at 75% 0%, rgba(61, 220, 132, 0.18), transparent 60%),
+          linear-gradient(#161c23, #0d1217);
+      }
+      .mm svg.i {
+        width: 18px;
+        height: 18px;
+      }
+      .mm-side {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 12px 10px 10px;
+        background: rgba(6, 9, 13, 0.72);
+        border-right: 2px solid rgba(61, 220, 132, 0.5);
+      }
+      .mm-brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin: 0 0 6px 4px;
+        font-weight: 600;
+        font-size: 15px;
+      }
+      .mm-brand .logo {
+        width: 24px;
+        height: 24px;
+        border-radius: 5px;
+        filter: none;
+      }
+      .mm-cap {
+        margin: 7px 0 2px 8px;
+        color: #5c6773;
+        font-size: 13px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .mm-nav {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        height: 32px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: #8b96a3;
+        font: 500 15px var(--pixel);
+        text-align: left;
+        cursor: pointer;
+      }
+      .mm-nav:hover {
+        color: #e8edf2;
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .mm-nav[aria-current="page"] {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.09);
+      }
+      .mm-nav[aria-current="page"]::before {
+        content: "";
+        position: absolute;
+        left: -4px;
+        top: 7px;
+        bottom: 7px;
+        width: 3px;
+        border-radius: 2px;
+        background: var(--green);
+      }
+      .mm-nav[aria-current="page"] svg {
+        color: var(--green);
+      }
+      .mm-me {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-top: auto;
+        padding: 7px 8px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .mm-main {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        padding: 12px 16px 14px;
+      }
+      .mm-head {
+        position: relative;
+        padding-bottom: 9px;
+        margin-bottom: 11px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .mm-head::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: -1px;
+        width: 54px;
+        height: 2px;
+        background: var(--green);
+      }
+      .mm-title {
+        margin: 0;
+        font: 600 18px/1.15 var(--pixel);
+      }
+      .mm-sub {
+        margin: 2px 0 0;
+        color: #8b96a3;
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mm-page {
+        display: none;
+        flex: 1;
+        min-height: 0;
+        flex-direction: column;
+        gap: 9px;
+      }
+      .mm-page.on {
+        display: flex;
+      }
+      .mm-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 34px;
+        padding: 0 14px;
+        border: 2px solid #36404c;
+        border-radius: 8px;
+        background: #0f141a;
+        color: #e8edf2;
+        font: 600 14px var(--pixel);
+        white-space: nowrap;
+        cursor: pointer;
+        transition:
+          transform 0.1s ease,
+          filter 0.15s ease;
+      }
+      .mm-btn:hover {
+        filter: brightness(1.14);
+      }
+      .mm-btn:active {
+        transform: translateY(1px) scale(0.98);
+      }
+      .mm-btn.go {
+        background: var(--green);
+        border-color: var(--green);
+        color: #05140c;
+        box-shadow:
+          inset 0 2px 0 rgba(255, 255, 255, 0.3),
+          inset 0 -3px 0 rgba(0, 0, 0, 0.16);
+      }
+      .mm-btn.big {
+        width: 100%;
+        min-height: 46px;
+        font-size: 16px;
+      }
+      .mm-btn.sm {
+        min-height: 28px;
+        padding: 0 10px;
+        gap: 6px;
+        font-size: 13px;
+      }
+      .mm-btn.sm svg.i {
+        width: 15px;
+        height: 15px;
+      }
+      .mm-btn.stop {
+        background: #1a0f12;
+        border-color: #e5484d;
+        color: #ff9da1;
+        box-shadow: none;
+      }
+      .mm-btn.quiet {
+        background: none;
+        border-color: transparent;
+        color: var(--green);
+        box-shadow: none;
+      }
+      .mm-btn.wait {
+        background: #1d1a10;
+        border-color: var(--orange);
+        color: var(--orange);
+        box-shadow: none;
+      }
+      .mm-btn[aria-disabled="true"] {
+        cursor: default;
+      }
+      .mm-btn[aria-disabled="true"]:hover {
+        filter: none;
+      }
+      .mm-card {
+        padding: 8px 10px;
+        border: 2px solid #2a333e;
+        border-radius: 10px;
+        background: rgba(18, 24, 31, 0.82);
+      }
+      .mm-label,
+      .mm-card-h {
+        color: #5c6773;
+        font-size: 13px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .mm-label small {
+        letter-spacing: 0.04em;
+        text-transform: none;
+        font-size: 13px;
+      }
+      .mm-card-h {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+      }
+      .mm-card-h b {
+        padding: 1px 7px;
+        border-radius: 6px;
+        background: rgba(61, 220, 132, 0.16);
+        color: var(--green);
+        letter-spacing: 0;
+      }
+      .mm-list {
+        display: grid;
+        gap: 5px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .mm-row {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 32px;
+      }
+      /* a player's face, cut from the front of the head on their skin */
+      .av {
+        position: relative;
+        flex: none;
+        width: 28px;
+        height: 28px;
+        background: var(--skin) 14.2857% 14.2857% / 800% 800%;
+        image-rendering: pixelated;
+      }
+      .av i {
+        position: absolute;
+        right: -3px;
+        bottom: -3px;
+        width: 10px;
+        height: 10px;
+        border: 2px solid #12181f;
+        border-radius: 50%;
+        background: var(--green);
+      }
+      .av i.busy {
+        background: var(--blue);
+      }
+      .av.xs {
+        width: 18px;
+        height: 18px;
+      }
+      .mm-who {
+        display: grid;
+        min-width: 0;
+        margin-right: auto;
+        line-height: 1.15;
+      }
+      .mm-who b {
+        overflow: hidden;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .mm-who small {
+        overflow: hidden;
+        color: #8b96a3;
+        font-size: 13px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .mm-row.joining small {
+        color: var(--orange);
+      }
+      .mm-row.here small {
+        color: var(--green);
+      }
+      .mm-star {
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 6px;
+        background: none;
+        color: #4a5562;
+        cursor: pointer;
+      }
+      .mm-star:hover {
+        color: #8b96a3;
+      }
+      .mm-star[aria-pressed="true"] {
+        color: #f2c94c;
+      }
+      .mm-home {
+        display: grid;
+        grid-template-columns: 116px minmax(0, 1fr);
+        gap: 14px;
+        flex: 1;
+        min-height: 0;
+      }
+      .mm-you {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 5px;
+        padding-bottom: 2px;
+        font-weight: 600;
+        text-align: center;
+      }
+      .mm-you .player {
+        --u: 4.4px;
+        margin-bottom: 16px;
+      }
+      /* without the script there is no 3D figure, so show the skin's face, big and flat */
+      html:not(.js) .mm-you::before {
+        content: "";
+        width: 72px;
+        height: 72px;
+        margin-bottom: 18px;
+        background: url(media/skin-host.png) -72px -72px / 576px 576px;
+        image-rendering: pixelated;
+        box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.45);
+      }
+      .mm-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 10px;
+        border-radius: 99px;
+        background: rgba(255, 255, 255, 0.07);
+        color: #8b96a3;
+        font-weight: 500;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .mm-pill i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #5c6773;
+      }
+      .mm-pill.on {
+        background: rgba(61, 220, 132, 0.16);
+        color: var(--green);
+      }
+      .mm-pill.on i {
+        background: var(--green);
+        box-shadow: 0 0 8px var(--green);
+      }
+      .mm-col {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+      }
+      .mm-chips {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .mm-chip {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 34px;
+        padding: 0 9px;
+        border: 2px solid #2a333e;
+        border-radius: 9px;
+        background: rgba(18, 24, 31, 0.82);
+        color: #8b96a3;
+        font: 500 13px var(--pixel);
+        text-align: left;
+        white-space: nowrap;
+        min-width: 0;
+        overflow: hidden;
+      }
+      button.mm-chip {
+        cursor: pointer;
+      }
+      button.mm-chip:hover {
+        border-color: #4a5562;
+      }
+      .mm-chip svg {
+        color: var(--c, var(--green));
+      }
+      .mm-chip b {
+        margin-left: auto;
+        color: #e8edf2;
+        font-weight: 600;
+      }
+      .mm-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .mm-feed {
+        display: grid;
+        gap: 4px;
+        margin: 0;
+        padding: 7px 10px;
+        list-style: none;
+        border: 2px solid #2a333e;
+        border-radius: 10px;
+        background: rgba(18, 24, 31, 0.82);
+        font-size: 13px;
+        color: #8b96a3;
+      }
+      .mm-feed li {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+        white-space: nowrap;
+      }
+      .mm-feed b {
+        color: #e8edf2;
+        font-weight: 600;
+      }
+      .mm-feed .good {
+        color: var(--green);
+      }
+      .mm-feed span.t {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mm-feed time {
+        margin-left: auto;
+        color: #5c6773;
+      }
+      .js .mm-feed li.new {
+        animation: feed-in 0.35s ease;
+      }
+      @keyframes feed-in {
+        from {
+          opacity: 0;
+          transform: translateX(-12px);
+        }
+      }
+      .mm-world {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      /* a little landscape, drawn here: sky, a sun, two hills */
+      .mm-thumb {
+        flex: none;
+        width: 46px;
+        height: 34px;
+        border-radius: 5px;
+        background:
+          linear-gradient(#f2c94c, #f2c94c) 30px 5px / 7px 7px no-repeat,
+          linear-gradient(#2fae69, #2fae69) 0 24px / 22px 10px no-repeat,
+          linear-gradient(#249157, #249157) 16px 19px / 30px 15px no-repeat,
+          linear-gradient(#4f9df7, #9ccbff);
+        image-rendering: pixelated;
+      }
+      .mm-code {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 8px 6px 12px;
+        border: 2px dashed #36404c;
+        border-radius: 10px;
+      }
+      .mm-code code {
+        margin-right: auto;
+        color: #5c6773;
+        font: 600 15px var(--pixel);
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mm-code.on {
+        border-style: solid;
+        border-color: var(--green);
+        background: rgba(61, 220, 132, 0.09);
+      }
+      .mm-code.on code {
+        color: var(--green);
+      }
+      .js .mm-code.on code {
+        animation: code-in 0.5s steps(6);
+      }
+      @keyframes code-in {
+        from {
+          clip-path: inset(0 100% 0 0);
+        }
+        to {
+          clip-path: inset(0);
+        }
+      }
+      .mm-set {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 4px 0;
+      }
+      .mm-set > span {
+        display: grid;
+        min-width: 0;
+        margin-right: auto;
+        line-height: 1.2;
+      }
+      .mm-set b {
+        font-weight: 600;
+      }
+      .mm-set small {
+        color: #8b96a3;
+        font-size: 13px;
+      }
+      .mm-switch {
+        position: relative;
+        flex: none;
+        width: 44px;
+        height: 24px;
+        padding: 0;
+        border: 2px solid #36404c;
+        border-radius: 99px;
+        background: #0a0e13;
+        cursor: pointer;
+      }
+      .mm-switch::after {
+        content: "";
+        position: absolute;
+        left: 3px;
+        top: 3px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #8b96a3;
+        transition: transform 0.15s ease;
+      }
+      .mm-switch[aria-checked="true"] {
+        border-color: var(--green);
+        background: rgba(61, 220, 132, 0.28);
+      }
+      .mm-switch[aria-checked="true"]::after {
+        transform: translateX(20px);
+        background: var(--green);
+      }
+      .mm-seg {
+        display: flex;
+        gap: 2px;
+        padding: 2px;
+        border: 2px solid #2a333e;
+        border-radius: 9px;
+        background: #0a0e13;
+      }
+      .mm-seg button {
+        flex: 1;
+        min-height: 26px;
+        padding: 0 9px;
+        border: 0;
+        border-radius: 6px;
+        background: none;
+        color: #8b96a3;
+        font: 500 13px var(--pixel);
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .mm-seg button:hover {
+        color: #e8edf2;
+      }
+      .mm-seg button[aria-pressed="true"] {
+        background: #163a29;
+        color: var(--green);
+      }
+      .mm-talk {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .mm-talk li {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 30px;
+        padding: 0 9px 0 6px;
+        border: 2px solid #2a333e;
+        border-radius: 9px;
+        background: rgba(18, 24, 31, 0.82);
+        font-size: 13px;
+      }
+      .mm-talk li.talking {
+        border-color: var(--purple);
+      }
+      .mm-talk .bars {
+        display: none;
+      }
+      .mm-talk li.talking .bars {
+        display: inline-flex;
+      }
+      .mm-talk small {
+        color: #5c6773;
+        font-size: 13px;
+      }
+      .mm-modicon {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--c) 22%, #0a0e13);
+        color: var(--c);
+        box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c) 50%, transparent);
+      }
+      .mm-note {
+        margin: 0;
+        color: #8b96a3;
+        font-size: 13px;
+      }
+      .mm-btn .fill {
+        position: absolute;
+        inset: 0;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.45);
+        transform-origin: left;
+        animation: fill 1.2s linear forwards;
+      }
+      @keyframes fill {
+        from {
+          transform: scaleX(0);
+        }
+      }
+      .mm-btn .fill {
+        position: absolute;
+        inset: 0;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.45);
+        transform-origin: left;
+        animation: fill 1.2s linear forwards;
+      }
+      @keyframes fill {
+        from {
+          transform: scaleX(0);
+        }
+      }

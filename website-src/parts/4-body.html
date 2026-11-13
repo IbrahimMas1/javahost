@@ -6,6 +6,14 @@
           <path d="M0 0h32v16H0z" fill="#fff" opacity=".12" />
           <path class="ink" d="M13 7h11v4h-4v11h-3v3H9v-3H6v-6h5v5h5V11h-3z" />
         </symbol>
+        <symbol id="copy" viewBox="0 0 24 24"><path d="M4 2h12v2H4zM2 4h2v12H2zm14 0h2v2h-2zM4 16h2v2H4zM8 6h12v2H8zM6 8h2v12H6zm14 0h2v12h-2zM8 20h12v2H8z" /></symbol>
+        <symbol id="star" viewBox="0 0 24 24">
+          <path d="M10 2h4v4h-4zM8 6h8v2H8zM0 8h24v2H0zM2 10h20v2H2zM4 12h16v2H4zM6 14h12v2H6zM4 16h16v2H4zM4 18h6v2H4zM14 18h6v2h-6zM2 20h4v2H2zM18 20h4v2h-4z" />
+        </symbol>
+        <symbol id="mic-off" viewBox="0 0 24 24">
+          <path d="M10 2h4v2h-4zM8 4h2v10H8zm2 10h4v2h-4zm4-10h2v10h-2zM4 10h2v6H4zm2 6h2v2H6zm2 2h8v2H8zm8-2h2v2h-2zm2-6h2v6h-2zm-7 10h2v2h-2z" opacity=".55" />
+          <path d="M2 2h2v2H2zm2 2h2v2H4zm2 2h2v2H6zm2 2h2v2H8zm2 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2z" />
+        </symbol>
       <!-- gen:symbols -->
       <!-- /gen:symbols -->
       </defs>
@@ -15,7 +23,7 @@
       <div class="wrap">
         <a class="brand" href="#top" aria-label="JavaHost home"><svg class="logo" aria-hidden="true"><use href="#jh" /></svg>JavaHost</a>
         <div class="nav-links">
-          <a href="#how">How it works</a><a href="#features">Features</a><a href="#download">Download</a><a href="#faq">Questions</a>
+          <a href="#how">How it works</a><a href="#features">Features</a><a href="#try">Try it</a><a href="#faq">Questions</a>
           <a href="https://github.com/IbrahimMas1/javahost">GitHub</a>
         </div>
         <a class="btn small primary" href="#download"><svg class="i" aria-hidden="true"><use href="media/icons.svg#download" /></svg>Download</a>
@@ -28,18 +36,13 @@
       <header class="hero" id="hero" data-scene>
         <div class="sky" aria-hidden="true"></div>
         <div class="decor" aria-hidden="true">
-          <div class="sun" data-par="-9"><svg class="art"><use href="#px-sun" /></svg></div>
-          <div style="left: 2%; top: 5%; color: #4f97f5; --cloud-shade: #3f89f0" data-par="-3"><svg class="art cloud drift" style="width: 260px; height: 78px; color: inherit; --t: 70s; --dx: 140px"><use href="#px-cloud-a" /></svg></div>
-          <div style="left: 30%; top: 60%; color: #9ccbff; --cloud-shade: #86bdfb" data-par="-4"><svg class="art cloud drift" style="width: 196px; height: 70px; color: inherit; --t: 100s; --dx: 120px"><use href="#px-cloud-b" /></svg></div>
-          <div style="left: 30%; top: 3%" data-par="-5"><svg class="art cloud drift" style="width: 168px; height: 60px; --t: 90s; --dx: -70px"><use href="#px-cloud-b" /></svg></div>
-          <div style="right: -4%; top: 40%" data-par="-7"><svg class="art cloud drift" style="width: 390px; height: 90px; --t: 80s; --dx: -160px"><use href="#px-cloud-c" /></svg></div>
-          <div class="bank" data-par="-6" style="color: #c4e2ff; translate: -180px 0"><svg class="art" style="height: 192px"><use href="#px-bank-b" /></svg><svg class="art" style="height: 192px"><use href="#px-bank-b" /></svg></div>
+          <div class="sun" data-par="-6"><svg class="art"><use href="#px-sun" /></svg></div>
+          <div style="left: 44%; top: 24px" data-par="-3"><svg class="art cloud drift" style="width: 196px; height: 70px; --t: 120s; --dx: 96px"><use href="#px-cloud-b" /></svg></div>
+          <div class="bank" data-par="-4" style="color: #c4e2ff; translate: -180px 0"><svg class="art" style="height: 192px"><use href="#px-bank-b" /></svg><svg class="art" style="height: 192px"><use href="#px-bank-b" /></svg></div>
           <div class="bank" data-par="-2" style="color: var(--c-how)"><svg class="art" style="height: 168px"><use href="#px-bank-a" /></svg><svg class="art" style="height: 168px"><use href="#px-bank-a" /></svg></div>
         </div>
-        <canvas id="motes" aria-hidden="true"></canvas>
         <div class="wrap">
           <div class="hero-copy">
-            <div class="badge"><span class="dot"></span><span><span id="version">JavaHost</span> · Minecraft 1.21 to 26.3</span></div>
             <h1>
               <span class="line" style="--n: 0"><span>Play with</span></span>
               <span class="line" style="--n: 1"><span>friends.</span></span>
@@ -61,303 +64,525 @@
               <li><svg class="i" aria-hidden="true"><use href="media/icons.svg#check" /></svg>No account</li>
             </ul>
           </div>
-          <!-- The island is built by the script (see "the island"). Without it, the menu is shown here instead. -->
+          <!-- The island is built by the script. Without it, the menu is shown here instead. -->
           <div class="stage" id="stage">
             <img
               class="fallback"
               src="media/shots/home.png"
               width="1710"
               height="1070"
-              loading="lazy"
               alt="The JavaHost menu in Minecraft: your character, an Invite friends button and the friends who are online, each with Join or Invite"
             />
             <div class="floaty" aria-hidden="true">
               <div class="island" id="island">
                 <div class="player host" data-skin="media/skin-host.png" data-at="3.3,7.2" style="--turn: 30deg"><span class="tag"><b>You</b></span></div>
-                <div class="player friend" data-skin="media/skin-friend.png" data-at="5.4,6.5" data-waves style="--turn: 16deg"><span class="tag"><b>AlexPlays</b></span></div>
+                <div class="player friend" data-skin="media/skin-friend.png" data-at="5.4,6.5" style="--turn: 16deg"><span class="tag"><b>AlexPlays</b></span></div>
               </div>
-            </div>
-            <div class="chip one" aria-hidden="true">
-              <span class="mug" style="--skin: url(media/skin-friend.png)"></span>
-              <span>AlexPlays is hosting<small>Cherry Valley · 3 of 8</small></span>
-              <span class="go">Join</span>
-            </div>
-            <div class="chip two" aria-hidden="true">
-              <svg class="i" style="color: var(--orange)"><use href="media/icons.svg#zap" /></svg>
-              <span>Connected directly<small>no relay in between</small></span>
-            </div>
-            <div class="chip three" aria-hidden="true">
-              <span class="bars"><i></i><i></i><i></i><i></i></span>
-              <span>LunaBuilds is talking<small>proximity voice</small></span>
             </div>
           </div>
         </div>
       </header>
 
       <!-- ============================================================ how it works: in the clouds -->
-      <section id="how" class="band how pad" data-scene>
+      <section id="how" class="band how" data-scene>
         <div class="decor" aria-hidden="true">
-          <div style="right: 6%; top: 70px" data-par="6"><svg class="art cloud drift" style="width: 300px; height: 90px; color: #dcefff; --cloud-shade: #c4e2ff; --t: 80s; --dx: -120px"><use href="#px-cloud-a" /></svg></div>
-          <div style="left: -3%; bottom: 90px" data-par="10"><svg class="art cloud drift" style="width: 416px; height: 96px; color: #dcefff; --cloud-shade: #c4e2ff; --t: 90s"><use href="#px-cloud-c" /></svg></div>
+          <div style="right: 6%; top: 72px" data-par="5"><svg class="art cloud drift" style="width: 300px; height: 90px; color: #dcefff; --cloud-shade: #c4e2ff; --dx: -96px"><use href="#px-cloud-a" /></svg></div>
         </div>
         <div class="wrap">
           <div class="head" data-reveal>
-            <span class="eyebrow">How it works</span>
+            <p class="eyebrow">How it works</p>
             <h2>Three steps.<br />About a <span class="a">minute.</span></h2>
             <p class="lede">Your PC is the server, so there is nothing to rent and nothing to set up on your router.</p>
           </div>
-          <div class="cols">
-            <ol class="steps" data-build>
-              <li class="card" data-reveal style="--a: var(--green)">
-                <span class="num">01</span>
-                <h3>Host your world</h3>
-                <p>Open any world and press Host. From the title screen it's one click: the world opens and hosting starts.</p>
-                <span class="cube" style="--i: 0" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#wifi" /></svg></i><i class="r"></i></span>
-              </li>
-              <li class="card" data-reveal style="--a: var(--blue); --d: 0.1s">
-                <span class="num">02</span>
-                <h3>Invite a friend</h3>
-                <p>Add friends by their Minecraft name, then press Invite. A Join button pops up in their game. No codes to copy.</p>
-                <span class="cube" style="--i: 1" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#users" /></svg></i><i class="r"></i></span>
-              </li>
-              <li class="card" data-reveal style="--a: var(--purple); --d: 0.2s">
-                <span class="num">03</span>
-                <h3>Play together</h3>
-                <p>They're in. Talk with voice chat, and your resource packs and shaders come along if they want them.</p>
-                <span class="cube" style="--i: 2" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#play" /></svg></i><i class="r"></i></span>
-              </li>
-            </ol>
-            <div class="shot" data-reveal="right">
-              <figure class="frame" style="--deep: #2459c9; --sh: #2459c9">
-                <div class="bar" aria-hidden="true"><i></i><i></i><i></i><b>JavaHost · Home</b></div>
+          <ol class="steps">
+            <li class="card" data-reveal style="--a: var(--green)">
+              <span class="num">01</span>
+              <h3>Host your world</h3>
+              <p>Open any world and press Host. From the title screen it's one click: the world opens and hosting starts.</p>
+            </li>
+            <li class="card" data-reveal style="--a: var(--blue); --d: 0.1s">
+              <span class="num">02</span>
+              <h3>Invite a friend</h3>
+              <p>Add friends by their Minecraft name, then press Invite. A Join button pops up in their game. No codes to copy.</p>
+            </li>
+            <li class="card" data-reveal style="--a: var(--purple); --d: 0.2s">
+              <span class="num">03</span>
+              <h3>Play together</h3>
+              <p>They're in. Talk with voice chat, and your resource packs and shaders come along if they want them.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- ============================================================ the story: one window, four features, the sky changing behind it -->
+      <section id="features" class="band story" data-step="host" aria-label="Features">
+        <div class="wrap story-grid">
+          <nav class="rail" aria-label="Jump to a feature">
+            <div class="rail-in">
+              <div class="rail-nodes">
+                <span class="rail-fill" id="rail-fill"></span>
+                <a href="#f-host" aria-label="Hosting">01</a><a href="#f-friends" aria-label="Friends">02</a><a href="#f-voice" aria-label="Voice chat">03</a
+                ><a href="#f-mods" aria-label="Mods">04</a>
+              </div>
+            </div>
+          </nav>
+          <div class="chapters">
+            <article class="chapter" id="f-host" data-key="host" data-tab="Host">
+              <div class="dither" aria-hidden="true"></div>
+              <div class="copy">
+                <p class="eyebrow">Hosting</p>
+                <h2>Your PC is<br />the <span class="a">server.</span></h2>
+                <p>Pick a world and it opens with hosting already on. Close the game and it's off again. That's the whole setup.</p>
+                <ul class="ticks">
+                  <li>One click from the title screen</li>
+                  <li>Friends-only until you say otherwise</li>
+                  <li>Automatic backups while friends play</li>
+                </ul>
+              </div>
+              <figure class="gw">
+                <span class="wlabel" aria-hidden="true">JavaHost <b>Host</b></span>
+                <img src="media/shots/host.png" width="854" height="480" loading="lazy" alt="The Host page listing saved worlds, each with Play and Host buttons" />
+              </figure>
+            </article>
+
+            <article class="chapter" id="f-friends" data-key="friends" data-tab="Friends">
+              <div class="dither" aria-hidden="true"></div>
+              <div class="copy">
+                <p class="eyebrow">Friends</p>
+                <h2>Invite.<br />Join. <span class="a">Done.</span></h2>
+                <p>Add friends by name and see who's online or already hosting. One button brings them in, and one brings you to them.</p>
+                <ul class="ticks">
+                  <li>Star your favourites</li>
+                  <li>Invite everyone online at once</li>
+                  <li>Chat and screenshots, end-to-end encrypted</li>
+                </ul>
+              </div>
+              <figure class="gw">
+                <span class="wlabel" aria-hidden="true">JavaHost <b>Friends</b></span>
                 <img
-                  src="media/shots/home.png"
+                  src="media/shots/friends.png"
                   width="1710"
                   height="1070"
-                  alt="The JavaHost menu in Minecraft: your character, an Invite friends button and the friends who are online, each with Join or Invite"
+                  loading="lazy"
+                  alt="The Friends page with friends online, Invite buttons, favourite stars and a Recent activity list"
                 />
               </figure>
+            </article>
+
+            <article class="chapter" id="f-voice" data-key="voice" data-tab="Voice">
+              <div class="dither" aria-hidden="true"></div>
+              <div class="copy">
+                <p class="eyebrow">Voice chat</p>
+                <h2>Hear who's<br /><span class="a">near.</span></h2>
+                <p>Voices fade with distance, so a friend across the map sounds across the map. Or switch the whole world to party voice.</p>
+                <ul class="ticks">
+                  <li>Push to talk or open mic</li>
+                  <li>A volume slider for every friend</li>
+                  <li>Nothing extra to install</li>
+                </ul>
+              </div>
+              <figure class="gw">
+                <span class="wlabel" aria-hidden="true">JavaHost <b>Voice</b></span>
+                <img
+                  src="media/shots/voice.png"
+                  width="1710"
+                  height="1070"
+                  loading="lazy"
+                  alt="The Voice chat page: push to talk or voice activation, nearby players or everyone in the world"
+                />
+              </figure>
+            </article>
+
+            <article class="chapter" id="f-mods" data-key="mods" data-tab="Mods">
+              <div class="dither" aria-hidden="true"></div>
+              <div class="copy">
+                <p class="eyebrow">Mods</p>
+                <h2>Mods, minus<br />the <span class="a">homework.</span></h2>
+                <p>Browse mods and modpacks from inside the game and install with one click. Nobody has to compare mod lists again.</p>
+                <ul class="ticks">
+                  <li>A friend joining gets the same mods automatically</li>
+                  <li>Their own mods are put aside and come back after</li>
+                  <li>One-click performance mods</li>
+                </ul>
+              </div>
+              <figure class="gw">
+                <span class="wlabel" aria-hidden="true">JavaHost <b>Mods</b></span>
+                <img src="media/shots/mods.png" width="1710" height="1070" loading="lazy" alt="The Mods page with a search box, categories and Install buttons" />
+              </figure>
+            </article>
+          </div>
+
+          <!-- The pinned window. It repeats the four pictures above, so it is hidden from screen readers. -->
+          <div class="pinned" aria-hidden="true">
+            <div class="pin-in" id="pin-in">
+              <div class="pin-big" id="pin-big">01</div>
+              <div class="gw pin-window" id="pin-window">
+                <span class="wlabel">JavaHost <b id="pin-tab">Host</b></span>
+                <div class="gw-shots">
+                  <img class="gw-shot on" data-key="host" src="media/shots/host.png" width="854" height="480" alt="" />
+                  <img class="gw-shot" data-key="friends" src="media/shots/friends.png" width="1710" height="1070" alt="" />
+                  <img class="gw-shot" data-key="voice" src="media/shots/voice.png" width="1710" height="1070" alt="" />
+                  <img class="gw-shot" data-key="mods" src="media/shots/mods.png" width="1710" height="1070" alt="" />
+                  <span class="gw-scan" id="gw-scan"></span>
+                  <span class="gw-callout on" data-key="host" style="left: 82.2%; top: 24.6%; width: 13.8%; height: 8%"><span>One click</span></span>
+                  <span class="gw-callout side" data-key="friends" style="left: 74.4%; top: 26%; width: 16%; height: 8%"><span>One button</span></span>
+                  <span class="gw-callout" data-key="voice" style="left: 29.4%; top: 25.6%; width: 66.4%; height: 9.6%"><span>Fades with distance</span></span>
+                  <span class="gw-callout" data-key="mods" style="left: 80%; top: 65%; width: 16.2%; height: 8%"><span>One-click install</span></span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <div class="strip" aria-hidden="true">
-        <div>
-          <span>No port forwarding</span><span>No monthly bill</span><span>One-click invites</span><span>Proximity voice</span><span>Mods and modpacks</span
-          ><span>Direct connection</span><span>Open source</span><span>Your PC is the server</span><span>No port forwarding</span><span>No monthly bill</span
-          ><span>One-click invites</span><span>Proximity voice</span><span>Mods and modpacks</span><span>Direct connection</span><span>Open source</span
-          ><span>Your PC is the server</span>
+      <!-- ============================================================ low ping: sunset -->
+      <section id="ping" class="band ping" data-scene>
+        <div class="decor" aria-hidden="true">
+          <div class="sun" data-par="-8"><svg class="art"><use href="#px-sun" /></svg></div>
+          <div class="hills" data-par="-3" style="color: #d67c1c; translate: -300px 0"><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg></div>
+          <div class="hills" data-par="-1.5" style="color: var(--c-ping-hills)"><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg></div>
         </div>
-      </div>
-
-      <!-- ============================================================ feature scenes: noon to dusk -->
-      <div id="features">
-        <section class="band scene s-host pad" data-scene>
-          <div class="decor" aria-hidden="true">
-            <div style="left: 30%; top: 70px" data-par="8"><svg class="art cloud drift" style="width: 280px; height: 84px; --t: 70s"><use href="#px-cloud-a" /></svg></div>
-            <div style="right: 26%; bottom: 190px" data-par="12"><svg class="art cloud drift" style="width: 182px; height: 65px; --t: 90s; --dx: -90px"><use href="#px-cloud-b" /></svg></div>
-            <div class="sun" data-par="-10"><svg class="art"><use href="#px-sun" /></svg></div>
-            <div class="hills" data-par="-4" style="color: #2ec275; translate: 260px 0"><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg></div>
-            <div class="hills" data-par="-1.5" style="color: var(--c-host-hills); scale: -1 1"><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg></div>
+        <div class="wrap split">
+          <div data-reveal>
+            <p class="eyebrow">Low ping</p>
+            <h2>Straight<br />to <span class="a">you.</span></h2>
+            <p class="lede">
+              Tools like this usually send every packet through a relay that may be a continent away. JavaHost connects your friend's game
+              straight to yours whenever both routers allow it, with nothing to forward. A relay steps in only when it has to.
+            </p>
           </div>
-          <div class="wrap">
-            <div class="copy" data-reveal="left">
-              <span class="eyebrow">Hosting</span>
-              <h2>Your PC is<br />the <span class="a">server.</span></h2>
-              <p>Pick a world and it opens with hosting already on. Close the game and it's off again. That's the whole setup.</p>
-              <ul class="ticks">
-                <li>One click from the title screen</li>
-                <li>Friends-only until you say otherwise</li>
-                <li>Automatic backups while friends play</li>
-              </ul>
-            </div>
-            <div class="shot" data-reveal="right">
-              <figure class="frame">
-                <div class="bar" aria-hidden="true"><i></i><i></i><i></i><b>JavaHost · Host</b></div>
-                <img src="media/shots/host.png" width="1710" height="1070" loading="lazy" alt="The Host page listing saved worlds, each with Play and Host buttons" />
-              </figure>
-              <div class="perch left" aria-hidden="true">
-                <div class="player" data-skin="media/skin-host.png" style="--turn: 34deg"><span class="tag"><b>You</b></span></div>
-                <div class="ledge"></div>
+          <div data-reveal style="--d: 0.1s">
+            <figure class="route">
+              <svg
+                id="route-art"
+                viewBox="0 0 600 392"
+                role="img"
+                aria-label="Two ways to connect. Through a relay, packets take a long detour: about 240 milliseconds. Connected directly, they go straight between the two players."
+              >
+                <text class="big" x="300" y="44" text-anchor="middle" style="fill: #c6ced8">≈ 240 ms via a relay</text>
+                <path id="detour" d="M80 270 V110 H520 V270" fill="none" stroke="#5b678f" stroke-width="4" class="dash" />
+                <rect width="12" height="12" x="-6" y="-6" fill="#9fb0d6">
+                  <animateMotion dur="3.4s" repeatCount="indefinite"><mpath href="#detour" /></animateMotion>
+                </rect>
+                <rect width="12" height="12" x="-6" y="-6" fill="#9fb0d6">
+                  <animateMotion dur="3.4s" begin="-1.7s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#detour" /></animateMotion>
+                </rect>
+                <rect x="244" y="80" width="112" height="60" fill="#0a1024" stroke="#5b678f" stroke-width="4" />
+                <text x="300" y="118" text-anchor="middle">relay</text>
+                <path d="M128 312 H472" fill="none" stroke="#f59e3b" stroke-width="22" opacity="0.2" />
+                <path id="direct" d="M128 312 H472" fill="none" stroke="#f59e3b" stroke-width="6" />
+                <text class="big" x="300" y="284" text-anchor="middle" style="fill: #f59e3b">Direct</text>
+                <rect width="14" height="14" x="-7" y="-7" fill="#fff">
+                  <animateMotion dur="0.7s" repeatCount="indefinite"><mpath href="#direct" /></animateMotion>
+                </rect>
+                <rect width="14" height="14" x="-7" y="-7" fill="#fff">
+                  <animateMotion dur="0.7s" begin="-0.35s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#direct" /></animateMotion>
+                </rect>
+                <rect x="36" y="270" width="88" height="88" fill="#3ddc84" />
+                <svg x="40" y="274" width="80" height="80" viewBox="8 8 8 8"><image href="media/skin-host.png" width="64" height="64" /></svg>
+                <text x="80" y="386" text-anchor="middle">you</text>
+                <rect x="476" y="270" width="88" height="88" fill="#4f9df7" />
+                <svg x="480" y="274" width="80" height="80" viewBox="8 8 8 8"><image href="media/skin-friend.png" width="64" height="64" /></svg>
+                <text x="520" y="386" text-anchor="middle">your friend</text>
+              </svg>
+            </figure>
+            <p class="route-note">
+              The 240 ms is a real measurement: a home connection in the Middle East reaching a friend in the same country through the
+              nearest free public relay.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ try it: dusk. A working miniature of the menu. -->
+      <section id="try" class="band try" data-scene>
+        <div class="decor" aria-hidden="true">
+          <div class="stars" style="--o: 0.5"></div>
+          <div class="moon" data-par="-6"><svg class="art" style="width: 100%; height: 100%"><use href="#px-moon" /></svg></div>
+          <div class="hills" data-par="-1.5" style="color: var(--c-try-hills); translate: -640px 0; scale: -1 1"><svg class="art" style="height: 180px"><use href="#px-hills-a" /></svg><svg class="art" style="height: 180px"><use href="#px-hills-a" /></svg></div>
+        </div>
+        <div class="wrap split">
+          <div data-reveal>
+            <p class="eyebrow">Try it</p>
+            <h2>Have a <span class="a">go.</span></h2>
+            <p class="lede">
+              This is a working miniature of the JavaHost menu. Start hosting, invite a friend and switch on voice chat. It's only a demo:
+              nothing is really sent, and your microphone stays off.
+            </p>
+            <p class="try-off">The demo needs JavaScript. The pictures above show the real menu.</p>
+          </div>
+
+          <div class="try-stage" id="try-stage" data-reveal style="--d: 0.1s">
+            <div class="try-ledge" aria-hidden="true">
+              <div class="try-spot you" style="--at: 4%">
+                <div class="player" data-skin="media/skin-host.png" data-who="you" style="--turn: 26deg"><span class="tag"><b>You</b></span></div>
+              </div>
+              <div class="try-spot" data-friend="alex" style="--at: 36%">
+                <div class="player" data-skin="media/skin-friend.png" data-who="alex" style="--turn: -14deg"><span class="tag"><b>AlexPlays</b></span></div>
+              </div>
+              <div class="try-spot" data-friend="luna" style="--at: 57%">
+                <div class="player" data-skin="media/skin-luna.png" data-who="luna" style="--turn: -20deg"><span class="tag"><b>LunaBuilds</b></span></div>
+              </div>
+              <div class="try-spot" data-friend="mossy" style="--at: 78%">
+                <div class="player" data-skin="media/skin-mossy.png" data-who="mossy" style="--turn: -26deg"><span class="tag"><b>MossyMiner</b></span></div>
               </div>
             </div>
-          </div>
-        </section>
 
-        <section class="band scene flip s-friends pad" data-scene>
-          <div class="decor" aria-hidden="true">
-            <div style="right: 4%; top: 80px" data-par="8"><svg class="art cloud drift" style="width: 338px; height: 78px; --t: 80s; --dx: -120px"><use href="#px-cloud-c" /></svg></div>
-            <div style="left: 30%; bottom: 210px" data-par="13"><svg class="art cloud drift" style="width: 220px; height: 66px; --t: 100s"><use href="#px-cloud-a" /></svg></div>
-            <div class="bank" data-par="-4" style="color: #3568d8; translate: 240px 0"><svg class="art" style="height: 192px"><use href="#px-bank-b" /></svg><svg class="art" style="height: 192px"><use href="#px-bank-b" /></svg></div>
-            <div class="bank" data-par="-1.5" style="color: var(--c-friends-bank); scale: -1 1"><svg class="art" style="height: 168px"><use href="#px-bank-a" /></svg><svg class="art" style="height: 168px"><use href="#px-bank-a" /></svg></div>
-          </div>
-          <div class="wrap">
-            <div class="copy" data-reveal="right">
-              <span class="eyebrow">Friends</span>
-              <h2>Invite.<br />Join. <span class="a">Done.</span></h2>
-              <p>Add friends by name and see who's online or already hosting. One button brings them in, and one brings you to them.</p>
-              <ul class="ticks">
-                <li>Star your favourites</li>
-                <li>Invite everyone online at once</li>
-                <li>Chat and screenshots, end-to-end encrypted</li>
-              </ul>
-            </div>
-            <div class="shot" data-reveal="left">
-              <figure class="frame">
-                <div class="bar" aria-hidden="true"><i></i><i></i><i></i><b>JavaHost · Friends</b></div>
-                <img src="media/shots/friends.png" width="1710" height="1070" loading="lazy" alt="The Friends page with friends online, Invite buttons, favourite stars and a Recent activity list" />
-              </figure>
-              <div class="perch right" aria-hidden="true">
-                <div class="player" data-skin="media/skin-friend.png" data-waves style="--turn: -30deg"><span class="tag"><b>AlexPlays</b></span></div>
-                <div class="ledge"></div>
+            <div class="try-game" id="demo" role="group" aria-label="A demo of the JavaHost menu. Nothing is really sent.">
+              <div class="try-bar">
+                <span class="live"><i></i>Demo</span>
+                <span>Nothing is really sent</span>
+                <button type="button" data-act="reset">Reset</button>
               </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="band scene s-ping pad" data-scene>
-          <div class="decor" aria-hidden="true">
-            <div class="sun" data-par="-14"><svg class="art"><use href="#px-sun" /></svg></div>
-            <div class="hills" data-par="-4" style="color: #d67c1c; translate: -300px 0"><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg></div>
-            <div class="hills" data-par="-1.5" style="color: var(--c-ping-hills)"><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg></div>
-          </div>
-          <div class="wrap">
-            <div class="copy" data-reveal="left">
-              <span class="eyebrow">Low ping</span>
-              <h2>Straight<br />to <span class="a">you.</span></h2>
-              <p>
-                Tools like this usually send every packet through a relay that may be a continent away. JavaHost connects your friend's
-                game straight to yours whenever both routers allow it.
-              </p>
-              <ul class="ticks">
-                <li>Nothing to forward on your router</li>
-                <li>A relay steps in only when it has to</li>
-                <li>The menu shows how you're connected, and the ping</li>
-              </ul>
-            </div>
-            <div data-reveal="right">
-              <div class="frame route">
-                <svg viewBox="0 0 640 360" role="img" aria-label="Two ways to connect. Through a far-away relay, packets take a long detour. Connected directly, they go straight between the two players.">
-                  <path id="detour" d="M110 250 V96 H530 V250" fill="none" stroke="#5b678f" stroke-width="4" class="dash" />
-                  <rect width="12" height="12" x="-6" y="-6" fill="#9fb0d6">
-                    <animateMotion dur="3.4s" repeatCount="indefinite"><mpath href="#detour" /></animateMotion>
-                  </rect>
-                  <rect width="12" height="12" x="-6" y="-6" fill="#9fb0d6">
-                    <animateMotion dur="3.4s" begin="-1.7s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#detour" /></animateMotion>
-                  </rect>
-                  <rect x="276" y="70" width="88" height="52" fill="#0a1024" stroke="#5b678f" stroke-width="4" />
-                  <text x="320" y="102" text-anchor="middle">relay</text>
-                  <text x="320" y="46" text-anchor="middle" class="big">via a relay: ≈ 240 ms</text>
-                  <path d="M150 290 L 490 290" fill="none" stroke="#f59e3b" stroke-width="20" opacity="0.2" />
-                  <path id="direct" d="M150 290 L 490 290" fill="none" stroke="#f59e3b" stroke-width="6" />
-                  <text x="320" y="262" text-anchor="middle" class="big" style="fill: #f59e3b">direct</text>
-                  <rect width="14" height="14" x="-7" y="-7" fill="#fff">
-                    <animateMotion dur="0.7s" repeatCount="indefinite"><mpath href="#direct" /></animateMotion>
-                  </rect>
-                  <rect width="14" height="14" x="-7" y="-7" fill="#fff">
-                    <animateMotion dur="0.7s" begin="-0.35s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#direct" /></animateMotion>
-                  </rect>
-                  <rect x="66" y="246" width="88" height="88" fill="#3ddc84" />
-                  <svg x="70" y="250" width="80" height="80" viewBox="8 8 8 8"><image href="media/skin-host.png" width="64" height="64" /></svg>
-                  <text x="110" y="356" text-anchor="middle">you</text>
-                  <rect x="486" y="246" width="88" height="88" fill="#4f9df7" />
-                  <svg x="490" y="250" width="80" height="80" viewBox="8 8 8 8"><image href="media/skin-friend.png" width="64" height="64" /></svg>
-                  <text x="530" y="356" text-anchor="middle">your friend</text>
-                </svg>
-              </div>
-              <p class="route-note">
-                The 240 ms is a real measurement: a home connection in the Middle East reaching a friend in the same country through the
-                nearest free public relay.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section class="band scene flip s-mods pad" data-scene>
-          <div class="decor" aria-hidden="true">
-            <div style="right: 5%; top: 90px; opacity: 0.35" data-par="8"><svg class="art cloud drift" style="width: 312px; height: 72px; --cloud-shade: #ffd1e6; --t: 90s; --dx: -100px"><use href="#px-cloud-c" /></svg></div>
-            <div class="stars" style="--o: 0.45"></div>
-            <div class="hills" data-par="-4" style="color: #b12b6b; translate: -520px 0; scale: -1 1"><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg></div>
-            <div class="hills" data-par="-1.5" style="color: var(--c-mods-hills); translate: 380px 0"><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg></div>
-          </div>
-          <div class="wrap">
-            <div class="copy" data-reveal="right">
-              <span class="eyebrow">Mods</span>
-              <h2>Mods,<br />minus the<br /><span class="a">homework.</span></h2>
-              <p>Browse mods and modpacks from inside the game and install with one click. Nobody has to compare mod lists again.</p>
-              <ul class="ticks">
-                <li>A friend joining gets the same mods automatically</li>
-                <li>Their own mods are put aside and come back after</li>
-                <li>One-click performance mods</li>
-              </ul>
-            </div>
-            <div class="shot" data-reveal="left">
-              <figure class="frame">
-                <div class="bar" aria-hidden="true"><i></i><i></i><i></i><b>JavaHost · Mods</b></div>
-                <img src="media/shots/mods.png" width="1710" height="1070" loading="lazy" alt="The Mods page with a search box, categories and Install buttons" />
-              </figure>
-              <div class="stack" data-build aria-hidden="true">
-                <span class="cube" style="left: 0; bottom: 0; --i: 0; --c: #ffb347"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#package" /></svg></i><i class="r"></i></span>
-                <span class="cube" style="left: 80px; bottom: 16px; --i: 1; --c: #4f9df7"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#speed-fast" /></svg></i><i class="r"></i></span>
-                <span class="cube" style="left: 34px; bottom: 76px; --i: 2; --c: #3ddc84"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#sparkles" /></svg></i><i class="r"></i></span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="band scene s-voice pad" data-scene>
-          <div class="decor" aria-hidden="true">
-            <div class="stars" style="--o: 0.8"></div>
-            <div class="stars twinkle" style="--o: 0.8"></div>
-            <div class="moon" data-par="-9"><svg class="art" style="width: 100%; height: 100%"><use href="#px-moon" /></svg></div>
-            <div class="hills" data-par="-4" style="color: #5636bf; translate: 120px 0"><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg></div>
-            <div class="hills" data-par="-1.5" style="color: var(--c-voice-hills); translate: -640px 0; scale: -1 1"><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg></div>
-          </div>
-          <div class="wrap">
-            <div class="copy" data-reveal="left">
-              <span class="eyebrow">Voice chat</span>
-              <h2>Hear who's<br /><span class="a">near.</span></h2>
-              <p>Voices fade with distance, so a friend across the map sounds across the map. Or switch the whole world to party voice.</p>
-              <ul class="ticks">
-                <li>Push to talk or open mic</li>
-                <li>A volume slider for every friend</li>
-                <li>Nothing extra to install</li>
-              </ul>
-            </div>
-            <div class="shot" data-reveal="right">
-              <figure class="frame">
-                <div class="bar" aria-hidden="true"><i></i><i></i><i></i><b>JavaHost · Voice</b></div>
-                <img src="media/shots/voice.png" width="1710" height="1070" loading="lazy" alt="The Voice chat page: push to talk or voice activation, nearby players or everyone in the world" />
-              </figure>
-              <div class="perch left" style="--n: 4; left: -190px" aria-hidden="true">
-                <div style="display: flex; gap: 46px; align-items: flex-end">
-                  <div class="player" data-skin="media/skin-host.png" style="--turn: 52deg"><span class="rings"><i></i><i></i><i></i></span></div>
-                  <div class="player" data-skin="media/skin-friend.png" style="--turn: -48deg"></div>
+              <div class="mm">
+                <div class="mm-side">
+                  <div class="mm-brand"><svg class="logo" aria-hidden="true"><use href="#jh" /></svg>JavaHost</div>
+                  <div class="mm-cap">Play</div>
+                  <button class="mm-nav" type="button" data-act="tab" data-tab="home" aria-current="page">
+                    <svg class="i" aria-hidden="true"><use href="media/icons.svg#home" /></svg>Home
+                  </button>
+                  <button class="mm-nav" type="button" data-act="tab" data-tab="friends">
+                    <svg class="i" aria-hidden="true"><use href="media/icons.svg#users" /></svg>Friends
+                  </button>
+                  <button class="mm-nav" type="button" data-act="tab" data-tab="host">
+                    <svg class="i" aria-hidden="true"><use href="media/icons.svg#wifi" /></svg>Host
+                  </button>
+                  <div class="mm-cap">Tools</div>
+                  <button class="mm-nav" type="button" data-act="tab" data-tab="voice">
+                    <svg class="i" aria-hidden="true"><use href="media/icons.svg#mic" /></svg>Voice
+                  </button>
+                  <button class="mm-nav" type="button" data-act="tab" data-tab="mods">
+                    <svg class="i" aria-hidden="true"><use href="media/icons.svg#package" /></svg>Mods
+                  </button>
+                  <div class="mm-me">
+                    <span class="av" style="--skin: url(media/skin-host.png)"><i></i></span>
+                    <span class="mm-who"><b>You</b><small data-bind="me">Online</small></span>
+                  </div>
                 </div>
-                <div class="ledge"></div>
+
+                <div class="mm-main">
+                  <div class="mm-head">
+                    <p class="mm-title" data-bind="title">Good to see you</p>
+                    <p class="mm-sub" data-bind="sub">Host your world, then invite a friend.</p>
+                  </div>
+
+                  <!-- Home -->
+                  <div class="mm-page on" data-page="home">
+                    <div class="mm-home">
+                      <div class="mm-you">
+                        <div class="player" data-skin="media/skin-host.png" data-nodrag style="--turn: -20deg" aria-hidden="true"></div>
+                        <span>New World</span>
+                        <span class="mm-pill" data-bind="pill"><i></i><span>Not hosting</span></span>
+                      </div>
+                      <div class="mm-col">
+                        <button class="mm-btn go big" type="button" data-act="main">
+                          <svg class="i" aria-hidden="true"><use href="media/icons.svg#wifi" /></svg><span>Start hosting</span>
+                        </button>
+                        <button class="mm-btn" type="button" data-act="tab" data-tab="host">
+                          <svg class="i" aria-hidden="true"><use href="media/icons.svg#sliders" /></svg><span>Manage your world</span>
+                        </button>
+                        <div class="mm-card">
+                          <div class="mm-card-h"><span>Online now</span><b>3</b></div>
+                          <ul class="mm-list">
+                            <li class="mm-row" data-row="alex">
+                              <span class="av" style="--skin: url(media/skin-friend.png)"><i></i></span>
+                              <span class="mm-who"><b>AlexPlays</b><small>Online</small></span>
+                              <button class="mm-btn go sm" type="button" data-act="invite" data-friend="alex">
+                                <svg class="i" aria-hidden="true"><use href="media/icons.svg#play" /></svg><span>Invite</span>
+                              </button>
+                            </li>
+                            <li class="mm-row" data-row="luna">
+                              <span class="av" style="--skin: url(media/skin-luna.png)"><i class="busy"></i></span>
+                              <span class="mm-who"><b>LunaBuilds</b><small>Playing</small></span>
+                              <button class="mm-btn go sm" type="button" data-act="invite" data-friend="luna">
+                                <svg class="i" aria-hidden="true"><use href="media/icons.svg#play" /></svg><span>Invite</span>
+                              </button>
+                            </li>
+                            <li class="mm-row" data-row="mossy">
+                              <span class="av" style="--skin: url(media/skin-mossy.png)"><i></i></span>
+                              <span class="mm-who"><b>MossyMiner</b><small>Online</small></span>
+                              <button class="mm-btn go sm" type="button" data-act="invite" data-friend="mossy">
+                                <svg class="i" aria-hidden="true"><use href="media/icons.svg#play" /></svg><span>Invite</span>
+                              </button>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="mm-chips">
+                      <button class="mm-chip" type="button" data-act="tab" data-tab="voice" style="--c: var(--purple)">
+                        <svg class="i" aria-hidden="true"><use href="media/icons.svg#mic" /></svg>Voice<b data-bind="chip-voice">Off</b>
+                      </button>
+                      <button class="mm-chip" type="button" data-act="tab" data-tab="host" style="--c: var(--blue)">
+                        <svg class="i" aria-hidden="true"><use href="media/icons.svg#users" /></svg>Players<b data-bind="chip-players">1/8</b>
+                      </button>
+                      <div class="mm-chip" style="--c: var(--orange)">
+                        <svg class="i" aria-hidden="true"><use href="media/icons.svg#zap" /></svg>Route<b data-bind="chip-route">–</b>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Friends -->
+                  <div class="mm-page" data-page="friends">
+                    <div class="mm-bar">
+                      <span class="mm-label">Online now</span>
+                      <button class="mm-btn go sm" type="button" data-act="invite-all">
+                        <svg class="i" aria-hidden="true"><use href="media/icons.svg#users" /></svg><span>Invite all</span>
+                      </button>
+                    </div>
+                    <div class="mm-card">
+                      <ul class="mm-list">
+                        <li class="mm-row" data-row="alex">
+                          <span class="av" style="--skin: url(media/skin-friend.png)"><i></i></span>
+                          <span class="mm-who"><b>AlexPlays</b><small>Online</small></span>
+                          <button class="mm-star" type="button" data-act="star" data-friend="alex" aria-pressed="false" aria-label="Favourite AlexPlays">
+                            <svg class="i" aria-hidden="true"><use href="#star" /></svg>
+                          </button>
+                          <button class="mm-btn go sm" type="button" data-act="invite" data-friend="alex">
+                            <svg class="i" aria-hidden="true"><use href="media/icons.svg#play" /></svg><span>Invite</span>
+                          </button>
+                        </li>
+                        <li class="mm-row" data-row="luna">
+                          <span class="av" style="--skin: url(media/skin-luna.png)"><i class="busy"></i></span>
+                          <span class="mm-who"><b>LunaBuilds</b><small>Playing</small></span>
+                          <button class="mm-star" type="button" data-act="star" data-friend="luna" aria-pressed="false" aria-label="Favourite LunaBuilds">
+                            <svg class="i" aria-hidden="true"><use href="#star" /></svg>
+                          </button>
+                          <button class="mm-btn go sm" type="button" data-act="invite" data-friend="luna">
+                            <svg class="i" aria-hidden="true"><use href="media/icons.svg#play" /></svg><span>Invite</span>
+                          </button>
+                        </li>
+                        <li class="mm-row" data-row="mossy">
+                          <span class="av" style="--skin: url(media/skin-mossy.png)"><i></i></span>
+                          <span class="mm-who"><b>MossyMiner</b><small>Online</small></span>
+                          <button class="mm-star" type="button" data-act="star" data-friend="mossy" aria-pressed="false" aria-label="Favourite MossyMiner">
+                            <svg class="i" aria-hidden="true"><use href="#star" /></svg>
+                          </button>
+                          <button class="mm-btn go sm" type="button" data-act="invite" data-friend="mossy">
+                            <svg class="i" aria-hidden="true"><use href="media/icons.svg#play" /></svg><span>Invite</span>
+                          </button>
+                        </li>
+                      </ul>
+                    </div>
+                    <span class="mm-label">Recent activity</span>
+                    <ul class="mm-feed" data-bind="feed">
+                      <li><span class="av xs" style="--skin: url(media/skin-mossy.png)"></span><span class="t"><b>MossyMiner</b> came online</span><time>just now</time></li>
+                      <li><span class="av xs" style="--skin: url(media/skin-luna.png)"></span><span class="t"><b>LunaBuilds</b> came online</span><time>just now</time></li>
+                      <li><span class="av xs" style="--skin: url(media/skin-friend.png)"></span><span class="t"><b>AlexPlays</b> came online</span><time>just now</time></li>
+                    </ul>
+                  </div>
+
+                  <!-- Host -->
+                  <div class="mm-page" data-page="host">
+                    <div class="mm-card mm-world">
+                      <span class="mm-thumb" aria-hidden="true"></span>
+                      <span class="mm-who"><b>New World</b><small data-bind="world">Only you, for now</small></span>
+                      <button class="mm-btn go" type="button" data-act="host">
+                        <svg class="i" aria-hidden="true"><use href="media/icons.svg#wifi" /></svg><span>Start hosting</span>
+                      </button>
+                    </div>
+                    <div class="mm-code" data-bind="codebox">
+                      <span class="mm-label">Invite code</span>
+                      <code data-bind="code">appears when you host</code>
+                      <button class="mm-btn sm" type="button" data-act="copy">
+                        <svg class="i" aria-hidden="true"><use href="#copy" /></svg><span>Copy</span>
+                      </button>
+                    </div>
+                    <span class="mm-label">Who can join</span>
+                    <div class="mm-card">
+                      <div class="mm-set">
+                        <span><b>Only friends can join</b><small>Others with the code are turned away</small></span>
+                        <button class="mm-switch" type="button" role="switch" aria-checked="true" data-act="friends-only" aria-label="Only friends can join"></button>
+                      </div>
+                      <div class="mm-set">
+                        <span><b>Player limit</b><small>Including you</small></span>
+                        <div class="mm-seg" role="group" aria-label="Player limit">
+                          <button type="button" data-act="limit" data-limit="2" aria-pressed="false">2</button>
+                          <button type="button" data-act="limit" data-limit="4" aria-pressed="false">4</button>
+                          <button type="button" data-act="limit" data-limit="8" aria-pressed="true">8</button>
+                          <button type="button" data-act="limit" data-limit="16" aria-pressed="false">16</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Voice -->
+                  <div class="mm-page" data-page="voice">
+                    <div class="mm-card">
+                      <div class="mm-set">
+                        <span><b>Voice chat</b><small>Hear and talk to nearby players</small></span>
+                        <button class="mm-switch" type="button" role="switch" aria-checked="false" data-act="voice" aria-label="Voice chat"></button>
+                      </div>
+                      <div class="mm-set">
+                        <span><b>Mute my microphone</b><small>Toggle in game with M</small></span>
+                        <button class="mm-switch" type="button" role="switch" aria-checked="false" data-act="mute" aria-label="Mute my microphone"></button>
+                      </div>
+                      <div class="mm-seg" role="group" aria-label="How you talk" style="margin: 6px 0">
+                        <button type="button" data-act="talk" data-talk="ptt" aria-pressed="true">Push to talk (V)</button>
+                        <button type="button" data-act="talk" data-talk="open" aria-pressed="false">Voice activation</button>
+                      </div>
+                      <div class="mm-seg" role="group" aria-label="Who hears whom">
+                        <button type="button" data-act="reach" data-reach="nearby" aria-pressed="true">Nearby players</button>
+                        <button type="button" data-act="reach" data-reach="party" aria-pressed="false">Everyone in the world</button>
+                      </div>
+                    </div>
+                    <span class="mm-label">In your world</span>
+                    <ul class="mm-talk" data-bind="talkers">
+                      <li><span class="av xs" style="--skin: url(media/skin-host.png)"></span>You <small>voice off</small></li>
+                    </ul>
+                  </div>
+
+                  <!-- Mods -->
+                  <div class="mm-page" data-page="mods">
+                    <div class="mm-seg" role="group" aria-label="Which mods to show">
+                      <button type="button" data-act="modview" data-view="discover" aria-pressed="true">Discover</button>
+                      <button type="button" data-act="modview" data-view="installed" aria-pressed="false">Installed</button>
+                    </div>
+                    <span class="mm-label">Example mods <small>(made up for this demo)</small></span>
+                    <div class="mm-card">
+                      <ul class="mm-list" data-bind="mods">
+                        <li class="mm-row" data-mod="lanterns">
+                          <span class="mm-modicon" style="--c: var(--orange)"><svg class="i" aria-hidden="true"><use href="media/icons.svg#sparkles" /></svg></span>
+                          <span class="mm-who"><b>Example Lanterns</b><small>Decoration</small></span>
+                          <button class="mm-btn go sm" type="button" data-act="install" data-mod="lanterns"><span>Install</span></button>
+                        </li>
+                        <li class="mm-row" data-mod="biomes">
+                          <span class="mm-modicon" style="--c: var(--blue)"><svg class="i" aria-hidden="true"><use href="media/icons.svg#globe" /></svg></span>
+                          <span class="mm-who"><b>Example Biomes</b><small>Worldgen</small></span>
+                          <button class="mm-btn go sm" type="button" data-act="install" data-mod="biomes"><span>Install</span></button>
+                        </li>
+                        <li class="mm-row" data-mod="critters">
+                          <span class="mm-modicon" style="--c: var(--pink)"><svg class="i" aria-hidden="true"><use href="media/icons.svg#package" /></svg></span>
+                          <span class="mm-who"><b>Example Critters</b><small>Mobs</small></span>
+                          <button class="mm-btn go sm" type="button" data-act="install" data-mod="critters"><span>Install</span></button>
+                        </li>
+                      </ul>
+                      <p class="mm-note" data-bind="mods-empty" hidden>Nothing installed yet. Pick one under Discover.</p>
+                    </div>
+                    <p class="mm-note">A friend joining gets the same mods automatically.</p>
+                  </div>
+                  <p class="sr" aria-live="polite" data-bind="said"></p>
+                </div>
               </div>
             </div>
           </div>
-        </section>
-      </div>
+        </div>
+      </section>
 
       <!-- ============================================================ and more: nightfall -->
-      <section class="band more pad" data-scene>
+      <section class="band more" data-scene>
         <div class="decor" aria-hidden="true">
           <div class="stars"></div>
-          <div class="stars twinkle"></div>
-          <div class="shoot"></div>
         </div>
         <div class="wrap">
           <div class="head" data-reveal>
-            <span class="eyebrow">And more</span>
+            <p class="eyebrow">And more</p>
             <h2>The whole<br />multiplayer <span class="a">kit.</span></h2>
           </div>
-          <div class="bento" data-build>
+          <div class="bento">
             <article class="tile wide" data-reveal style="--a: var(--pink)">
               <div class="words">
-                <span class="cube" style="--i: 0" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#sliders" /></svg></i><i class="r"></i></span>
+                <span class="cube" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#sliders" /></svg></i><i class="r"></i></span>
                 <div>
                   <h3>Quick menu</h3>
                   <p>Hold <kbd>Z</kbd> while playing for a ring of shortcuts: invite, mute, party voice, a screenshot, the invite code.</p>
@@ -366,27 +591,27 @@
               <img src="media/shots/wheel.jpg" width="1710" height="1070" loading="lazy" alt="The quick menu in the game: a ring of buttons for Menu, Invite, Capture, Voice, Party and Copy code" />
             </article>
             <article class="tile" data-reveal style="--a: var(--blue); --d: 0.08s">
-              <span class="cube" style="--i: 1" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#globe" /></svg></i><i class="r"></i></span>
+              <span class="cube" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#globe" /></svg></i><i class="r"></i></span>
               <h3>Public worlds</h3>
               <p>List your world for anyone to find, or join someone else's. Visitors can look around until you trust them to build.</p>
             </article>
             <article class="tile" data-reveal style="--a: var(--green); --d: 0.16s">
-              <span class="cube" style="--i: 2" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#shield" /></svg></i><i class="r"></i></span>
+              <span class="cube" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#shield" /></svg></i><i class="r"></i></span>
               <h3>Your rules</h3>
               <p>Set game modes, kick or ban, and lock world rules like difficulty or keep inventory so they stay put.</p>
             </article>
             <article class="tile" data-reveal style="--a: var(--purple)">
-              <span class="cube" style="--i: 3" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#lock" /></svg></i><i class="r"></i></span>
+              <span class="cube" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#lock" /></svg></i><i class="r"></i></span>
               <h3>Private</h3>
               <p>Invites, chat and screenshots are encrypted between you and your friend. There is no JavaHost account to make.</p>
             </article>
             <article class="tile" data-reveal style="--a: var(--orange); --d: 0.08s">
-              <span class="cube" style="--i: 4" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#image" /></svg></i><i class="r"></i></span>
+              <span class="cube" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#image" /></svg></i><i class="r"></i></span>
               <h3>Shared look</h3>
               <p>Guests are offered your resource packs and shader settings, so everyone sees the same world you built.</p>
             </article>
             <article class="tile" data-reveal style="--a: var(--green); --d: 0.16s">
-              <span class="cube" style="--i: 5" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#upload" /></svg></i><i class="r"></i></span>
+              <span class="cube" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#upload" /></svg></i><i class="r"></i></span>
               <h3>Send a world</h3>
               <p>Give a friend a copy of the world you're in, or a backup, without leaving the game.</p>
             </article>
@@ -396,8 +621,7 @@
 
       <div class="band stats" id="stats">
         <div class="decor" aria-hidden="true">
-          <div class="stars"></div>
-          <div class="stars twinkle"></div>
+          <div class="stars" style="--o: 0.7"></div>
         </div>
         <div class="wrap">
           <div class="stat"><b data-count="0">0</b><span>servers to rent</span></div>
@@ -408,26 +632,20 @@
       </div>
 
       <!-- ============================================================ download: midnight -->
-      <section id="download" class="band get pad" data-scene>
+      <section id="download" class="band get" data-scene>
         <div class="decor" aria-hidden="true">
           <div class="stars"></div>
-          <div class="stars twinkle"></div>
-          <div class="shoot" style="right: 30%; top: 60px; --dl: 5s"></div>
-          <div class="moon" data-par="-8"><svg class="art" style="width: 100%; height: 100%"><use href="#px-moon" /></svg></div>
+          <div class="moon" data-par="-6"><svg class="art" style="width: 100%; height: 100%"><use href="#px-moon" /></svg></div>
         </div>
-        <div class="wrap">
-          <div data-reveal="left">
-            <span class="eyebrow">Download</span>
+        <div class="wrap split">
+          <div data-reveal>
+            <p class="eyebrow">Download</p>
             <h2>Get<br /><span class="a">JavaHost.</span></h2>
             <p class="lede">Free and open source. It gets its own launcher profile, so your normal Minecraft stays untouched.</p>
-            <div class="versions" aria-label="Supported Minecraft versions">
-              <span class="pill">26.3</span><span class="pill">26.2</span><span class="pill">26.1.x</span><span class="pill">1.21.11</span
-              ><span class="pill">1.21.9–10</span><span class="pill">1.21.6–8</span><span class="pill">1.21.4</span><span class="pill">1.21–1.21.1</span>
-            </div>
+            <p class="badge"><span class="dot"></span><span><span id="version">JavaHost</span> · Minecraft 1.21 to 26.3</span></p>
             <p class="note">For Fabric. JavaHost keeps itself up to date. <a href="https://github.com/IbrahimMas1/javahost/releases">All downloads</a></p>
           </div>
-          <div class="panel" data-reveal="right">
-            <div class="player" data-skin="media/skin-friend.png" data-waves style="--turn: -26deg" aria-hidden="true"><span class="tag"><b>See you in game</b></span></div>
+          <div class="panel" data-reveal style="--d: 0.1s">
             <div class="tabs" role="tablist" aria-label="Your computer">
               <button class="tab" role="tab" aria-selected="true" aria-controls="os-panel" data-os="win">Windows</button>
               <button class="tab" role="tab" aria-selected="false" aria-controls="os-panel" tabindex="-1" data-os="mac">Mac</button>
@@ -449,22 +667,19 @@
       </section>
 
       <!-- ============================================================ questions -->
-      <section id="faq" class="band qa pad">
+      <section id="faq" class="band qa">
         <div class="decor" aria-hidden="true">
           <div class="stars"></div>
-          <div class="stars twinkle"></div>
         </div>
-        <div class="wrap">
+        <div class="wrap split">
           <div class="head" data-reveal>
-            <span class="eyebrow">Questions</span>
+            <p class="eyebrow">Questions</p>
             <h2>Good to <span class="a">know.</span></h2>
-            <p>The short answers. The long ones are in <a href="https://github.com/IbrahimMas1/javahost/blob/main/docs/HOW-IT-WORKS.md">how it works, in detail</a>, and anything else can go to <a href="https://github.com/IbrahimMas1/javahost/issues">GitHub</a>.</p>
-            <div class="pile" data-build aria-hidden="true">
-              <span class="cube stone" style="--i: 0"><i class="t"></i><i class="f"></i><i class="r"></i></span>
-              <span class="cube grass" style="--i: 1"><i class="t"></i><i class="f"></i><i class="r"></i></span>
-              <span class="cube" style="--i: 3; --c: #a77bf3"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#message" /></svg></i><i class="r"></i></span>
-              <span class="cube grass" style="--i: 2"><i class="t"></i><i class="f"></i><i class="r"></i></span>
-            </div>
+            <p class="lede">
+              The short answers. The long ones are in
+              <a href="https://github.com/IbrahimMas1/javahost/blob/main/docs/HOW-IT-WORKS.md">how it works, in detail</a>, and anything else can
+              go to <a href="https://github.com/IbrahimMas1/javahost/issues">GitHub</a>.
+            </p>
           </div>
           <div class="faq" data-reveal>
             <details>
@@ -520,7 +735,6 @@
       <div class="camp" aria-hidden="true">
         <div class="decor">
           <div class="stars"></div>
-          <div class="stars twinkle"></div>
         </div>
         <div class="wordmark">JavaHost</div>
         <div class="fireside">
