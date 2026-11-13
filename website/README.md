@@ -21,6 +21,8 @@ A day in a small world, from morning to night, with one idea per screen:
 
 Spacing follows one 8 px scale: sections are padded `clamp(96px, 11vw, 168px)`, content is at most 1200 px wide, text lines about 60 characters, and decorations never sit on text or screenshots. Keep it that way: when adding something, take something else out.
 
+**Light and dark.** The button in the top bar (a pixel moon or sun) switches theme. By default the page follows the visitor's system setting; a choice is remembered in the browser (`localStorage` key `javahost-theme`). A small script in `<head>` sets `data-theme` on `<html>` before anything is drawn, so there is no flash. The dark theme is the same page after dark: near-black with the grid, each section lit by its own colour, a moon over a night-time island. All of it lives in `parts/3d-dark.css`; `gen.py` draws the night textures and also writes the copy of the dark rules used when JavaScript is off. `?theme=dark` or `?theme=light` forces a theme for one load.
+
 With "reduce motion" on, all motion is off and everything is simply there. If the script fails or is switched off, the content still shows.
 
 Test hooks (harmless, for checking renders): `?step=1..4`, `?at=<section id>&off=N`, `?demo=hosting|invited|voice|party`, `?tab=home|friends|host|voice|mods`, `?still`.

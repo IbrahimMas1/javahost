@@ -241,6 +241,7 @@ def sky(colours, bands, w=4):
     return rows
 
 
+SKY_NIGHT = sky(["#05070d", "#070a14", "#090e1c", "#0c1325", "#0f182e", "#121d37"], [10, 12, 12, 12, 12, 14])
 SKY = sky(["#1d63de", "#2b76ec", "#3f8cf6", "#5aa3fb", "#7dbcff", "#a5d3ff"], [10, 12, 12, 12, 12, 14])
 
 
@@ -262,7 +263,15 @@ def stars(seed, n, size, plus=1):
 css = ["      /* gen:textures (drawn by tools/gen.py; original pixel art, 12x12 each) */", "      :root {"]
 for name, rows in T.items():
     css.append("        --t-%s: %s;" % (name, uri(rows)))
+# night: the same blocks under a cool moonlight (dark theme). Shadows lean blue, lit colours keep their hue.
+def night(rows, k=0.66, lift=(6, 10, 18)):
+    return [[(min(255, int(r * k + lift[0])), min(255, int(g * (k + 0.02) + lift[1])), min(255, int(b * (k + 0.04) + lift[2])), a) for (r, g, b, a) in row] for row in rows]
+
+
+for name, rows in list(T.items()):
+    css.append("        --t-%s-night: %s;" % (name, uri(night(rows, 0.78, (8, 14, 30)) if name in ("water", "fall") else night(rows))))
 css.append("        --sky-day: %s;" % uri(SKY))
+css.append("        --sky-night: %s;" % uri(SKY_NIGHT))
 css.append("        --sky-day-h: %dpx;" % (len(SKY) * 8))
 css.append("        --stars-a: %s;" % uri(stars(7, 9, 96)))
 css.append("        --stars-b: %s;" % uri(stars(41, 8, 128)))
@@ -332,6 +341,7 @@ CLOUD_C = """
 """
 SUN = disc(9, lambda d, x, y: "c" if d <= 5.3 else "o" if d <= 7.3 else "h" if d <= 9.3 else ".")
 MOON = disc(8, lambda d, x, y: "." if d > 8.3 else "s" if math.hypot(x - 4, y + 3) <= 7.4 and False else "k" if (x, y) in [(-3, -2), (-2, -2), (-3, -1), (2, 3), (3, 3), (2, 4), (-1, 4), (4, -3)] else "m")
+css.insert(len(css) - 2, "        --moon-px: %s;" % uri(art(MOON, {"m": "#eef2ff", "k": "#c3cbe8"})))
 ISLE = """
 ....##............
 ...####...........
@@ -445,6 +455,15 @@ if os.path.exists(PAGE):
     page = open(PAGE, encoding="utf-8").read()
     page, a = re.subn(r"      /\* gen:textures.*?/\* /gen:textures \*/", lambda m: "\n".join(css), page, flags=re.S)
     page, b = re.subn(r"      <!-- gen:symbols.*?<!-- /gen:symbols -->", lambda m: "\n".join(svg), page, flags=re.S)
+    # The dark theme is written once, for html[data-theme="dark"] (chosen with the switch, or by the script from the system
+    # setting). Without JavaScript nothing sets data-theme, so the same rules are copied here for the system setting.
+    m = re.search(r"/\* dark:begin \*/(.*?)/\* dark:end \*/", page, flags=re.S)
+    c = 0
+    if m:
+        body = m.group(1).replace('html[data-theme="dark"]', "html:not([data-theme])")
+        nojs = "      /* gen:dark-nojs (copied by tools/gen.py) */\n      @media (prefers-color-scheme: dark) {" + body + "}\n      /* /gen:dark-nojs */"
+        page, c = re.subn(r"      /\* gen:dark-nojs.*?/\* /gen:dark-nojs \*/", lambda _: nojs, page, flags=re.S)
     open(PAGE, "w", encoding="utf-8").write(page)
+    print("dark no-js copy: %d" % c)
     print(DIMS)
     print("patched: textures %d, symbols %d; css %d bytes, svg %d bytes" % (a, b, len("\n".join(css)), len("\n".join(svg))))

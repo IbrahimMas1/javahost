@@ -8,7 +8,8 @@
       name="description"
       content="Turn your Minecraft Java world into one friends can join in a click. Invites, voice chat, mods and shared packs built in. Free and open source, for Fabric on Minecraft 1.21 to 26.3."
     />
-    <meta name="theme-color" content="#0a1024" />
+    <meta name="theme-color" content="#0a1024" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#06080b" media="(prefers-color-scheme: dark)" />
     <meta property="og:title" content="JavaHost: play with friends. No server." />
     <meta
       property="og:description"
@@ -27,6 +28,51 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;600;700&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
+    <script>
+      // Light or dark, before anything is drawn: ?theme= for this visit only, then the visitor's own choice, then the system.
+      // The switch in the top bar flips it and remembers the choice. Storage may be blocked: then it just isn't remembered.
+      (() => {
+        const root = document.documentElement;
+        const KEY = "javahost-theme";
+        const COLOURS = { light: "#0a1024", dark: "#06080b" };
+        const system = matchMedia("(prefers-color-scheme: dark)");
+        const valid = (t) => (t === "dark" || t === "light" ? t : null);
+        let forced = null;
+        let saved = null;
+        try {
+          forced = valid(new URLSearchParams(location.search).get("theme"));
+        } catch (e) {}
+        try {
+          saved = valid(localStorage.getItem(KEY));
+        } catch (e) {}
+        function label() {
+          const dark = root.dataset.theme === "dark";
+          document.querySelectorAll("[data-theme-switch]").forEach((b) => {
+            b.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
+            b.title = dark ? "Light theme" : "Dark theme";
+          });
+        }
+        function apply(theme) {
+          root.dataset.theme = theme;
+          document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", COLOURS[theme]));
+          label();
+        }
+        apply(forced || saved || (system.matches ? "dark" : "light"));
+        root.classList.add("tt");
+        // with no choice of their own, the page keeps following the system as it changes
+        system.addEventListener?.("change", (e) => forced || saved || apply(e.matches ? "dark" : "light"));
+        document.addEventListener("DOMContentLoaded", label);
+        document.addEventListener("click", (e) => {
+          if (!e.target.closest?.("[data-theme-switch]")) return;
+          const next = root.dataset.theme === "dark" ? "light" : "dark";
+          saved = next;
+          try {
+            localStorage.setItem(KEY, next);
+          } catch (e) {}
+          apply(next);
+        });
+      })();
+    </script>
     <script>
       (() => {
         // Content waits for the page script to bring it in. If that script fails or never finishes, show everything.

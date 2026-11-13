@@ -1,0 +1,439 @@
+      /* ------------------------------------------------------------ the theme switch: a small pixel moon (or sun) in the top bar */
+      .theme-switch {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border: 0;
+        background: rgba(255, 255, 255, 0.05);
+        box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12);
+        color: #aab6d3;
+        cursor: pointer;
+      }
+      .theme-switch:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .theme-switch svg {
+        width: 22px;
+        height: 22px;
+      }
+      .theme-switch .to-light,
+      html[data-theme="dark"] .theme-switch .to-dark {
+        display: none;
+      }
+      html[data-theme="dark"] .theme-switch .to-light {
+        display: block;
+      }
+      @media (max-width: 640px) {
+        /* on a phone the brand, the switch and Download share the bar: closer together so all three fit */
+        .nav .wrap {
+          gap: 8px;
+        }
+        .theme-switch {
+          width: 28px;
+          background: none;
+          box-shadow: none;
+        }
+        .theme-switch:hover {
+          background: none;
+        }
+      }
+      /* the switch needs the little script in the head; without it the page simply follows the system */
+      html:not(.tt) .theme-switch {
+        display: none;
+      }
+
+      /* ------------------------------------------------------------ dark: the same day, after dark. Same page, same spacing;
+         every section goes near-black with the faint grid, lit by its own colour. Written once here; tools/gen.py copies
+         it for visitors without JavaScript who have their system set to dark. */
+      /* dark:begin */
+      html[data-theme="dark"] {
+        color-scheme: dark;
+        --ink: #06080b;
+        --c-how: #080b13;
+        --c-host: #060c09;
+        --c-friends: #060a13;
+        --c-voice: #0a0813;
+        --c-mods: #0e070c;
+        --c-mods-hills: #12080e;
+        --c-ping: #0f0a06;
+        --c-ping-hills: #0c0705;
+        --c-try: #0b0916;
+        --c-try-hills: #0f0c1f;
+        --c-more: #08090f;
+        --c-stats: #07080d;
+        --c-get: #06080b;
+        --c-faq: #050609;
+        /* the blocks under moonlight (drawn by tools/gen.py) */
+        --t-grass: var(--t-grass-night);
+        --t-grass-side: var(--t-grass-side-night);
+        --t-dirt: var(--t-dirt-night);
+        --t-stone: var(--t-stone-night);
+        --t-deep: var(--t-deep-night);
+        --t-ore-g: var(--t-ore-g-night);
+        --t-ore-b: var(--t-ore-b-night);
+        --t-ore-p: var(--t-ore-p-night);
+        --t-log: var(--t-log-night);
+        --t-leaf: var(--t-leaf-night);
+        --t-plank: var(--t-plank-night);
+        --t-roof: var(--t-roof-night);
+        --t-water: var(--t-water-night);
+        --t-fall: var(--t-fall-night);
+        --t-sand: var(--t-sand-night);
+      }
+      html[data-theme="dark"] .nav {
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.07);
+      }
+      html[data-theme="dark"] .btn {
+        --sh: #283041;
+      }
+      html[data-theme="dark"] .btn.primary {
+        --sh: #116b3c;
+      }
+      html[data-theme="dark"] .eyebrow {
+        color: var(--a);
+      }
+      /* each band: near-black, the grid, and a soft light in its own colour behind its main picture */
+      html[data-theme="dark"] .band {
+        --grid: rgba(255, 255, 255, 0.045);
+        background:
+          radial-gradient(var(--glow-size, 46% 60%) at var(--glow-at, 74% 52%), color-mix(in srgb, var(--a) var(--glow, 14%), transparent), transparent 72%),
+          var(--bg);
+      }
+
+      /* hero: the same island, at night */
+      html[data-theme="dark"] .hero {
+        background: #05070d;
+        --deep: #10275a;
+      }
+      html[data-theme="dark"] .sky {
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.035) 2px, transparent 2px) 0 62px / 100% 64px,
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 2px, transparent 2px) calc(50% + 31px) 0 / 64px 100%,
+          var(--sky-night) 0 100% / 32px var(--sky-day-h) repeat-x;
+      }
+      html[data-theme="dark"] .sky::after {
+        content: "";
+        position: absolute;
+        inset: 0 0 160px;
+        background:
+          var(--stars-a) 0 0 / 384px 384px,
+          var(--stars-b) 150px 70px / 512px 512px;
+        image-rendering: pixelated;
+        --edge: calc(50% - min(var(--width), 100% - var(--gutter) * 2) / 2);
+        -webkit-mask-image: linear-gradient(90deg, #000 calc(var(--edge) - 24px), rgba(0, 0, 0, 0.18) var(--edge), rgba(0, 0, 0, 0.18) 50%, #000 62%);
+        mask-image: linear-gradient(90deg, #000 calc(var(--edge) - 24px), rgba(0, 0, 0, 0.18) var(--edge), rgba(0, 0, 0, 0.18) 50%, #000 62%);
+      }
+      html[data-theme="dark"] .hero .sun {
+        background:
+          var(--moon-px) 50% 50% / 85px 85px no-repeat,
+          radial-gradient(closest-side, rgba(190, 208, 255, 0.2), rgba(190, 208, 255, 0.06) 62%, transparent);
+        image-rendering: pixelated;
+      }
+      html[data-theme="dark"] .hero .sun .art {
+        visibility: hidden;
+      }
+      html[data-theme="dark"] .hero .cloud {
+        color: #151d31;
+        --cloud-shade: #0f1526;
+      }
+      html[data-theme="dark"] .hero .bank[style*="#c4e2ff"] {
+        color: #0d1322 !important;
+      }
+      html[data-theme="dark"] .hero h1 .a,
+      html[data-theme="dark"] .how .a {
+        box-shadow:
+          0 -4px 0 0 var(--slab),
+          0 4px 0 0 var(--slab),
+          -4px 0 0 0 var(--slab),
+          4px 0 0 0 var(--slab),
+          4px 8px 0 0 #0f5a33,
+          12px 8px 0 0 #0f5a33,
+          8px 4px 0 0 #0f5a33,
+          8px 12px 0 0 #0f5a33;
+      }
+      /* moonlight round the island, and a cool light under it */
+      html[data-theme="dark"] .stage {
+        background:
+          radial-gradient(34% 30% at 55% 62%, rgba(61, 220, 132, 0.12), transparent 70%),
+          radial-gradient(48% 44% at 55% 54%, rgba(79, 157, 247, 0.14), transparent 72%);
+      }
+      html[data-theme="dark"] .vf.f {
+        --shade: rgba(4, 8, 24, 0.2);
+      }
+      html[data-theme="dark"] .vf.r {
+        --shade: rgba(4, 8, 24, 0.46);
+      }
+      html[data-theme="dark"] .island .vf.flat:not(.win, .frame-a, .frame-b) {
+        background-image:
+          linear-gradient(var(--shade), var(--shade)),
+          linear-gradient(rgba(8, 12, 32, 0.3), rgba(8, 12, 32, 0.3));
+      }
+      html[data-theme="dark"] .island .vf.puffc {
+        --c: #1c2640 !important;
+      }
+      /* the lamps are on (no glow round them: a blurred shadow upsets how the browser sorts the island's faces) */
+      html[data-theme="dark"] .island .vf.win {
+        --c: #ffd25e !important;
+        --shade: transparent;
+        box-shadow: 0 0 0 calc(var(--u) * 1) #4a3220;
+      }
+
+      /* how it works */
+      html[data-theme="dark"] .how {
+        --fg: #fff;
+        --mut: #aab4c8;
+        --deep: #10275a;
+        --a: var(--blue);
+        --glow-at: 50% 86%;
+        --glow-size: 60% 46%;
+        --glow: 12%;
+      }
+      html[data-theme="dark"] .how .cloud {
+        color: #111828 !important;
+        --cloud-shade: #0c111d !important;
+      }
+      html[data-theme="dark"] .card {
+        background: #0d121c;
+        --bd: color-mix(in srgb, var(--a) 24%, #0d121c);
+        --sh: color-mix(in srgb, var(--a) 50%, #06080b);
+      }
+      html[data-theme="dark"] .card p {
+        color: #aeb8cc;
+      }
+
+      /* the story: black and the grid, the window glowing in the colour of its step */
+      html[data-theme="dark"] .story[data-step],
+      html[data-theme="dark"]:not(.pin) .chapter[data-key] {
+        --fg: #fff;
+        --grid: rgba(255, 255, 255, 0.045);
+      }
+      html[data-theme="dark"] .story[data-step="host"],
+      html[data-theme="dark"]:not(.pin) .chapter[data-key="host"] {
+        --mut: #b2c2b9;
+        --deep: #127a43;
+        --slab: var(--green);
+        --slab-ink: #04140b;
+      }
+      html[data-theme="dark"] .story[data-step="friends"],
+      html[data-theme="dark"]:not(.pin) .chapter[data-key="friends"] {
+        --mut: #b5c1d8;
+        --deep: #1d5bb0;
+        --slab: var(--blue);
+        --slab-ink: #04101f;
+      }
+      html[data-theme="dark"] .story[data-step="voice"],
+      html[data-theme="dark"]:not(.pin) .chapter[data-key="voice"] {
+        --mut: #c3bad8;
+        --deep: #5b3aa6;
+        --slab: var(--purple);
+        --slab-ink: #120624;
+      }
+      html[data-theme="dark"] .story[data-step="mods"],
+      html[data-theme="dark"]:not(.pin) .chapter[data-key="mods"] {
+        --mut: #d8b9c9;
+        --deep: #a3336b;
+        --slab: var(--pink);
+        --slab-ink: #22040f;
+      }
+      html[data-theme="dark"] .story {
+        background: var(--bg);
+      }
+      html[data-theme="dark"]:not(.pin) .chapter > .dither {
+        background:
+          radial-gradient(42% 58% at 76% 50%, color-mix(in srgb, var(--a) 15%, transparent), transparent 72%),
+          var(--bg);
+      }
+      html[data-theme="dark"].pin .pin-in {
+        background: radial-gradient(50% 44% at 58% 56%, color-mix(in srgb, var(--a) 20%, transparent), transparent 72%);
+      }
+      html[data-theme="dark"] .gw {
+        border-color: color-mix(in srgb, var(--a) 42%, transparent);
+        box-shadow:
+          12px 12px 0 var(--deep),
+          0 30px 120px -16px color-mix(in srgb, var(--a) 38%, transparent);
+      }
+      html[data-theme="dark"] .pin-big {
+        color: color-mix(in srgb, var(--a) 40%, #06080b);
+      }
+      html[data-theme="dark"] .rail-nodes::before {
+        background: color-mix(in srgb, var(--a) 22%, transparent);
+      }
+      html[data-theme="dark"] .rail-fill {
+        background: var(--a);
+      }
+      html[data-theme="dark"] .rail a {
+        color: #c9d1dc;
+        box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--a) 26%, transparent);
+      }
+      html[data-theme="dark"] .rail a.done {
+        box-shadow: inset 0 0 0 4px var(--a);
+      }
+      html[data-theme="dark"] .rail a.on {
+        color: var(--slab-ink);
+        box-shadow: 4px 4px 0 var(--deep);
+      }
+
+      /* low ping: the last of the sunset */
+      html[data-theme="dark"] .ping {
+        --fg: #fff;
+        --mut: #d4c3b2;
+        --deep: #9a4f0e;
+        --slab: var(--orange);
+        --slab-ink: #1f0e00;
+        --a: var(--orange);
+        --glow-at: 72% 46%;
+      }
+      html[data-theme="dark"] .ping .sun {
+        --sun: #b4521a;
+        --sun-core: #d9772a;
+        --sun-halo: rgba(220, 100, 36, 0.16);
+      }
+      /* the sky keeps a warm glow low down where the sun went; the hills stand dark against it */
+      html[data-theme="dark"] .ping {
+        background:
+          radial-gradient(46% 60% at 72% 46%, color-mix(in srgb, var(--orange) 13%, transparent), transparent 72%),
+          radial-gradient(60% 46% at 14% 100%, rgba(245, 120, 40, 0.2), transparent 72%),
+          var(--bg);
+      }
+      html[data-theme="dark"] .ping .hills[style*="#d67c1c"] {
+        color: #1d0f07 !important;
+      }
+      html[data-theme="dark"] .route {
+        background: #110d0a;
+        --bd: color-mix(in srgb, var(--orange) 30%, #110d0a);
+        --sh: #7a3c0c;
+      }
+
+      /* try it: dusk becomes night */
+      html[data-theme="dark"] .try {
+        --mut: #c4bde0;
+        --deep: #3b2a85;
+        --a: var(--purple);
+        --glow-at: 66% 54%;
+      }
+      html[data-theme="dark"] .try-game {
+        box-shadow:
+          12px 12px 0 var(--deep),
+          0 30px 120px -16px rgba(167, 123, 243, 0.32);
+      }
+
+      /* the rest of the night */
+      html[data-theme="dark"] .more {
+        --mut: #b6bdd4;
+        --deep: #0f5a33;
+        --glow-at: 50% 30%;
+        --glow-size: 60% 46%;
+        --glow: 7%;
+      }
+      html[data-theme="dark"] .tile {
+        --bd: #1b2030;
+        background: #0d1018;
+      }
+      html[data-theme="dark"] .stats {
+        --deep: #0f5a33;
+        --glow-at: 50% 50%;
+        --glow-size: 50% 80%;
+        --glow: 7%;
+      }
+      html[data-theme="dark"] .stat span {
+        color: #b6bdd4;
+      }
+      html[data-theme="dark"] .get {
+        --mut: #b6bdd4;
+        --deep: #0f5a33;
+        --glow-at: 76% 52%;
+        --glow: 12%;
+      }
+      html[data-theme="dark"] .panel {
+        background: #0a0d13;
+      }
+      html[data-theme="dark"] .tabs {
+        background: #161b26;
+      }
+      html[data-theme="dark"] .panel li {
+        color: #b6bdd4;
+      }
+      html[data-theme="dark"] .badge {
+        --bd: #262d3d;
+        --sh: #020305;
+        background: #121722;
+        color: #d5dbe8;
+      }
+      html[data-theme="dark"] .qa {
+        --mut: #aeb6ca;
+        --deep: #0f5a33;
+        --glow-at: 24% 26%;
+        --glow: 7%;
+      }
+      html[data-theme="dark"] details {
+        --bd: #1f2533;
+        --sh: #020305;
+        background: #0d1018;
+      }
+      html[data-theme="dark"] details[open] {
+        --bd: var(--green);
+      }
+      html[data-theme="dark"] footer {
+        background: #050609;
+      }
+      html[data-theme="dark"] .wordmark {
+        color: #121620;
+        text-shadow:
+          6px 6px 0 #0c0f16,
+          12px 12px 0 #08090e;
+      }
+      /* the ground by firelight: the night blocks, fading into the dark below (no blue wash on top) */
+      html[data-theme="dark"] .ground {
+        background:
+          var(--t-grass) 0 0 / 60px 60px repeat-x,
+          linear-gradient(transparent 80px, rgba(5, 6, 9, 0.35) 80px, rgba(5, 6, 9, 0.92) 300px),
+          var(--t-grass-side) 0 20px / 60px 60px repeat-x,
+          var(--t-dirt) 0 80px / 60px 60px repeat-x,
+          var(--t-stone) 0 140px / 60px 60px repeat-x,
+          var(--t-deep) 0 0 / 60px 60px;
+        background-size:
+          60px 20px,
+          auto,
+          60px 60px,
+          60px 60px,
+          60px 60px,
+          60px 60px;
+      }
+      html[data-theme="dark"] .ground::before {
+        background: linear-gradient(rgba(5, 6, 9, 0.25), rgba(5, 6, 9, 0.25)) 0 0 / 100% 80px no-repeat;
+      }
+      html[data-theme="dark"] .foot {
+        color: #b6bdd4;
+      }
+      html[data-theme="dark"] .legal {
+        color: #8a92a6;
+      }
+      @media (max-width: 980px) {
+        html[data-theme="dark"]:not(.pin) .chapter > .dither {
+          background:
+            radial-gradient(70% 34% at 50% 74%, color-mix(in srgb, var(--a) 15%, transparent), transparent 72%),
+            var(--bg);
+        }
+        html[data-theme="dark"] .band {
+          --glow-at: 50% 72%;
+          --glow-size: 80% 40%;
+        }
+      }
+      @media (max-width: 640px) {
+        html[data-theme="dark"] .gw,
+        html[data-theme="dark"] .try-game {
+          box-shadow:
+            8px 8px 0 var(--deep),
+            0 24px 80px -16px color-mix(in srgb, var(--a) 34%, transparent);
+        }
+      }
+      /* dark:end */
+
+      /* gen:dark-nojs */
+      /* /gen:dark-nojs */
+    </style>
+  </head>
