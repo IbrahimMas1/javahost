@@ -4,27 +4,38 @@ One page, `index.html`, with its CSS and JavaScript inline. No build step: edit 
 
 ## The design
 
-Simple on purpose. A black page on one four-column grid (the faint vertical lines), with one idea per screen:
+Simple, and in the mod's own look rather than anyone else's. The page borrows what the JavaHost menu looks like in game: a dark blue room lit by two soft lights, glass cards with a light rim, rounded green buttons that glow, pill-shaped status labels, the Pixelify Sans headline font, and one accent colour.
 
-1. **Hero:** a three-line pixel headline, one sentence, one very large download button, and two 3D players.
-2. **Hosting**, **Friends**, **Low ping:** each a label, a headline, a sentence and one picture, in its own colour.
-3. **And more:** voice and mods side by side, then four small extras.
-4. **Install:** the download button again, and three steps.
-5. **FAQ**, then the footer.
+Top to bottom, one idea per screen:
+
+1. **Hero:** the headline, one sentence, a large download button, and a small scene: you are hosting, a friend is online, you press **Invite**, and they walk in. (It plays by itself after a few seconds if nobody presses it.)
+2. **Hosting**, **Friends:** text beside a screenshot.
+3. **Low ping:** the relay detour against the direct line.
+4. **And more:** voice and mods with screenshots, then three small tiles.
+5. **Install:** the mod's segmented control for Windows / macOS / Linux, the download button, three steps.
+6. **Questions**, a closing line, the footer.
+
+**The accent colour** is the visitor's to choose, as in the mod's settings: the five swatches in the top bar recolour the whole page and the host's hoodie, and the choice is remembered (`localStorage` key `javahost-accent`).
 
 Rules to keep when editing:
 
-- **Spacing** comes from one scale: 8, 16, 24, 32, 48, 64, 96, 128, 160. Sections are padded `clamp(96px, 10vw, 160px)`.
-- **Three kinds of type:** Silkscreen for headlines, Geist for text, Geist Mono for small labels (all from Google Fonts).
-- **One accent per section** (`--a`), used for the label, the headline and a soft light at the top of the section. Green is the brand colour and the only colour buttons use.
+- **Spacing** comes from one scale: 8, 16, 24, 32, 48, 64, 96, 128, 160. Sections are padded `clamp(96px, 11vw, 160px)`.
+- **Two typefaces:** Pixelify Sans for headlines, buttons and labels; Geist for text (both from Google Fonts).
+- **One accent** (`--a`, with a neighbouring colour `--a2` for the second light). Never hard-code green.
 - **Short copy.** A headline of two to four words, one sentence under it. If something needs a paragraph, it belongs in `docs/HOW-IT-WORKS.md`.
 - Adding something means taking something else out.
 
-Motion is light: the headline rises in, sections ease in as you reach them, packets travel the two routes in the low-ping picture, the footer wordmark drifts. With "reduce motion" on it is all off. If the script fails or is switched off, the content still shows.
+With "reduce motion" on, all motion is off and the hero shows the finished scene. If the script fails or is switched off, the content still shows.
 
 ## The 3D players
 
-The two characters in the hero are real 3D built with CSS: six boxes each, every face showing its patch of a 64x64 skin. No 3D library. Their heads follow the mouse, they can be dragged round, and one waves. The skins (`media/skin-host.png`, `media/skin-friend.png`) are original pixel art painted by `scripts/gen-website-skins.py`, not Mojang's textures.
+Real 3D built with CSS, no library and no model files. Each player is six parts (head, body, arms, legs); every part is a box whose faces show their patch of a 64x64 skin, plus a second, slightly larger box for the skin's outer layer, which is what gives hair, the hood, cuffs, shoes and the headset their depth. They breathe, blink and sway; their heads follow the mouse; they can be dragged round.
+
+Moves are classes on the player (`is-wave`, `is-jump`, `is-spin`, `is-dance`, `is-sneak`, `is-cheer`, `is-walk`) with their keyframes in the styles and their lengths in `LENGTH` in the script. Clicking a player plays the next move; left alone they pick one now and then; a wave gets a wave back; hovering the hero's download button makes them cheer; choosing an accent makes the host spin.
+
+To check a move in a still picture, add `?pose=dance:0.3` to the address (the move, and how many seconds into it).
+
+The skins are original pixel art painted by `scripts/gen-website-skins.py` (not Mojang's textures): `media/skin-host-<accent>.png` for each accent, and `media/skin-friend.png`.
 
 ## Media
 
