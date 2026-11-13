@@ -8,7 +8,7 @@
       name="description"
       content="Turn your Minecraft Java world into one friends can join in a click. Invites, voice chat, mods and shared packs built in. Free and open source, for Fabric on Minecraft 1.21 to 26.3."
     />
-    <meta name="theme-color" content="#06080b" />
+    <meta name="theme-color" content="#0a1024" />
     <meta property="og:title" content="JavaHost: play with friends. No server." />
     <meta
       property="og:description"
@@ -27,19 +27,44 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;600;700&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
-    <link rel="preload" as="image" href="media/shots/home.png" />
     <script>
-      document.documentElement.classList.add("js");
+      (() => {
+        // Content waits for the page script to bring it in. If that script fails or never finishes, show everything.
+        const root = document.documentElement;
+        const giveUp = () => root.classList.contains("ok") || root.classList.toggle("js", false);
+        root.classList.add("js");
+        addEventListener("error", giveUp);
+        setTimeout(giveUp, 5000);
+      })();
     </script>
     <style>
+      /* gen:textures (drawn by tools/gen.py; original pixel art, 12x12 each) */
       :root {
-        --bg: #06080b;
-        --ink: #0c1016;
-        --line: rgba(255, 255, 255, 0.07);
-        --line-strong: rgba(255, 255, 255, 0.16);
-        --text: #eef2f6;
-        --muted: #98a3b1;
-        --faint: #5d6875;
+        --t-grass: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAUUlEQVR42mNwPV/zHxuueLUIqzgDiNDflP4fl0Z0eQZiTMWwgZCpyIYxEDIRwwZkZ2DzC7ozSbIBZCADPg9js5F0PxDrdpyhRCgSGYj1LIwNAIGTcZhdmbGSAAAAAElFTkSuQmCC");
+        --t-grass-side: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAZklEQVR42mNwPV/zHxuueLUIqzgDiNDflP4fl0Z0eQZiTMWwAYT7Y11RJEB8bGIMMAlkBfjE4BpWFIViKCxxN8EQw7ABFz48pQihAd0kbLaRZAOygQzYrMWHGYgxFdmZDPjciw0DAKTnTZqj21kKAAAAAElFTkSuQmCC");
+        --t-dirt: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAVUlEQVR42mPoj3X9jw2XuJtgFWeAMVYUhf7HpRmED08pQtVArE0M2ATx2UbQBnSDGLC5E5/HSbIBrIFQ6KDbzIDLCbgMItpJMMMYsHkWrx8IRRa60wCmoT0WCsRaEwAAAABJRU5ErkJggg==");
+        --t-stone: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAUklEQVR42mOo7Zj7HxuetWwXGKOLM8AYiTmNYIzLAAwN+DCyYQzYrMVnEwMuE3H5hygnYdiAy8N4Q4kYj6NowBXu6JoYiA1Okp0E14AvCLHZCABRG3l4a8riUAAAAABJRU5ErkJggg==");
+        --t-deep: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAUUlEQVR42mOISCr/jw3nlveBMbo4A4zh6pcExrgMwNCADyMbxoDNWnw2MeAyEZd/iHIShg24PIw3lIjxOIoGXOGOromB2OAk2UlwDfiCEJuNAJcVOlJJWD0rAAAAAElFTkSuQmCC");
+        --t-ore-g: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAY0lEQVR42mOo7Zj7HxuetWwXGKOLM8AYiTmNYIzLAAwNO/9f+297pwWvYpCBcA0gxTAN+GxiwGUSLv8wEHIzVhtweRibv/DagM1fDITCHWco4XIKulMZCDkFw9OEYhfZmSC1AP/ee6+erqmWAAAAAElFTkSuQmCC");
+        --t-ore-b: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAY0lEQVR42mOISCr/jw3nlveBMbo4A4zh6pcExrgMwNBw/tn///5zv+NVDDIQrgGkGKYBn00MuEzC5R8GQm7GagMuD2PzF14bsPmLgVC44wwlXE5BdyoDIadgeJpQ7CI7E6QWALTbRNI9LQYNAAAAAElFTkSuQmCC");
+        --t-ore-p: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAY0lEQVR42mOISCr/jw3nlveBMbo4A4zh6pcExrgMwNDw7Ob//8urP+NVDDIQrgGkGKYBn00MuEzC5R8GQm7GagMuD2PzF14bsPmLgVC44wwlXE5BdyoDIadgeJpQ7CI7E6QWAJl+RrIUEPvjAAAAAElFTkSuQmCC");
+        --t-log: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAN0lEQVR42mOoCTH/H2Wl9h9Eg/CMLGc4G5s4A800wDADLgm8NiBj+voBm82U20CUp0kOVpqGEgAq2SH30rqkSQAAAABJRU5ErkJggg==");
+        --t-leaf: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAaUlEQVR42mP42rX1Pwj/P3zrP4wNww+SZmGIMcAUwzC6AnSNDLhs2OvWgKERpIYBm4nYMMwFDNjcictpGDbAnIHuH6x+IMYGuAZszsIVAAz4ghCbTQz4rMcWPwzoAujhD5JD8TQxsYuMAWr50CxBcVjiAAAAAElFTkSuQmCC");
+        --t-plank: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAANklEQVR42mP4eLL7PymY4c7qzP/48OZmLxQ+6RpAAqRgBor8gG49Nky6Bvr6gZigJV0DqX4AANIXoBRKagvoAAAAAElFTkSuQmCC");
+        --t-roof: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAO0lEQVR42mP4f6T4PymY4es86//o+EyVwn9s4iBMugaQJCmYgWw/4HMGshzpGujnB2KcgzMe8Gog1Q8ABWCQIGdjaQoAAAAASUVORK5CYII=");
+        --t-water: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAARElEQVR42mPwn/v9PymYAUQsu/QfjonSgAtbtDwAY6I1EG0DshPRncmAzVqy/YDNZgZCniTZBnR/MGATJMsGXM4jOR4Am5Kj6CGGHi8AAAAASUVORK5CYII=");
+        --t-fall: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAQUlEQVR42mPwn/v9/7JL//+DaBC2aHkAZyOLw+QYKNaAjHFqwIWxGYShAdlJ2DBeP2AzjE6eJlYDQU9THEpkeRoAd/yklHA1SakAAAAASUVORK5CYII=");
+        --t-sand: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAUUlEQVR42mP4eG/uf2z4/+cjWMUZQMTNQ9X/cWmEYZgaBkIKsdqAyxnYbCbJBpCBDMS4n6AN+JzGgM+9RNuAzzYGbBGEzzaiQwlrxOFKDsgYAGOP65bx0W4oAAAAAElFTkSuQmCC");
+        --sky-day: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAABmCAYAAADszTAvAAAAjElEQVR42t2MsQ2DQBAEvxFXQBH04ZQenLkDukB04S7IqcAxCcFbF+xoT3rnPMHodHOjK49pr065rBhe33ahAwXCl5ipQAh+OD2LcT7ahQ4UCF9ipgIh+OH0LJ7L2S50oED4EjMVCMEPp2fx/tR2oQMFwpeYqUAIfjg9i3X7U+hAgfAlZioQgh/OrcUPvwigyeFlobsAAAAASUVORK5CYII=");
+        --sky-day-h: 816px;
+        --stars-a: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAAfklEQVR42u3csQmAMBRFUSe2dhIHcoGUYmclOMWzEMEBDBE9Z4SbH0iKpOuAm7KmVwEAAIBPSTKrAAAAAAAAfEaSQYWG8XOyCHYAv53AqAAAAAAAAAAAAAAAAFBRWTOqALyYd2YAUMm2uAvw7KnN9/QAAAAAAAAtZJ96FQC4HA0TLj3HYWTVAAAAAElFTkSuQmCC");
+        --stars-b: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAAlUlEQVR42u3bsQmAQAwF0JvY2kkcyAWuFLurBKf4Cg6gVoL33gKBnxDSpBQAAAAAAAAAAAAAAIAHss/DZ7WTRQcAAAAAAAAAAAAAALpUWwYpdM5fAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADArZykAAAAAP9VWyYpAAB0aFsdggDwRpJRCh03PxdDYAMAv3EA6DMqQeM5BHIAAAAASUVORK5CYII=");
+      }
+      /* /gen:textures */
+
+      :root {
+        --ink: #0a1024;
+        --paper: #f3faff;
         --green: #3ddc84;
         --blue: #4f9df7;
         --purple: #a77bf3;
@@ -49,8 +74,24 @@
         --display: "Silkscreen", "Pixelify Sans", ui-monospace, monospace;
         --pixel: "Pixelify Sans", ui-monospace, monospace;
         --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        --width: 1200px;
+        --width: 1320px;
         --gutter: clamp(20px, 4vw, 48px);
+        /* the page's colours, section by section: one day, from morning to night */
+        --c-how: #f3faff;
+        --c-host: #3ddc84;
+        --c-host-hills: #1fa862;
+        --c-friends: #2459c9;
+        --c-friends-bank: #4a7de6;
+        --c-ping: #f59e3b;
+        --c-ping-hills: #a8500f;
+        --c-mods: #cf3a7f;
+        --c-mods-hills: #8f1f56;
+        --c-voice: #6b46d6;
+        --c-voice-hills: #3f2799;
+        --c-more: #1c1a52;
+        --c-stats: #121338;
+        --c-get: #0c0e28;
+        --c-faq: #080a1c;
       }
       *,
       *::before,
@@ -63,8 +104,8 @@
       }
       body {
         margin: 0;
-        background: var(--bg);
-        color: var(--text);
+        background: var(--ink);
+        color: #fff;
         font: 17px/1.6 var(--body);
         -webkit-font-smoothing: antialiased;
         overflow-x: hidden;
@@ -81,16 +122,13 @@
         color: #04140b;
       }
       :focus-visible {
-        outline: 2px solid var(--a);
-        outline-offset: 3px;
+        outline: 4px solid var(--fg, #fff);
+        outline-offset: 4px;
       }
       .wrap {
         width: min(var(--width), 100% - var(--gutter) * 2);
         margin-inline: auto;
         position: relative;
-      }
-      .rule {
-        border-top: 1px solid var(--line);
       }
       svg.i {
         width: 1.2em;
@@ -99,6 +137,12 @@
         flex: none;
         shape-rendering: crispEdges;
       }
+      .art {
+        /* pixel art drawn as vectors: keep the edges hard */
+        shape-rendering: crispEdges;
+        display: block;
+        overflow: visible;
+      }
 
       /* ------------------------------------------------------------ type */
       h1,
@@ -106,95 +150,134 @@
         font-family: var(--display);
         font-weight: 700;
         text-transform: uppercase;
-        line-height: 1;
+        line-height: 1.02;
         letter-spacing: -0.09em;
         margin: 0;
       }
       h1 {
-        font-size: clamp(2.3rem, 5.6vw, 5rem);
+        font-size: clamp(2.35rem, 6.7vw, 6.2rem);
       }
       h2 {
-        font-size: clamp(1.8rem, 4vw, 3.2rem);
+        font-size: clamp(2rem, 5.2vw, 4.4rem);
+        text-shadow: 0.07em 0.07em 0 var(--deep);
       }
       h3 {
-        font: 600 1.3rem/1.2 var(--pixel);
+        font: 600 1.4rem/1.2 var(--pixel);
         margin: 0 0 8px;
       }
       p {
         margin: 0 0 14px;
       }
+      /* the word that matters sits on a slab, like a block someone just placed */
       .a {
-        color: var(--a);
+        display: inline-block;
+        padding: 0.02em 0.2em 0.1em 0.14em;
+        margin: 0.06em 0.1em 0.1em 0;
+        background: var(--slab);
+        color: var(--slab-ink);
+        text-shadow: none;
+        box-shadow:
+          0 -4px 0 0 var(--slab),
+          0 4px 0 0 var(--slab),
+          -4px 0 0 0 var(--slab),
+          4px 0 0 0 var(--slab),
+          4px 8px 0 0 var(--deep),
+          12px 8px 0 0 var(--deep),
+          8px 4px 0 0 var(--deep),
+          8px 12px 0 0 var(--deep);
       }
       .eyebrow {
         display: inline-flex;
         align-items: center;
-        gap: 10px;
-        font: 600 0.95rem var(--pixel);
+        gap: 12px;
+        font: 600 1.05rem var(--pixel);
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: var(--a);
-        margin-bottom: 18px;
+        margin-bottom: 22px;
       }
       .eyebrow::before {
         content: "";
-        width: 10px;
-        height: 10px;
-        background: var(--a);
-        box-shadow: 0 0 14px var(--a);
+        width: 12px;
+        height: 12px;
+        background: currentColor;
+        box-shadow: 16px 0 0 0 currentColor;
+        margin-right: 16px;
+        opacity: 0.9;
       }
       .lede {
-        color: var(--muted);
-        font-size: clamp(1.05rem, 1.7vw, 1.25rem);
-        max-width: 34em;
+        font: 500 clamp(1.12rem, 1.7vw, 1.35rem) / 1.5 var(--pixel);
+        max-width: 32em;
       }
 
-      /* ------------------------------------------------------------ buttons: square, with a hard pixel shadow the button presses into */
+      /* ------------------------------------------------------------ pixel edges: a stepped outline and a hard shadow, all box-shadow */
+      .btn,
+      .frame,
+      .card,
+      .chip,
+      .panel,
+      .tile,
+      .badge,
+      .pill,
+      details {
+        --p: 4px;
+        --so: 8px;
+        --bd: var(--ink);
+        --sh: var(--deep, rgba(0, 0, 0, 0.35));
+        box-shadow:
+          0 calc(var(--p) * -1) 0 0 var(--bd),
+          0 var(--p) 0 0 var(--bd),
+          calc(var(--p) * -1) 0 0 0 var(--bd),
+          var(--p) 0 0 0 var(--bd),
+          calc(var(--so) - var(--p)) var(--so) 0 0 var(--sh),
+          calc(var(--so) + var(--p)) var(--so) 0 0 var(--sh),
+          var(--so) calc(var(--so) - var(--p)) 0 0 var(--sh),
+          var(--so) calc(var(--so) + var(--p)) 0 0 var(--sh);
+      }
+
+      /* ------------------------------------------------------------ buttons: chunky, lit from above, they press into their shadow */
       .btn {
-        --shadow: rgba(255, 255, 255, 0.18);
+        --fill: #fff;
+        --so: 6px;
+        --sh: var(--ink);
+        position: relative;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 12px;
-        padding: 15px 26px;
-        font: 600 1.1rem var(--pixel);
+        padding: 14px 24px 16px;
+        font: 600 1.18rem var(--pixel);
         letter-spacing: 0.02em;
         text-decoration: none;
-        color: var(--text);
-        background: var(--ink);
-        border: 1px solid var(--line-strong);
-        box-shadow: 5px 5px 0 var(--shadow);
+        color: var(--ink);
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4)) 0 0 / 100% 4px no-repeat,
+          linear-gradient(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.16)) 0 100% / 100% 6px no-repeat,
+          var(--fill);
+        border: 0;
         cursor: pointer;
         transition:
-          transform 0.12s ease,
-          box-shadow 0.12s ease,
-          background 0.2s ease;
+          transform 0.1s steps(2),
+          box-shadow 0.1s steps(2);
       }
       .btn:hover {
+        --so: 8px;
         transform: translate(-2px, -2px);
-        box-shadow: 7px 7px 0 var(--shadow);
-        background: #121821;
       }
       .btn:active {
+        --so: 2px;
         transform: translate(4px, 4px);
-        box-shadow: 1px 1px 0 var(--shadow);
       }
       .btn.primary {
-        --shadow: #1c7a47;
-        background: var(--green);
-        border-color: var(--green);
+        --fill: var(--green);
         color: #04140b;
       }
-      .btn.primary:hover {
-        background: #62eda0;
-      }
       .btn.small {
-        padding: 9px 16px;
+        --so: 4px;
+        padding: 8px 14px 10px;
         font-size: 1rem;
-        box-shadow: 3px 3px 0 var(--shadow);
       }
       .btn.small:hover {
-        box-shadow: 5px 5px 0 var(--shadow);
+        --so: 6px;
       }
 
       /* ------------------------------------------------------------ top bar */
@@ -202,15 +285,13 @@
         position: sticky;
         top: 0;
         z-index: 50;
-        background: rgba(6, 8, 11, 0.78);
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
-        border-bottom: 1px solid var(--line);
+        background: var(--ink);
+        box-shadow: 0 4px 0 rgba(4, 8, 24, 0.45);
       }
       .nav .wrap {
         display: flex;
         align-items: center;
-        gap: 26px;
+        gap: 28px;
         height: 64px;
       }
       .brand {
@@ -222,41 +303,40 @@
         text-transform: uppercase;
         text-decoration: none;
         margin-right: auto;
+        color: #fff;
       }
       .logo {
         width: 30px;
         height: 30px;
         color: var(--green);
-        filter: drop-shadow(0 0 12px rgba(61, 220, 132, 0.6));
       }
       .logo .ink {
         fill: #04140b;
       }
       .nav-links {
         display: flex;
-        gap: 26px;
+        gap: 28px;
       }
       .nav-links a {
         position: relative;
-        color: var(--muted);
+        color: #aab6d3;
         text-decoration: none;
-        font: 500 1.02rem var(--pixel);
-        transition: color 0.15s ease;
+        font: 500 1.05rem var(--pixel);
       }
       .nav-links a::after {
         content: "";
         position: absolute;
         left: 0;
         right: 0;
-        bottom: -6px;
-        height: 2px;
+        bottom: -8px;
+        height: 4px;
         background: var(--green);
         transform: scaleX(0);
         transform-origin: left;
-        transition: transform 0.2s ease;
+        transition: transform 0.2s steps(4);
       }
       .nav-links a:hover {
-        color: var(--text);
+        color: #fff;
       }
       .nav-links a:hover::after {
         transform: scaleX(1);
@@ -266,50 +346,255 @@
         position: absolute;
         left: 0;
         right: 0;
-        bottom: -1px;
-        height: 3px;
-        background: var(--green);
-        box-shadow: 0 0 12px var(--green);
+        bottom: -4px;
+        height: 4px;
+        background: repeating-linear-gradient(90deg, var(--green) 0 20px, #1c9a57 20px 24px);
         transform: scaleX(0);
         transform-origin: left;
       }
 
-      /* ------------------------------------------------------------ hero */
-      .hero {
+      /* ------------------------------------------------------------ bands: every section has a colour of its own, and the
+         one before it dissolves into it through three rows of dither */
+      .band {
         position: relative;
-        overflow: hidden;
         isolation: isolate;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--fg);
+        --grid: rgba(255, 255, 255, 0.07);
+        --slab: #fff;
+        --slab-ink: var(--bg);
+        --mut: var(--fg);
       }
-      .hero::before {
-        /* the grid the page is drawn on, fading out toward the edges */
+      .band::before {
         content: "";
+        position: absolute;
+        z-index: -1;
+        inset: 0;
+        pointer-events: none;
+        background:
+          conic-gradient(transparent 25%, var(--prev) 0) 0 0 / 16px 16px repeat-x,
+          repeating-conic-gradient(var(--prev) 0 25%, transparent 0 50%) 0 16px / 16px 16px repeat-x,
+          conic-gradient(var(--prev) 25%, transparent 0) 0 32px / 16px 16px repeat-x,
+          linear-gradient(var(--grid) 2px, transparent 2px) 0 62px / 100% 64px,
+          linear-gradient(90deg, var(--grid) 2px, transparent 2px) calc(50% + 31px) 0 / 64px 100%;
+      }
+      .pad {
+        padding-block: clamp(84px, 10vw, 150px);
+      }
+      .head {
+        max-width: 900px;
+        margin-bottom: clamp(40px, 5vw, 72px);
+      }
+      .head p {
+        margin: 22px 0 0;
+      }
+      .band p {
+        color: var(--mut);
+      }
+      .decor {
         position: absolute;
         inset: 0;
-        z-index: -2;
-        background:
-          linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 100% 64px,
-          linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 64px 100%;
-        mask-image: radial-gradient(120% 90% at 70% 20%, #000 20%, transparent 75%);
-        -webkit-mask-image: radial-gradient(120% 90% at 70% 20%, #000 20%, transparent 75%);
+        z-index: -1;
+        pointer-events: none;
+        overflow: hidden;
       }
-      .hero::after {
-        content: "";
+      .decor > * {
         position: absolute;
-        z-index: -3;
-        width: 90vw;
-        height: 90vw;
-        max-width: 1100px;
-        max-height: 1100px;
-        right: -18vw;
-        top: -30vw;
-        background: radial-gradient(closest-side, rgba(61, 220, 132, 0.28), transparent);
-        animation: breathe 9s ease-in-out infinite;
       }
-      @keyframes breathe {
-        50% {
-          transform: scale(1.12) translate(-3%, 4%);
-          opacity: 0.75;
+      /* far things move less than near things while the page scrolls (the script sets --sy on each band) */
+      [data-par] {
+        transform: translate3d(0, calc(var(--sy, 0) * var(--par) * 1px), 0);
+      }
+      .cloud {
+        color: #fff;
+        height: auto;
+      }
+      .drift {
+        animation: drift var(--t, 60s) linear infinite alternate;
+      }
+      @keyframes drift {
+        to {
+          translate: var(--dx, 80px) 0;
         }
+      }
+      .stars {
+        inset: 0;
+        background: var(--stars-a) 0 0 / 384px 384px;
+        image-rendering: pixelated;
+        opacity: var(--o, 1);
+      }
+      .stars.twinkle {
+        background: var(--stars-b) 150px 90px / 512px 512px;
+        animation: twinkle 3.2s steps(4) infinite alternate;
+      }
+      @keyframes twinkle {
+        from {
+          opacity: 0;
+        }
+      }
+
+      /* things come in as you reach them */
+      .js [data-reveal] {
+        opacity: 0;
+        transform: translateY(40px);
+        transition:
+          opacity 0.5s steps(5),
+          transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+        transition-delay: var(--d, 0s);
+      }
+      .js [data-reveal="left"] {
+        transform: translateX(-56px);
+      }
+      .js [data-reveal="right"] {
+        transform: translateX(56px);
+      }
+      .js [data-reveal="zoom"] {
+        transform: scale(0.92);
+      }
+      .js [data-reveal].in {
+        opacity: 1;
+        transform: none;
+      }
+
+      /* ------------------------------------------------------------ cubes: little blocks that carry an icon. No perspective, so
+         they sit in the page the way isometric pixel art does. */
+      .cube {
+        --s: 56px;
+        --c: var(--a);
+        position: relative;
+        display: block;
+        flex: none;
+        width: var(--s);
+        height: var(--s);
+        transform-style: preserve-3d;
+        transform: rotateX(-24deg) rotateY(-38deg);
+      }
+      .cube > i {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: var(--c);
+        color: #fff;
+        box-shadow:
+          inset calc(var(--s) / 14) calc(var(--s) / 14) 0 0 rgba(255, 255, 255, 0.28),
+          inset calc(var(--s) / -14) calc(var(--s) / -14) 0 0 rgba(0, 0, 0, 0.2);
+      }
+      .cube > .t {
+        transform: rotateX(90deg) translateZ(calc(var(--s) / 2));
+        background: color-mix(in srgb, var(--c), #fff 28%);
+      }
+      .cube > .f {
+        transform: translateZ(calc(var(--s) / 2));
+      }
+      .cube > .r {
+        transform: rotateY(90deg) translateZ(calc(var(--s) / 2));
+        background: color-mix(in srgb, var(--c), #000 30%);
+      }
+      .cube svg {
+        width: 58%;
+        height: 58%;
+        fill: currentColor;
+        shape-rendering: crispEdges;
+      }
+      .cube.grass > i {
+        box-shadow: none;
+        background: var(--t-grass-side) 0 0 / 100% 100%;
+        image-rendering: pixelated;
+      }
+      .cube.grass > .t {
+        background: var(--t-grass) 0 0 / 100% 100%;
+      }
+      .cube.grass > .r {
+        background:
+          linear-gradient(rgba(10, 16, 36, 0.3), rgba(10, 16, 36, 0.3)),
+          var(--t-grass-side) 0 0 / 100% 100%;
+      }
+      .cube.stone > i {
+        box-shadow: none;
+        background: var(--t-stone) 0 0 / 100% 100%;
+        image-rendering: pixelated;
+      }
+      .cube.stone > .r {
+        background:
+          linear-gradient(rgba(10, 16, 36, 0.3), rgba(10, 16, 36, 0.3)),
+          var(--t-stone) 0 0 / 100% 100%;
+      }
+      .bob {
+        animation: bob var(--t, 5s) ease-in-out infinite;
+        animation-delay: var(--dl, 0s);
+      }
+      @keyframes bob {
+        50% {
+          translate: 0 -10px;
+        }
+      }
+      /* blocks drop into place when their part of the page arrives */
+      .js [data-build] .cube,
+      .js [data-build] .drop {
+        opacity: 0;
+        translate: 0 -70px;
+        transition:
+          opacity 0.2s steps(2),
+          translate 0.5s cubic-bezier(0.3, 1.5, 0.5, 1);
+        transition-delay: calc(var(--i, 0) * 110ms + 150ms);
+      }
+      .js [data-build].in .cube,
+      .js [data-build].in .drop {
+        opacity: 1;
+        translate: 0 0;
+      }
+
+      /* ------------------------------------------------------------ hero: morning. A banded, dithered sky; the island floats in it. */
+      .hero {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        background: #1d63de;
+        --deep: #0d3a94;
+        --fg: #fff;
+        --slab: var(--green);
+        --slab-ink: #04140b;
+      }
+      .sky {
+        position: absolute;
+        inset: 0;
+        z-index: -3;
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.06) 2px, transparent 2px) 0 62px / 100% 64px,
+          linear-gradient(90deg, rgba(255, 255, 255, 0.06) 2px, transparent 2px) calc(50% + 31px) 0 / 64px 100%,
+          var(--sky-day) 0 100% / 32px var(--sky-day-h) repeat-x;
+        image-rendering: pixelated;
+      }
+      .hero .decor {
+        z-index: -2;
+      }
+      .sun {
+        right: 3%;
+        top: 5%;
+        width: 152px;
+        height: 152px;
+      }
+      .sun .art {
+        width: 100%;
+        height: 100%;
+        animation: sun 2.4s steps(2) infinite;
+      }
+      @keyframes sun {
+        50% {
+          scale: 1.06;
+        }
+      }
+      .bank {
+        left: 50%;
+        bottom: -32px;
+        display: flex;
+        width: 4800px;
+        margin-left: -2400px;
+      }
+      .bank .art {
+        width: 2400px;
       }
       #motes {
         position: absolute;
@@ -321,28 +606,32 @@
       }
       .hero .wrap {
         display: grid;
-        grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
         align-items: center;
-        gap: clamp(24px, 4vw, 56px);
-        min-height: min(860px, 100vh - 64px);
-        padding-block: clamp(48px, 7vw, 96px);
+        gap: clamp(16px, 2vw, 32px);
+        min-height: min(880px, 100vh - 64px);
+        padding-block: clamp(40px, 5vw, 72px) clamp(130px, 13vw, 190px);
+      }
+      .hero-copy {
+        position: relative;
+        z-index: 2;
       }
       .badge {
+        --so: 4px;
+        --sh: var(--deep);
         display: inline-flex;
         align-items: center;
         gap: 10px;
-        padding: 7px 14px;
-        border: 1px solid var(--line-strong);
-        background: rgba(12, 16, 22, 0.8);
-        color: var(--muted);
-        font: 500 0.95rem var(--pixel);
-        margin-bottom: 28px;
+        padding: 6px 14px 7px;
+        background: var(--ink);
+        color: #dbe6ff;
+        font: 500 1rem var(--pixel);
+        margin: 4px 4px 30px;
       }
       .badge .dot {
-        width: 9px;
-        height: 9px;
+        width: 10px;
+        height: 10px;
         background: var(--green);
-        box-shadow: 0 0 12px var(--green);
         animation: blink 1.6s steps(2) infinite;
       }
       @keyframes blink {
@@ -350,18 +639,24 @@
           opacity: 0.25;
         }
       }
+      .hero h1 {
+        color: #fff;
+        text-shadow: 0.07em 0.07em 0 var(--deep);
+      }
       .hero h1 .line {
         display: block;
-        overflow: hidden;
-        padding-bottom: 0.06em;
+        overflow-x: visible;
+        overflow-y: clip;
+        padding: 0.05em 0.2em 0.16em 0.06em;
+        margin: -0.05em -0.2em -0.06em -0.06em;
         white-space: nowrap;
       }
       .hero h1 .line > span {
         display: inline-block;
       }
       .js .hero h1 .line > span {
-        transform: translateY(110%);
-        animation: rise 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        transform: translateY(125%);
+        animation: rise 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         animation-delay: calc(var(--n) * 0.12s + 0.1s);
       }
       @keyframes rise {
@@ -369,165 +664,415 @@
           transform: none;
         }
       }
+      .hero h1 .a {
+        margin: 0.08em 0 0 4px;
+        box-shadow:
+          0 -4px 0 0 var(--slab),
+          0 4px 0 0 var(--slab),
+          -4px 0 0 0 var(--slab),
+          4px 0 0 0 var(--slab),
+          4px 8px 0 0 var(--ink),
+          12px 8px 0 0 var(--ink),
+          8px 4px 0 0 var(--ink),
+          8px 12px 0 0 var(--ink);
+      }
       .cursor {
         display: inline-block;
-        width: 0.5em;
-        height: 0.78em;
-        margin-left: 0.08em;
-        background: var(--green);
-        box-shadow: 0 0 24px var(--green);
+        width: 0.42em;
+        height: 0.7em;
+        margin-left: 0.1em;
+        background: currentColor;
         animation: blink 1s steps(2) infinite;
       }
       .hero .lede {
-        margin: 26px 0 32px;
+        max-width: 27em;
+        margin: 30px 0 30px;
+        color: #fff;
+        text-shadow: 2px 2px 0 rgba(13, 58, 148, 0.7);
       }
       .actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 18px;
-        margin-bottom: 26px;
+        gap: 22px;
+        margin-bottom: 30px;
       }
       .trust {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px 22px;
-        color: var(--muted);
-        font: 500 0.98rem var(--pixel);
+        gap: 10px 24px;
+        font: 600 1.05rem var(--pixel);
         margin: 0;
         padding: 0;
         list-style: none;
+        text-shadow: 2px 2px 0 rgba(13, 58, 148, 0.7);
       }
       .trust li {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
       }
       .trust svg {
+        width: 22px;
+        height: 22px;
+        padding: 3px;
+        background: var(--ink);
         color: var(--green);
       }
 
-      /* The menu, standing in space, turning a little toward the mouse, with live notes floating around it. */
+      /* ------------------------------------------------------------ the island: a voxel world in CSS 3D (built by the script).
+         --u is one pixel of it: a block is 12u, a player 32u tall. Everything scales with that one number. */
       .stage {
         position: relative;
-        perspective: 1600px;
-        --rx: 0deg;
-        --ry: 0deg;
+        align-self: stretch;
+        min-height: 560px;
+        perspective: 1700px;
+        perspective-origin: 50% 40%;
+        --u: 3.8px;
+        touch-action: pan-y;
+        user-select: none;
+        -webkit-user-select: none;
       }
-      .window {
-        position: relative;
-        border: 1px solid var(--line-strong);
-        background: #0f141b;
-        box-shadow:
-          0 50px 140px -30px color-mix(in srgb, var(--a) 55%, transparent),
-          0 30px 70px -20px #000;
-      }
-      .window::before {
-        /* a title bar, so it reads as the game's window */
-        content: "";
-        display: block;
-        height: 26px;
-        border-bottom: 1px solid var(--line);
-        background:
-          radial-gradient(circle at 16px 13px, #ef5350 5px, transparent 5.5px), radial-gradient(circle at 34px 13px, #f2b33d 5px, transparent 5.5px),
-          radial-gradient(circle at 52px 13px, #3ddc84 5px, transparent 5.5px), #0a0e13;
-      }
-      .window img {
-        width: 100%;
+      .stage .fallback {
+        /* shown only when the script could not build the island */
+        position: absolute;
+        left: 0;
+        top: 50%;
+        left: 8%;
+        width: 96%;
         height: auto;
+        translate: 0 -50%;
+        box-shadow:
+          0 0 0 4px var(--ink),
+          12px 12px 0 4px var(--deep);
       }
-      .stage .window {
-        width: 128%;
-        max-width: none;
-        transform: rotateY(calc(-13deg + var(--ry))) rotateX(calc(5deg + var(--rx)));
-        transform-origin: 0 50%;
-        transition: transform 0.25s ease-out;
-        animation: float 7s ease-in-out infinite;
+      .js .stage:not(.plain) .fallback {
+        display: none;
       }
-      @keyframes float {
+      /* the players and the notes around them are drawn by the script: without it they step aside */
+      html:not(.js) .player,
+      html:not(.js) .perch,
+      html:not(.js) .chip,
+      html:not(.js) .floaty,
+      .stage.plain .chip,
+      .stage.plain .floaty {
+        display: none;
+      }
+      .floaty,
+      .island,
+      .island .grp {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 0;
+        height: 0;
+        transform-style: preserve-3d;
+      }
+      .floaty {
+        left: 55%;
+        top: 57%;
+        animation: hover 7s ease-in-out infinite;
+      }
+      @keyframes hover {
         50% {
-          translate: 0 -10px;
+          transform: translateY(-14px);
         }
       }
+      .island {
+        transform: rotateX(-27deg) rotateY(-36deg);
+        cursor: grab;
+      }
+      .island:active {
+        cursor: grabbing;
+      }
+      .vf {
+        position: absolute;
+        left: 0;
+        top: 0;
+        transform-origin: 0 0;
+        background-size: calc(var(--u) * 12) calc(var(--u) * 12);
+        image-rendering: pixelated;
+        --shade: transparent;
+      }
+      .vf.f {
+        --shade: rgba(13, 34, 92, 0.16);
+      }
+      .vf.r {
+        --shade: rgba(13, 34, 92, 0.4);
+      }
+      .m-grass {
+        background-image: linear-gradient(var(--shade), var(--shade)), var(--t-grass-side);
+      }
+      .m-grass.t {
+        background-image: var(--t-grass);
+      }
+      .m-sand {
+        background-image: linear-gradient(var(--shade), var(--shade)), var(--t-grass-side);
+      }
+      .m-sand.t {
+        background-image: var(--t-sand);
+      }
+      .m-dirt {
+        background-image: linear-gradient(var(--shade), var(--shade)), var(--t-dirt);
+      }
+      .m-stone {
+        background-image: linear-gradient(var(--shade), var(--shade)), var(--t-stone);
+      }
+      .m-deep {
+        background-image: linear-gradient(var(--shade), var(--shade)), var(--t-deep);
+      }
+      .m-ore-g {
+        background-image: linear-gradient(var(--shade), var(--shade)), var(--t-ore-g);
+      }
+      .m-ore-b {
+        background-image: linear-gradient(var(--shade), var(--shade)), var(--t-ore-b);
+      }
+      .m-ore-p {
+        background-image: linear-gradient(var(--shade), var(--shade)), var(--t-ore-p);
+      }
+      .m-log {
+        background-image: linear-gradient(var(--shade), var(--shade)), var(--t-log);
+      }
+      .m-leaf {
+        background-image: linear-gradient(var(--shade), var(--shade)), var(--t-leaf);
+      }
+      .m-plank {
+        background-image: linear-gradient(var(--shade), var(--shade)), var(--t-plank);
+      }
+      .m-roof {
+        background-image: linear-gradient(var(--shade), var(--shade)), var(--t-roof);
+      }
+      .m-water {
+        background-image: linear-gradient(var(--shade), var(--shade)), var(--t-water);
+      }
+      .m-water.t {
+        animation: shimmer 2.4s steps(2) infinite;
+      }
+      @keyframes shimmer {
+        50% {
+          background-position: calc(var(--u) * 2) calc(var(--u) * 1);
+        }
+      }
+      /* plain colours for the small things */
+      .vf.flat {
+        background-image: linear-gradient(var(--shade), var(--shade));
+        background-color: var(--c);
+      }
+      .fall {
+        overflow: hidden;
+        -webkit-mask-image: linear-gradient(#000 70%, transparent);
+        mask-image: linear-gradient(#000 70%, transparent);
+      }
+      .fall i {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(var(--u) * -24);
+        bottom: 0;
+        background: linear-gradient(var(--shade), var(--shade)), var(--t-fall);
+        background-size: calc(var(--u) * 12) calc(var(--u) * 12);
+        animation: pour 0.9s linear infinite;
+      }
+      @keyframes pour {
+        to {
+          transform: translateY(calc(var(--u) * 24));
+        }
+      }
+      .vf.puffc.f {
+        --shade: rgba(110, 170, 250, 0.2);
+      }
+      .vf.puffc.r {
+        --shade: rgba(80, 140, 235, 0.36);
+      }
+      .vf.win {
+        box-shadow: 0 0 0 calc(var(--u) * 1) #7c5437;
+      }
+      .glow {
+        box-shadow: 0 0 calc(var(--u) * 6) calc(var(--u) * 1) rgba(255, 229, 138, 0.55);
+      }
+      .frame-a,
+      .frame-b {
+        animation: frame-a 0.5s steps(1) infinite;
+      }
+      .frame-b {
+        animation-name: frame-b;
+        opacity: 0;
+      }
+      @keyframes frame-a {
+        50% {
+          opacity: 0;
+        }
+      }
+      @keyframes frame-b {
+        50% {
+          opacity: 1;
+        }
+      }
+      .bb {
+        /* always faces the camera: the script keeps undoing the island's turn */
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 0;
+        height: 0;
+        transform: rotateY(36deg) rotateX(27deg);
+      }
+      .puff {
+        position: absolute;
+        left: calc(var(--u) * -2.5);
+        top: calc(var(--u) * -5);
+        width: calc(var(--u) * 5);
+        height: calc(var(--u) * 5);
+        background: #fff;
+        opacity: 0;
+        animation: puff 3.6s steps(12) infinite;
+        animation-delay: var(--dl, 0s);
+      }
+      @keyframes puff {
+        0% {
+          opacity: 0.9;
+          transform: none;
+        }
+        100% {
+          opacity: 0;
+          transform: translate(calc(var(--u) * 10), calc(var(--u) * -34)) scale(1.8);
+        }
+      }
+      .flag {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: calc(var(--u) * 16);
+        height: calc(var(--u) * 11);
+        background: var(--green);
+        box-shadow: inset 0 calc(var(--u) * -2) 0 rgba(0, 0, 0, 0.18);
+        transform-origin: 0 50%;
+        animation: flag 1.6s steps(6) infinite alternate;
+        display: grid;
+        place-items: center;
+      }
+      .flag svg {
+        width: calc(var(--u) * 8);
+        height: calc(var(--u) * 8);
+        color: var(--green);
+      }
+      @keyframes flag {
+        from {
+          transform: skewY(-7deg);
+        }
+        to {
+          transform: skewY(7deg) scaleX(0.94);
+        }
+      }
+      .island .grp.sat {
+        animation: sat var(--t, 6s) ease-in-out infinite;
+        animation-delay: var(--dl, 0s);
+      }
+      @keyframes sat {
+        50% {
+          translate: 0 calc(var(--u) * -4);
+        }
+      }
+      .island .grp.puffy {
+        animation: puffy var(--t, 26s) ease-in-out infinite alternate;
+      }
+      @keyframes puffy {
+        to {
+          translate: calc(var(--u) * 8) 0 calc(var(--u) * -4);
+        }
+      }
+      /* The island builds itself, layer by layer, when the page opens: each strip of blocks drops into place. */
+      .js .island.building .vf {
+        animation: place 0.5s cubic-bezier(0.3, 1.3, 0.5, 1) backwards;
+      }
+      .js .island.building .m-water.t {
+        animation:
+          place 0.5s cubic-bezier(0.3, 1.3, 0.5, 1) backwards,
+          shimmer 2.4s steps(2) infinite;
+      }
+      @keyframes place {
+        from {
+          opacity: 0;
+          translate: 0 calc(var(--u) * -34);
+        }
+      }
+      .js .island.building .player {
+        animation: land 0.75s cubic-bezier(0.4, 0, 0.8, 0.6) 1.5s backwards;
+      }
+      .js .island.building .player.friend {
+        animation-delay: 1.85s;
+      }
+      @keyframes land {
+        from {
+          translate: 0 calc(var(--u) * -190);
+        }
+      }
+
+      /* notes from the game, pinned around the island */
       .chip {
+        --so: 6px;
+        --sh: rgba(8, 24, 80, 0.55);
         position: absolute;
         z-index: 2;
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 10px 14px;
-        border: 1px solid var(--line-strong);
-        background: rgba(10, 14, 19, 0.94);
-        box-shadow: 0 18px 40px -12px #000;
-        font: 500 0.98rem var(--pixel);
+        gap: 12px;
+        padding: 9px 14px 10px;
+        background: var(--ink);
+        color: #fff;
+        font: 500 1.02rem/1.25 var(--pixel);
         white-space: nowrap;
-        animation: bob 5s ease-in-out infinite;
+        animation: chip 5s ease-in-out infinite;
       }
-      .chip small {
-        display: block;
-        color: var(--muted);
-        font-size: 0.85rem;
-      }
-      .chip .face {
-        width: 30px;
-        height: 30px;
-        background: var(--c, var(--green));
-        box-shadow:
-          inset 0 -10px 0 rgba(0, 0, 0, 0.25),
-          inset 6px 10px 0 -2px transparent;
-        position: relative;
-      }
-      .chip .face::before,
-      .chip .face::after {
-        content: "";
-        position: absolute;
-        top: 12px;
-        width: 5px;
-        height: 5px;
-        background: #1b1208;
-      }
-      .chip .face::before {
-        left: 6px;
-      }
-      .chip .face::after {
-        right: 6px;
-      }
-      .chip .go {
-        padding: 4px 10px;
-        background: var(--green);
-        color: #04140b;
-        font-weight: 600;
-      }
-      .chip.one {
-        left: -7%;
-        top: 9%;
-        animation-delay: -1s;
-      }
-      .chip.two {
-        right: -6%;
-        top: 47%;
-        animation-delay: -2.5s;
-      }
-      .chip.three {
-        right: 2%;
-        bottom: -7%;
-        animation-delay: -4s;
-      }
-      @keyframes bob {
+      @keyframes chip {
         50% {
           transform: translateY(-9px);
         }
+      }
+      .chip small {
+        display: block;
+        color: #9fb0d6;
+        font-size: 0.88rem;
+      }
+      .chip .mug {
+        width: 32px;
+        height: 32px;
+        background: var(--skin) -32px -32px / 256px 256px;
+        image-rendering: pixelated;
+      }
+      .chip .go {
+        padding: 3px 10px 4px;
+        background: var(--green);
+        color: #04140b;
+        font-weight: 600;
+        box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18);
+      }
+      .chip.one {
+        left: -11%;
+        top: 1%;
+        animation-delay: -1s;
+      }
+      .chip.two {
+        right: -5%;
+        bottom: 15%;
+        animation-delay: -2.5s;
+      }
+      .chip.three {
+        left: -3%;
+        bottom: 12%;
+        animation-delay: -4s;
       }
       .bars {
         display: inline-flex;
         align-items: flex-end;
         gap: 3px;
-        height: 18px;
+        height: 20px;
       }
       .bars i {
         width: 4px;
-        height: 12px;
+        height: 20px;
         background: var(--purple);
-        animation: talk 0.9s ease-in-out infinite;
+        transform-origin: 50% 100%;
+        animation: talk 0.9s steps(4) infinite;
       }
       .bars i:nth-child(2) {
         animation-delay: -0.3s;
@@ -541,26 +1086,16 @@
       @keyframes talk {
         0%,
         100% {
-          height: 4px;
+          transform: scaleY(0.25);
         }
         50% {
-          height: 18px;
+          transform: scaleY(1);
         }
       }
 
       /* ------------------------------------------------------------ the players: real 3D, built from boxes that wear a skin */
-      .cast {
-        position: absolute;
-        left: -12%;
-        bottom: -15%;
-        z-index: 3;
-        display: flex;
-        align-items: flex-end;
-        pointer-events: none;
-      }
       .player {
-        --u: 8px;
-        --c: var(--green);
+        --u: 5px;
         position: relative;
         width: calc(var(--u) * 16);
         height: calc(var(--u) * 32);
@@ -569,41 +1104,42 @@
         cursor: grab;
         touch-action: pan-y;
         user-select: none;
+        -webkit-user-select: none;
       }
       .player:active {
         cursor: grabbing;
       }
-      .player.friend {
-        --u: 6.5px;
-        --c: var(--blue);
-        margin-left: calc(var(--u) * -2);
-        margin-bottom: calc(var(--u) * 3);
-        z-index: -1;
-      }
       .player::after {
-        /* the pool of light they stand in */
+        /* the shadow under their feet */
         content: "";
         position: absolute;
         z-index: -1;
         left: 50%;
-        bottom: calc(var(--u) * -2.6);
-        width: 170%;
-        height: calc(var(--u) * 6);
-        transform: translateX(-50%);
-        background:
-          radial-gradient(closest-side, rgba(0, 0, 0, 0.75) 0 28%, transparent 62%), radial-gradient(closest-side, color-mix(in srgb, var(--c) 70%, transparent), transparent);
+        bottom: calc(var(--u) * -1.5);
+        width: calc(var(--u) * 14);
+        height: calc(var(--u) * 3);
+        margin-left: calc(var(--u) * -7);
+        background: rgba(4, 8, 24, 0.28);
       }
       .player .tag {
         position: absolute;
         left: 50%;
-        top: calc(var(--u) * -4.2);
-        transform: translateX(-50%);
-        padding: 2px 9px;
-        background: rgba(0, 0, 0, 0.6);
-        color: #fff;
-        font: 500 0.88rem var(--pixel);
-        white-space: nowrap;
+        top: calc(var(--u) * -2.5);
+        width: 0;
+        height: 0;
         pointer-events: none;
+      }
+      .player .tag b {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        transform: translateX(-50%);
+        padding: 2px 9px 3px;
+        background: rgba(4, 8, 24, 0.72);
+        color: #fff;
+        font: 500 0.92rem var(--pixel);
+        white-space: nowrap;
+        text-shadow: none;
       }
       .player .turn,
       .player .sway,
@@ -687,6 +1223,15 @@
           transform: rotateZ(-132deg);
         }
       }
+      /* a little hop when you click them */
+      .player.hop .sway {
+        animation: hop 0.5s cubic-bezier(0.3, 0, 0.5, 1);
+      }
+      @keyframes hop {
+        40% {
+          transform: translateY(calc(var(--u) * -7));
+        }
+      }
       /* while the page scrolls they walk on the spot */
       .player.walking .legR,
       .player.walking .armL {
@@ -712,44 +1257,241 @@
           transform: rotateX(30deg);
         }
       }
-      /* one more, standing on top of the download box */
-      .panel {
+      /* sitting down, for the campfire at the end of the page */
+      .player.sitting .legR,
+      .player.sitting .legL {
+        animation: none;
+        transform: rotateX(86deg);
+      }
+      .player.sitting .armR {
+        animation: none;
+        transform: rotateX(34deg) rotateZ(4deg);
+      }
+      .player.sitting .armL {
+        animation: none;
+        transform: rotateX(34deg) rotateZ(-4deg);
+      }
+      .player.sitting .turn {
+        translate: 0 calc(var(--u) * 7.5);
+      }
+      /* on the island they are part of its 3D space instead of having a camera of their own */
+      .island .player {
+        --u: inherit;
+        --tilt: 0deg;
+        position: absolute;
+        left: 0;
+        top: 0;
+        margin: 0;
+        perspective: none;
+        transform-style: preserve-3d;
+      }
+      .island .player::after {
+        bottom: auto;
+        top: 100%;
+        height: calc(var(--u) * 10);
+        margin-top: calc(var(--u) * -5);
+        transform: translateY(calc(var(--u) * -0.3)) rotateX(90deg);
+        background: rgba(13, 34, 92, 0.3);
+      }
+      .island .player .tag {
+        transform: rotateY(36deg) rotateX(27deg);
+      }
+
+      /* ------------------------------------------------------------ screenshots: the game's window, with a pixel frame */
+      .frame {
+        --so: 14px;
+        position: relative;
+        margin: 0;
+        background: var(--ink);
+      }
+      .frame .bar {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        height: 34px;
+        padding: 0 12px;
+        color: #8d9bc0;
+        font: 500 0.95rem var(--pixel);
+        letter-spacing: 0.04em;
+      }
+      .frame .bar i {
+        width: 10px;
+        height: 10px;
+        background: #2a335a;
+      }
+      .frame .bar i:first-child {
+        background: var(--a);
+      }
+      .frame .bar b {
+        font-weight: 500;
+        margin-left: 8px;
+      }
+      .frame img {
+        width: 100%;
+        height: auto;
+      }
+      .shot .frame {
+        transition:
+          transform 0.12s steps(2),
+          box-shadow 0.12s steps(2);
+      }
+      .shot .frame:hover {
+        --so: 20px;
+        transform: translate(-6px, -6px);
+      }
+      .shot {
         position: relative;
       }
-      .get .player {
+      /* a ledge of ground for a player to stand on, side-on like a platform game */
+      .perch {
         position: absolute;
-        right: 34px;
-        bottom: calc(100% - 1px);
-        margin: 0;
-        z-index: 1;
-        --u: 5px;
+        z-index: 3;
+        bottom: -74px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        pointer-events: none;
       }
-      .get .player::after {
+      .perch .ledge {
+        --t: 60px;
+        position: relative;
+        width: calc(var(--t) * var(--n, 3));
+        height: var(--t);
+        margin-top: -2px;
+        background: var(--t-grass-side) 0 0 / var(--t) var(--t) repeat-x;
+        image-rendering: pixelated;
+      }
+      .perch .ledge::after {
+        content: "";
+        position: absolute;
+        left: calc(var(--t) / 2);
+        right: calc(var(--t) / 2);
+        top: 100%;
+        height: calc(var(--t) / 3);
+        background:
+          linear-gradient(rgba(10, 16, 36, 0.25), rgba(10, 16, 36, 0.25)),
+          var(--t-dirt) 0 0 / var(--t) var(--t) repeat-x;
+      }
+      .perch .player::after {
         display: none;
+      }
+      .perch.left {
+        left: -118px;
+      }
+      .perch.right {
+        right: -118px;
+      }
+
+      /* ------------------------------------------------------------ how it works: up in the clouds */
+      .how {
+        --bg: var(--c-how);
+        --prev: var(--c-how);
+        --fg: var(--ink);
+        --mut: #3d4b6b;
+        --deep: #a9d3fb;
+        --grid: rgba(36, 89, 201, 0.07);
+        --slab: var(--green);
+        --slab-ink: #04140b;
+      }
+      .how .a {
+        box-shadow:
+          0 -4px 0 0 var(--slab),
+          0 4px 0 0 var(--slab),
+          -4px 0 0 0 var(--slab),
+          4px 0 0 0 var(--slab),
+          4px 8px 0 0 var(--ink),
+          12px 8px 0 0 var(--ink),
+          8px 4px 0 0 var(--ink),
+          8px 12px 0 0 var(--ink);
+      }
+      .how .cols {
+        display: grid;
+        grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+        gap: clamp(32px, 5vw, 80px);
+        align-items: center;
+      }
+      .steps {
+        display: grid;
+        gap: 30px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        counter-reset: step;
+      }
+      .card {
+        --sh: #a9d3fb;
+        --so: 10px;
+        position: relative;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 6px 22px;
+        align-items: start;
+        padding: 22px 24px 22px 22px;
+        background: var(--ink);
+        color: #fff;
+        transition:
+          transform 0.12s steps(2),
+          box-shadow 0.12s steps(2);
+      }
+      .card:hover {
+        --so: 14px;
+        transform: translate(-4px, -4px);
+      }
+      .card .num {
+        grid-row: span 2;
+        font: 700 3.3rem/1 var(--display);
+        letter-spacing: -0.1em;
+        color: var(--a);
+        padding-right: 6px;
+      }
+      .card h3 {
+        margin: 2px 0 0;
+      }
+      .card p {
+        margin: 0;
+        color: #b9c5e3;
+        font-size: 1rem;
+        line-height: 1.5;
+      }
+      .card .cube {
+        position: absolute;
+        right: 18px;
+        top: -30px;
+        --s: 44px;
       }
 
       /* ------------------------------------------------------------ the running strip */
       .strip {
+        position: relative;
+        z-index: 1;
         overflow: hidden;
-        background: var(--green);
-        color: #04140b;
+        background: var(--ink);
+        color: var(--green);
+        box-shadow:
+          inset 0 4px 0 #1d2a55,
+          inset 0 -4px 0 #05081a;
       }
       .strip div {
         display: flex;
         width: max-content;
-        animation: slide 36s linear infinite;
+        animation: slide 40s linear infinite;
       }
       .strip span {
-        font: 700 1.05rem var(--display);
+        display: inline-flex;
+        align-items: center;
+        font: 700 1.2rem var(--display);
         letter-spacing: -0.06em;
         text-transform: uppercase;
-        padding: 14px 0;
+        padding: 18px 0;
         white-space: nowrap;
       }
       .strip span::after {
-        content: "◆";
-        margin: 0 26px;
-        opacity: 0.55;
+        content: "";
+        width: 12px;
+        height: 12px;
+        margin: 0 30px;
+        background: #fff;
+        box-shadow: 4px 4px 0 var(--blue);
       }
       @keyframes slide {
         to {
@@ -757,168 +1499,160 @@
         }
       }
 
-      /* ------------------------------------------------------------ sections */
-      section {
-        position: relative;
-      }
-      .pad {
-        padding-block: clamp(72px, 10vw, 136px);
-      }
-      .head {
-        max-width: 780px;
-        margin-bottom: clamp(36px, 5vw, 64px);
-      }
-      .head p {
-        color: var(--muted);
-        font-size: 1.1rem;
-        margin: 18px 0 0;
-        max-width: 36em;
-      }
-
-      /* things come in as you reach them */
-      .js [data-reveal] {
-        opacity: 0;
-        transform: translateY(34px);
-        transition:
-          opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
-          transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
-        transition-delay: var(--d, 0s);
-      }
-      .js [data-reveal="left"] {
-        transform: translateX(-46px);
-      }
-      .js [data-reveal="right"] {
-        transform: translateX(46px);
-      }
-      .js [data-reveal="zoom"] {
-        transform: scale(0.92);
-      }
-      .js [data-reveal].in {
-        opacity: 1;
-        transform: none;
-      }
-
-      /* ------------------------------------------------------------ three steps */
-      .steps {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        border: 1px solid var(--line);
-        position: relative;
-      }
-      .step {
-        padding: clamp(24px, 3vw, 40px);
-        border-right: 1px solid var(--line);
-        transition: background 0.3s ease;
-      }
-      .step:last-child {
-        border-right: 0;
-      }
-      .step:hover {
-        background: rgba(61, 220, 132, 0.05);
-      }
-      .step .num {
-        font: 700 clamp(3.4rem, 7vw, 5.6rem) / 1 var(--display);
-        color: transparent;
-        -webkit-text-stroke: 2px rgba(255, 255, 255, 0.3);
-        letter-spacing: -0.08em;
-        display: block;
-        margin-bottom: 22px;
-        transition:
-          color 0.3s ease,
-          -webkit-text-stroke-color 0.3s ease;
-      }
-      .step:hover .num {
-        color: var(--green);
-        -webkit-text-stroke-color: var(--green);
-      }
-      .step p {
-        color: var(--muted);
-        margin: 0;
-      }
-      .steps::after {
-        /* a line of light that runs across as the steps come into view */
-        content: "";
-        position: absolute;
-        left: 0;
-        top: -1px;
-        height: 2px;
-        width: 100%;
-        background: linear-gradient(90deg, var(--green), transparent);
-        transform: scaleX(0);
-        transform-origin: left;
-        transition: transform 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s;
-      }
-      .steps.in::after {
-        transform: scaleX(1);
-      }
-
-      /* ------------------------------------------------------------ feature scenes: each has a colour of its own */
-      .scene {
-        --a: var(--green);
-        overflow: hidden;
-        isolation: isolate;
-      }
-      .scene::before {
-        content: "";
-        position: absolute;
-        z-index: -1;
-        inset: 0;
-        background: radial-gradient(70% 60% at var(--gx, 85%) 0%, color-mix(in srgb, var(--a) 22%, transparent), transparent 70%);
-      }
+      /* ------------------------------------------------------------ feature scenes: places along the way, each with its colour */
       .scene .wrap {
         display: grid;
-        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr);
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
         align-items: center;
-        gap: clamp(28px, 5vw, 72px);
+        gap: clamp(36px, 5vw, 84px);
       }
       .scene.flip .wrap {
-        grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.9fr);
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      }
+      .scene h2 {
+        font-size: clamp(2rem, 4.2vw, 3.75rem);
+      }
+      .scene {
+        padding-bottom: clamp(200px, 21vw, 300px);
       }
       .scene.flip .copy {
         order: 2;
       }
-      .scene.flip {
-        --gx: 15%;
-      }
       .scene .copy p {
-        color: var(--muted);
-        font-size: 1.1rem;
-        margin: 20px 0 22px;
+        font: 500 1.2rem/1.55 var(--pixel);
+        margin: 28px 0 24px;
+        max-width: 26em;
       }
       .ticks {
         list-style: none;
         margin: 0;
         padding: 0;
         display: grid;
-        gap: 10px;
+        gap: 12px;
       }
       .ticks li {
         display: flex;
-        gap: 12px;
+        gap: 14px;
         align-items: flex-start;
-        font: 500 1.05rem var(--pixel);
+        font: 600 1.1rem/1.4 var(--pixel);
       }
       .ticks li::before {
+        /* a pixel tick in a little box */
         content: "";
         flex: none;
-        width: 10px;
-        height: 10px;
-        margin-top: 0.5em;
-        background: var(--a);
+        width: 22px;
+        height: 22px;
+        margin-top: 2px;
+        background:
+          linear-gradient(var(--tick-ink), var(--tick-ink)) 3px 10px / 4px 4px no-repeat,
+          linear-gradient(var(--tick-ink), var(--tick-ink)) 7px 14px / 4px 4px no-repeat,
+          linear-gradient(var(--tick-ink), var(--tick-ink)) 11px 10px / 4px 4px no-repeat,
+          linear-gradient(var(--tick-ink), var(--tick-ink)) 15px 6px / 4px 4px no-repeat,
+          var(--tick, #fff);
+        box-shadow: 3px 3px 0 var(--deep);
       }
-      .scene .window {
-        transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+      .s-host {
+        --bg: var(--c-host);
+        --prev: var(--ink);
+        --fg: #04140b;
+        --mut: #0b3d22;
+        --deep: #1a9a56;
+        --grid: rgba(4, 20, 11, 0.07);
+        --slab: #04140b;
+        --slab-ink: var(--green);
+        --tick: #04140b;
+        --tick-ink: var(--green);
+        --a: var(--green);
       }
-      .scene .window:hover {
-        transform: translateY(-6px) scale(1.01);
+      .s-friends {
+        --bg: var(--c-friends);
+        --prev: var(--c-host-hills);
+        --fg: #fff;
+        --deep: #143a8f;
+        --tick-ink: var(--c-friends);
+        --a: var(--blue);
+      }
+      .s-ping {
+        --bg: var(--c-ping);
+        --prev: var(--c-friends-bank);
+        --fg: #2a1300;
+        --mut: #522a05;
+        --deep: #c06c14;
+        --grid: rgba(42, 19, 0, 0.07);
+        --slab: #2a1300;
+        --slab-ink: #ffc473;
+        --tick: #2a1300;
+        --tick-ink: #ffc473;
+        --a: var(--orange);
+        padding-bottom: clamp(230px, 25vw, 360px);
+      }
+      .s-mods {
+        --bg: var(--c-mods);
+        --prev: var(--c-ping-hills);
+        --fg: #fff;
+        --deep: #8a1d52;
+        --tick-ink: var(--c-mods);
+        --a: var(--pink);
+      }
+      .s-voice {
+        --bg: var(--c-voice);
+        --prev: var(--c-mods-hills);
+        --fg: #fff;
+        --deep: #3d2496;
+        --tick-ink: var(--c-voice);
+        --a: var(--purple);
+      }
+      .s-host .cloud {
+        opacity: 0.7;
+        --cloud-shade: #c9f5dc;
+      }
+      .s-friends .cloud {
+        color: #4f84e8;
+        --cloud-shade: #3b6edb;
+      }
+      .s-host .sun {
+        right: 4%;
+        top: 64px;
+        width: 114px;
+        height: 114px;
+        --sun: #fff6a6;
+        --sun-core: #fff;
+        --sun-halo: rgba(255, 255, 255, 0.35);
+      }
+      .s-voice .moon {
+        left: auto;
+        right: 5%;
+        top: 70px;
+        width: 96px;
+        height: 96px;
+      }
+      .hills,
+      .scene .bank {
+        left: 50%;
+        bottom: -40px;
+        display: flex;
+        width: 4800px;
+        margin-left: -2400px;
+      }
+      .hills .art {
+        width: 2400px;
+      }
+      .s-ping .sun {
+        right: 14%;
+        top: auto;
+        bottom: 60px;
+        width: 266px;
+        height: 266px;
+        --sun: #ffd23f;
+        --sun-core: #fff1a8;
+        --sun-halo: rgba(255, 226, 120, 0.5);
       }
 
-      /* ------------------------------------------------------------ the ping picture */
+      /* the ping picture */
       .route {
-        border: 1px solid var(--line-strong);
-        background: #0a0e13;
-        padding: clamp(14px, 2vw, 24px);
-        box-shadow: 0 50px 140px -40px color-mix(in srgb, var(--a) 60%, transparent);
+        --so: 14px;
+        background: var(--ink);
+        padding: clamp(14px, 2vw, 26px);
       }
       .route svg {
         width: 100%;
@@ -927,49 +1661,125 @@
       }
       .route text {
         font-family: "Pixelify Sans", monospace;
-        fill: #98a3b1;
-        font-size: 15px;
+        fill: #9fb0d6;
+        font-size: 16px;
       }
       .route .big {
-        font-family: "Silkscreen", monospace;
         font-weight: 700;
-        font-size: 22px;
+        font-size: 24px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
       }
       .route .dash {
-        stroke-dasharray: 6 8;
-        animation: march 1.2s linear infinite;
+        stroke-dasharray: 8 8;
+        animation: march 1.2s steps(8) infinite;
       }
       @keyframes march {
         to {
-          stroke-dashoffset: -28;
+          stroke-dashoffset: -32;
         }
       }
+      .route image {
+        image-rendering: pixelated;
+      }
       .route-note {
-        color: var(--faint);
-        font-size: 0.9rem;
-        margin: 14px 2px 0;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        margin: 30px 4px 0;
+        max-width: 44em;
       }
 
-      /* ------------------------------------------------------------ more, in a grid; a light follows the mouse across each tile */
+      /* a stack of crates beside the mod store, and voice rings around whoever is talking */
+      .stack {
+        position: absolute;
+        z-index: 3;
+        left: -54px;
+        bottom: -128px;
+        width: 150px;
+        height: 170px;
+        pointer-events: none;
+      }
+      .stack .cube {
+        position: absolute;
+        --s: 62px;
+      }
+      .s-mods .shot {
+        margin-bottom: 70px;
+      }
+      .rings {
+        position: absolute;
+        left: 50%;
+        top: 14%;
+        width: 0;
+        height: 0;
+      }
+      .rings i {
+        position: absolute;
+        left: -70px;
+        top: -70px;
+        width: 140px;
+        height: 140px;
+        box-shadow:
+          0 -6px 0 0 #fff,
+          0 6px 0 0 #fff,
+          -6px 0 0 0 #fff,
+          6px 0 0 0 #fff;
+        opacity: 0;
+        animation: ring 2.4s steps(8) infinite;
+      }
+      .rings i:nth-child(2) {
+        animation-delay: -0.8s;
+      }
+      .rings i:nth-child(3) {
+        animation-delay: -1.6s;
+      }
+      @keyframes ring {
+        from {
+          opacity: 0.7;
+          transform: scale(0.45);
+        }
+        to {
+          opacity: 0;
+          transform: scale(1.5);
+        }
+      }
+
+      /* ------------------------------------------------------------ and more: night falls. A wall of blocks. */
+      .more {
+        --bg: var(--c-more);
+        --prev: var(--c-voice-hills);
+        --fg: #fff;
+        --mut: #c3c8ee;
+        --deep: #0d0c33;
+        --slab: var(--green);
+        --slab-ink: #04140b;
+      }
       .bento {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        border-top: 1px solid var(--line);
-        border-left: 1px solid var(--line);
+        gap: 30px;
       }
       .tile {
+        --bd: #0b0a2c;
+        --sh: color-mix(in srgb, var(--a) 70%, #000);
+        --so: 8px;
         position: relative;
-        padding: clamp(22px, 2.6vw, 34px);
-        border-right: 1px solid var(--line);
-        border-bottom: 1px solid var(--line);
-        overflow: hidden;
-        --a: var(--green);
+        padding: 26px 26px 28px;
+        background: #100f36;
+        transition:
+          transform 0.12s steps(2),
+          box-shadow 0.12s steps(2);
+      }
+      .tile:hover {
+        --so: 12px;
+        transform: translate(-4px, -4px);
       }
       .tile::before {
+        /* a light follows the mouse across each tile */
         content: "";
         position: absolute;
         inset: 0;
-        background: radial-gradient(260px circle at var(--mx, 50%) var(--my, -40%), color-mix(in srgb, var(--a) 22%, transparent), transparent 70%);
+        background: radial-gradient(240px circle at var(--mx, 50%) var(--my, -40%), color-mix(in srgb, var(--a) 26%, transparent), transparent 70%);
         opacity: 0;
         transition: opacity 0.3s ease;
         pointer-events: none;
@@ -977,183 +1787,328 @@
       .tile:hover::before {
         opacity: 1;
       }
-      .tile .slot {
-        display: inline-grid;
-        place-items: center;
-        width: 46px;
-        height: 46px;
-        border: 1px solid color-mix(in srgb, var(--a) 55%, transparent);
-        background: color-mix(in srgb, var(--a) 12%, transparent);
-        color: var(--a);
-        margin-bottom: 18px;
-        transition: transform 0.25s ease;
-      }
-      .tile:hover .slot {
-        transform: translateY(-4px) rotate(-4deg);
-      }
-      .tile .slot svg {
-        width: 26px;
-        height: 26px;
+      .tile .cube {
+        --s: 40px;
+        margin: 6px 0 26px 10px;
       }
       .tile p {
-        color: var(--muted);
         margin: 0;
-        font-size: 0.99rem;
+        font-size: 1rem;
+        line-height: 1.55;
+      }
+      .tile.wide {
+        grid-column: span 2;
+        grid-row: span 2;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        padding: 0;
+        overflow: hidden;
+      }
+      .tile.wide .words {
+        display: flex;
+        gap: 22px;
+        align-items: flex-start;
+        padding: 26px 26px 22px;
+      }
+      .tile.wide .cube {
+        margin: 6px 6px 0 10px;
+      }
+      .tile.wide img {
+        width: 100%;
+        height: 100%;
+        aspect-ratio: 16 / 7.6;
+        object-fit: cover;
+        object-position: 50% 48%;
+      }
+      kbd {
+        display: inline-block;
+        padding: 0 8px 2px;
+        margin: 0 2px;
+        background: #fff;
+        color: var(--ink);
+        font: 700 0.95em var(--pixel);
+        box-shadow: 0 3px 0 #8d9bc0;
+      }
+
+      /* now and then, a shooting star */
+      .shoot {
+        right: 12%;
+        top: 90px;
+        width: 8px;
+        height: 8px;
+        background: #fff;
+        box-shadow:
+          8px -4px 0 rgba(255, 255, 255, 0.7),
+          16px -8px 0 rgba(255, 255, 255, 0.45),
+          24px -12px 0 rgba(255, 255, 255, 0.25),
+          32px -16px 0 rgba(255, 255, 255, 0.12);
+        opacity: 0;
+        animation: shoot 9s steps(40) infinite;
+        animation-delay: var(--dl, 2s);
+      }
+      @keyframes shoot {
+        0% {
+          opacity: 0;
+          transform: none;
+        }
+        2% {
+          opacity: 1;
+        }
+        10% {
+          opacity: 0;
+          transform: translate(-420px, 210px);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-420px, 210px);
+        }
       }
 
       /* ------------------------------------------------------------ numbers */
       .stats {
+        --bg: var(--c-stats);
+        --prev: var(--c-more);
+        --fg: #fff;
+        --deep: #0d6b3a;
+      }
+      .stats .wrap {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        border-block: 1px solid var(--line);
+        padding-block: clamp(70px, 8vw, 110px) clamp(40px, 5vw, 70px);
       }
       .stat {
-        padding: clamp(26px, 4vw, 52px) clamp(14px, 2vw, 28px);
-        border-right: 1px solid var(--line);
+        padding: 8px clamp(10px, 2vw, 28px);
         text-align: center;
+        border-right: 4px dotted rgba(255, 255, 255, 0.14);
       }
       .stat:last-child {
         border-right: 0;
       }
       .stat b {
         display: block;
-        font: 700 clamp(2.4rem, 6vw, 4.6rem) / 1 var(--display);
+        font: 700 clamp(3rem, 8vw, 6.4rem) / 1 var(--display);
+        letter-spacing: -0.08em;
         color: var(--green);
-        text-shadow: 0 0 40px rgba(61, 220, 132, 0.45);
+        text-shadow: 0.07em 0.07em 0 var(--deep);
       }
       .stat span {
         display: block;
-        margin-top: 10px;
-        color: var(--muted);
-        font: 500 1.02rem var(--pixel);
+        margin-top: 16px;
+        color: #c3c8ee;
+        font: 600 1.15rem var(--pixel);
       }
 
-      /* ------------------------------------------------------------ download */
+      /* ------------------------------------------------------------ download: midnight */
       .get {
-        isolation: isolate;
-        padding-top: clamp(150px, 17vw, 250px);
+        --bg: var(--c-get);
+        --prev: var(--c-stats);
+        --fg: #fff;
+        --mut: #c3c8ee;
+        --deep: #2b3170;
+        --slab: var(--green);
+        --slab-ink: #04140b;
+        padding-top: clamp(170px, 18vw, 260px);
       }
-      .get::before {
-        content: "";
-        position: absolute;
-        z-index: -1;
-        inset: 0;
-        background: radial-gradient(60% 70% at 50% 100%, rgba(61, 220, 132, 0.22), transparent 70%);
+      .moon {
+        left: 5%;
+        top: 70px;
+        width: 136px;
+        height: 136px;
       }
       .get .wrap {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: clamp(28px, 5vw, 72px);
+        gap: clamp(32px, 5vw, 80px);
         align-items: center;
       }
+      .get .lede {
+        margin-top: 30px;
+      }
       .panel {
-        border: 1px solid var(--line-strong);
-        background: rgba(10, 14, 19, 0.92);
+        --bd: var(--green);
+        --sh: #14703f;
+        --so: 12px;
+        position: relative;
+        background: #0a0c22;
         padding: clamp(20px, 3vw, 34px);
-        box-shadow: 10px 10px 0 rgba(61, 220, 132, 0.18);
+      }
+      .get .player {
+        position: absolute;
+        right: 40px;
+        bottom: calc(100% + 3px);
+        margin: 0;
+        z-index: 1;
+      }
+      .get .player::after {
+        display: none;
       }
       .tabs {
         display: flex;
-        border: 1px solid var(--line-strong);
-        margin-bottom: 20px;
+        gap: 4px;
+        padding: 4px;
+        background: #1b1e45;
+        margin-bottom: 22px;
       }
       .tab {
         flex: 1;
-        padding: 11px 10px;
+        padding: 10px 10px 12px;
         background: transparent;
         border: 0;
-        border-right: 1px solid var(--line-strong);
-        color: var(--muted);
-        font: 600 1.02rem var(--pixel);
+        color: #aab6d3;
+        font: 600 1.08rem var(--pixel);
         cursor: pointer;
-        transition:
-          background 0.15s ease,
-          color 0.15s ease;
-      }
-      .tab:last-child {
-        border-right: 0;
       }
       .tab:hover {
-        color: var(--text);
+        color: #fff;
       }
       .tab[aria-selected="true"] {
         background: var(--green);
         color: #04140b;
+        box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.18);
       }
       .panel ol {
         list-style: none;
-        margin: 0 0 24px;
+        margin: 0 0 26px;
         padding: 0;
         counter-reset: s;
       }
       .panel li {
         counter-increment: s;
         position: relative;
-        padding: 9px 0 9px 44px;
-        color: var(--muted);
-        border-bottom: 1px dashed var(--line);
+        padding: 11px 0 11px 48px;
+        color: #c3c8ee;
+        border-bottom: 4px dotted rgba(255, 255, 255, 0.1);
       }
       .panel li:last-child {
         border-bottom: 0;
       }
       .panel li strong {
-        color: var(--text);
+        color: #fff;
         font-weight: 600;
       }
       .panel li::before {
         content: counter(s, decimal-leading-zero);
         position: absolute;
         left: 0;
-        top: 9px;
-        font: 700 1rem var(--display);
+        top: 12px;
+        font: 700 1.05rem var(--display);
         color: var(--green);
       }
       .panel code {
         font: 0.9rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         background: #000;
-        border: 1px solid var(--line);
-        padding: 2px 7px;
-        color: var(--text);
+        padding: 3px 7px;
+        color: #fff;
       }
       .panel .btn {
-        width: 100%;
+        --sh: #14703f;
+        width: calc(100% - 8px);
+        margin: 0 4px 4px;
       }
       .versions {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
-        margin: 26px 0 10px;
+        gap: 14px 16px;
+        margin: 30px 4px 22px;
       }
       .pill {
-        padding: 4px 10px;
-        border: 1px solid var(--line-strong);
-        color: var(--muted);
-        font: 500 0.9rem var(--pixel);
+        --p: 3px;
+        --so: 4px;
+        --bd: #2b3170;
+        --sh: #05061a;
+        padding: 3px 10px 4px;
+        background: #171a45;
+        color: #dbe1ff;
+        font: 600 0.98rem var(--pixel);
       }
       .note {
-        color: var(--faint);
-        font-size: 0.93rem;
+        font-size: 0.96rem;
         margin: 0;
-      }
-      .note a {
-        color: var(--muted);
+        opacity: 0.85;
       }
 
       /* ------------------------------------------------------------ questions */
+      .qa {
+        --bg: var(--c-faq);
+        --prev: var(--c-get);
+        --fg: #fff;
+        --mut: #b7bfe6;
+        --deep: #23285c;
+        --slab: var(--green);
+        --slab-ink: #04140b;
+      }
+      .qa::before {
+        /* the grid fades into the night before the campfire */
+        -webkit-mask-image: linear-gradient(#000 55%, transparent);
+        mask-image: linear-gradient(#000 55%, transparent);
+      }
+      .qa {
+        /* clip, not hidden, so the heading can stay in view beside the questions */
+        overflow: clip;
+      }
+      .qa .wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.45fr);
+        gap: clamp(32px, 5vw, 80px);
+        align-items: start;
+      }
+      .qa .head {
+        position: sticky;
+        top: 120px;
+        margin: 0;
+      }
+      .qa .head p {
+        max-width: 26em;
+      }
+      .qa .head a {
+        color: var(--green);
+      }
+      .pile {
+        display: flex;
+        gap: 0;
+        margin: 56px 0 0 18px;
+        height: 150px;
+        position: relative;
+      }
+      .pile .cube {
+        --s: 64px;
+        position: absolute;
+        bottom: 0;
+      }
+      .pile .cube:nth-child(1) {
+        left: 0;
+      }
+      .pile .cube:nth-child(2) {
+        left: 64px;
+        bottom: 0;
+      }
+      .pile .cube:nth-child(3) {
+        left: 32px;
+        bottom: 58px;
+      }
+      .pile .cube:nth-child(4) {
+        left: 128px;
+      }
       .faq {
-        max-width: 860px;
-        border-top: 1px solid var(--line);
+        max-width: 900px;
+        display: grid;
+        gap: 22px;
       }
       details {
-        border-bottom: 1px solid var(--line);
+        --bd: #23285c;
+        --sh: #03040f;
+        --so: 6px;
+        background: #0f1232;
+      }
+      details[open] {
+        --bd: var(--green);
       }
       summary {
         cursor: pointer;
         list-style: none;
-        padding: 22px 44px 22px 0;
+        padding: 18px 64px 20px 22px;
         position: relative;
-        font: 600 1.2rem var(--pixel);
-        transition: color 0.15s ease;
+        font: 600 1.25rem var(--pixel);
       }
       summary:hover {
         color: var(--green);
@@ -1162,22 +2117,27 @@
         display: none;
       }
       summary::after {
-        content: "+";
+        /* a pixel plus that folds into a minus */
+        content: "";
         position: absolute;
-        right: 6px;
-        top: 16px;
-        color: var(--green);
-        font: 700 1.6rem var(--display);
-        transition: transform 0.25s ease;
+        right: 20px;
+        top: 50%;
+        width: 20px;
+        height: 20px;
+        margin-top: -10px;
+        background:
+          linear-gradient(var(--green), var(--green)) 50% 50% / 100% 4px no-repeat,
+          linear-gradient(var(--green), var(--green)) 50% 50% / 4px 100% no-repeat;
+        transition: transform 0.2s steps(3);
       }
       details[open] summary::after {
-        transform: rotate(45deg);
+        background: linear-gradient(var(--green), var(--green)) 50% 50% / 100% 4px no-repeat;
+        transform: rotate(180deg);
       }
       details p {
-        color: var(--muted);
-        max-width: 44em;
-        padding-bottom: 12px;
-        animation: open 0.35s ease;
+        max-width: 46em;
+        padding: 0 22px 10px;
+        animation: open 0.3s steps(4);
       }
       details a {
         color: var(--green);
@@ -1185,49 +2145,135 @@
       @keyframes open {
         from {
           opacity: 0;
-          transform: translateY(-6px);
+          transform: translateY(-8px);
         }
       }
 
-      /* ------------------------------------------------------------ footer */
+      /* ------------------------------------------------------------ the end of the day: a campfire, then the ground under it */
       footer {
-        border-top: 1px solid var(--line);
+        position: relative;
+        isolation: isolate;
         overflow: hidden;
+        background: #05071a;
+        --deep: #14703f;
+      }
+      .camp {
+        position: relative;
+        z-index: 1;
+        height: clamp(300px, 34vw, 470px);
       }
       .wordmark {
-        font: 700 clamp(3.2rem, 17vw, 15rem) / 0.85 var(--display);
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 12%;
+        font: 700 clamp(3rem, 14.2vw, 14rem) / 0.85 var(--display);
         text-transform: uppercase;
         letter-spacing: -0.1em;
-        color: transparent;
-        -webkit-text-stroke: 1px var(--line-strong);
+        color: #161a4a;
+        text-shadow:
+          6px 6px 0 #0c0f30,
+          12px 12px 0 #090b26;
         text-align: center;
-        margin: clamp(30px, 5vw, 60px) 0 0;
         white-space: nowrap;
         user-select: none;
-        transition:
-          color 0.6s ease,
-          -webkit-text-stroke-color 0.6s ease;
+        transition: color 0.4s steps(4);
+      }
+      .wordmark::after {
+        /* firelight catching the bottom of the letters */
+        content: "JavaHost";
+        position: absolute;
+        inset: 0;
+        color: #ff9f2e;
+        opacity: 0.22;
+        text-shadow: none;
+        -webkit-mask-image: linear-gradient(transparent 35%, #000);
+        mask-image: linear-gradient(transparent 35%, #000);
       }
       .wordmark:hover {
         color: var(--green);
-        -webkit-text-stroke-color: var(--green);
+      }
+      .fireside {
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        display: flex;
+        align-items: flex-end;
+        gap: 26px;
+        transform: translateX(-50%);
+      }
+      .fireside::before {
+        /* firelight */
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: -60px;
+        width: 640px;
+        height: 420px;
+        margin-left: -320px;
+        background: radial-gradient(closest-side, rgba(255, 159, 46, 0.42), rgba(255, 159, 46, 0.12) 55%, transparent);
+        animation: firelight 0.7s steps(3) infinite alternate;
+        pointer-events: none;
+      }
+      @keyframes firelight {
+        to {
+          opacity: 0.72;
+        }
+      }
+      .fire {
+        position: relative;
+        width: 96px;
+        height: 88px;
+        flex: none;
+      }
+      .fire .art {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .ground {
+        position: relative;
+        background:
+          var(--t-grass) 0 0 / 60px 60px repeat-x,
+          linear-gradient(transparent 80px, rgba(5, 7, 26, 0.3) 80px, rgba(5, 7, 26, 0.9) 300px),
+          var(--t-grass-side) 0 20px / 60px 60px repeat-x,
+          var(--t-dirt) 0 80px / 60px 60px repeat-x,
+          var(--t-stone) 0 140px / 60px 60px repeat-x,
+          var(--t-deep) 0 0 / 60px 60px;
+        background-size:
+          60px 20px,
+          auto,
+          60px 60px,
+          60px 60px,
+          60px 60px,
+          60px 60px;
+        image-rendering: pixelated;
+        padding-top: 190px;
+      }
+      .ground::before {
+        /* night on the grass */
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(rgba(12, 14, 60, 0.4), rgba(12, 14, 60, 0.4)) 0 0 / 100% 80px no-repeat;
+        pointer-events: none;
       }
       .foot {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 12px 26px;
-        padding-block: 28px 14px;
-        color: var(--muted);
-        font: 500 1rem var(--pixel);
+        gap: 12px 28px;
+        padding-block: 26px 16px;
+        color: #c3c8ee;
+        font: 500 1.05rem var(--pixel);
       }
       .foot .brand {
-        font-size: 1rem;
-        color: var(--text);
+        font-size: 1.05rem;
       }
       .foot .logo {
-        width: 24px;
-        height: 24px;
+        width: 26px;
+        height: 26px;
       }
       .foot a {
         text-decoration: none;
@@ -1236,16 +2282,32 @@
         color: var(--green);
       }
       .legal {
-        color: var(--faint);
-        font-size: 0.86rem;
-        line-height: 1.5;
+        color: #8d95c0;
+        font-size: 0.88rem;
+        line-height: 1.55;
         margin: 0;
-        padding-bottom: 36px;
+        padding-bottom: 40px;
       }
 
       /* ------------------------------------------------------------ smaller screens */
+      @media (max-width: 1100px) {
+        .stage {
+          --u: 3.1px;
+        }
+        .chip.one {
+          left: 0;
+        }
+        .chip.two {
+          right: 0;
+          bottom: 8%;
+        }
+        .chip.three {
+          display: none;
+        }
+      }
       @media (max-width: 980px) {
         .hero .wrap,
+        .how .cols,
         .scene .wrap,
         .scene.flip .wrap,
         .get .wrap {
@@ -1253,41 +2315,31 @@
         }
         .hero .wrap {
           min-height: 0;
+          padding-bottom: 150px;
         }
         .scene.flip .copy {
           order: 0;
         }
-        .stage .window {
-          width: 100%;
-          transform: none;
-          animation: none;
+        .stage {
+          min-height: 520px;
+          --u: 4px;
+        }
+        .floaty {
+          left: 50%;
+          top: 58%;
         }
         .chip.one {
-          left: -2%;
-          top: -4%;
+          left: 0;
+          top: 0;
         }
         .chip.two {
-          right: -2%;
-          top: auto;
-          bottom: 22%;
+          right: 0;
+          bottom: 3%;
         }
         .chip.three {
-          right: 2%;
-          bottom: -7%;
-        }
-        .stage {
-          margin-top: 26px;
-          margin-bottom: 70px;
-        }
-        .cast {
+          display: flex;
           left: 0;
-          bottom: -24%;
-        }
-        .player {
-          --u: 5.5px;
-        }
-        .player.friend {
-          --u: 4.6px;
+          bottom: 12%;
         }
         .nav-links {
           display: none;
@@ -1295,60 +2347,166 @@
         .bento {
           grid-template-columns: repeat(2, 1fr);
         }
+        /* in one column the players stand under the screenshot instead of in front of it */
+        .perch {
+          bottom: -178px;
+        }
+        .perch.left {
+          left: 6px !important;
+        }
+        .perch.right {
+          right: 6px;
+        }
+        .stack {
+          left: -6px;
+          bottom: -110px;
+        }
+        .scene .shot {
+          margin-bottom: 170px;
+        }
+        .s-mods .shot {
+          margin-bottom: 110px;
+        }
+        .qa .wrap {
+          grid-template-columns: 1fr;
+        }
+        .qa .head {
+          position: static;
+        }
+        .pile {
+          display: none;
+        }
       }
       @media (max-width: 640px) {
         body {
           font-size: 16px;
         }
-        .steps,
-        .bento {
-          grid-template-columns: 1fr;
+        .hero .wrap {
+          padding-top: 34px;
+          padding-bottom: 110px;
         }
-        .step {
-          border-right: 0;
-          border-bottom: 1px solid var(--line);
+        .stage {
+          min-height: 450px;
+          --u: 2.5px;
         }
-        .step:last-child {
-          border-bottom: 0;
+        .floaty {
+          top: 62%;
         }
-        .stats {
-          grid-template-columns: repeat(2, 1fr);
+        .badge {
+          font-size: 0.84rem;
+          white-space: nowrap;
+          margin-bottom: 24px;
         }
-        .stat:nth-child(2) {
-          border-right: 0;
+        /* on a phone the small clouds would sit behind the words */
+        .hero .decor > div:has(> .cloud) {
+          display: none;
         }
-        .stat:nth-child(-n + 2) {
-          border-bottom: 1px solid var(--line);
+        .hero .sun {
+          top: auto;
+          bottom: 430px;
+          right: 2%;
+        }
+        .s-host .sun,
+        .s-voice .moon {
+          top: 18px;
+          width: 64px;
+          height: 64px;
         }
         .chip {
-          font-size: 0.82rem;
-          padding: 7px 10px;
+          font-size: 0.86rem;
+          padding: 6px 10px 7px;
+          gap: 8px;
         }
         .chip.two {
           display: none;
         }
+        .chip.three {
+          left: auto;
+          right: 4px;
+          bottom: -6px;
+        }
         .actions .btn {
-          width: 100%;
+          width: calc(100% - 8px);
+        }
+        .sun {
+          width: 96px;
+          height: 96px;
+          top: 3%;
+        }
+        .bento {
+          grid-template-columns: 1fr;
+          gap: 26px;
+        }
+        .tile.wide {
+          grid-column: auto;
+        }
+        .tile.wide img {
+          min-height: 0;
+        }
+        .stats .wrap {
+          grid-template-columns: repeat(2, 1fr);
+          row-gap: 36px;
+        }
+        .stat:nth-child(2) {
+          border-right: 0;
+        }
+        .card {
+          padding: 18px 16px;
+          gap: 4px 14px;
+        }
+        .card .num {
+          font-size: 2.5rem;
+        }
+        .frame,
+        .route {
+          --so: 8px;
+        }
+        .player {
+          --u: 4px;
+        }
+        .perch .ledge {
+          --t: 48px;
+        }
+        .perch {
+          bottom: -182px;
+        }
+        .scene .shot {
+          margin-bottom: 172px;
+        }
+        .stack {
+          scale: 0.75;
+          transform-origin: 0 100%;
+          bottom: -96px;
+        }
+        .s-ping .sun {
+          width: 152px;
+          height: 152px;
+          bottom: 50px;
         }
         .get .player {
           display: none;
         }
-        /* On a phone the players stand under the window instead of in front of it. */
-        .stage {
-          display: flex;
-          flex-direction: column;
-          margin-bottom: 30px;
+        .get {
+          padding-top: 150px;
         }
-        .cast {
-          position: relative;
-          left: auto;
-          bottom: auto;
-          order: 2;
-          justify-content: center;
-          margin-top: 64px;
+        .moon {
+          width: 88px;
+          height: 88px;
+          top: 50px;
         }
-        .chip.three {
-          display: none;
+        .fireside {
+          gap: 8px;
+        }
+        .fire {
+          width: 72px;
+          height: 66px;
+        }
+        summary {
+          font-size: 1.12rem;
+          padding-left: 16px;
+        }
+        details p {
+          padding-inline: 16px;
         }
       }
       @media (prefers-reduced-motion: reduce) {
@@ -1366,6 +2524,18 @@
           opacity: 1;
           transform: none;
         }
+        .js [data-build] .cube,
+        .js [data-build] .drop {
+          opacity: 1;
+          translate: 0 0;
+        }
+        [data-par] {
+          transform: none;
+        }
+        .puff,
+        .rings {
+          display: none;
+        }
       }
     </style>
   </head>
@@ -1377,6 +2547,19 @@
           <path d="M0 0h32v16H0z" fill="#fff" opacity=".12" />
           <path class="ink" d="M13 7h11v4h-4v11h-3v3H9v-3H6v-6h5v5h5V11h-3z" />
         </symbol>
+      <!-- gen:symbols (drawn by tools/gen.py) -->
+      <symbol id="px-cloud-a" viewBox="0 0 20 6"><rect x="6" y="0" width="4" height="1" fill="currentColor"/><rect x="4" y="1" width="8" height="1" fill="currentColor"/><rect x="14" y="1" width="3" height="1" fill="currentColor"/><rect x="2" y="2" width="17" height="1" fill="currentColor"/><rect x="1" y="3" width="19" height="1" fill="currentColor"/><rect x="0" y="4" width="20" height="1" fill="currentColor"/><rect x="1" y="5" width="17" height="1" fill="var(--cloud-shade, #cfe6fb)"/></symbol>
+      <symbol id="px-cloud-b" viewBox="0 0 14 5"><rect x="4" y="0" width="3" height="1" fill="currentColor"/><rect x="2" y="1" width="7" height="1" fill="currentColor"/><rect x="10" y="1" width="2" height="1" fill="currentColor"/><rect x="1" y="2" width="12" height="1" fill="currentColor"/><rect x="0" y="3" width="14" height="1" fill="currentColor"/><rect x="1" y="4" width="12" height="1" fill="var(--cloud-shade, #cfe6fb)"/></symbol>
+      <symbol id="px-cloud-c" viewBox="0 0 26 6"><rect x="9" y="0" width="5" height="1" fill="currentColor"/><rect x="6" y="1" width="9" height="1" fill="currentColor"/><rect x="17" y="1" width="4" height="1" fill="currentColor"/><rect x="3" y="2" width="19" height="1" fill="currentColor"/><rect x="1" y="3" width="24" height="1" fill="currentColor"/><rect x="0" y="4" width="26" height="1" fill="currentColor"/><rect x="2" y="5" width="22" height="1" fill="var(--cloud-shade, #cfe6fb)"/></symbol>
+      <symbol id="px-sun" viewBox="0 0 19 19"><rect x="7" y="0" width="5" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="5" y="1" width="9" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="3" y="2" width="4" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="7" y="2" width="5" height="1" fill="var(--sun, #ffe066)"/><rect x="12" y="2" width="4" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="2" y="3" width="3" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="5" y="3" width="9" height="1" fill="var(--sun, #ffe066)"/><rect x="14" y="3" width="3" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="2" y="4" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="4" y="4" width="4" height="1" fill="var(--sun, #ffe066)"/><rect x="8" y="4" width="3" height="1" fill="var(--sun-core, #fffbe0)"/><rect x="11" y="4" width="4" height="1" fill="var(--sun, #ffe066)"/><rect x="15" y="4" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="1" y="5" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="3" y="5" width="3" height="1" fill="var(--sun, #ffe066)"/><rect x="6" y="5" width="7" height="1" fill="var(--sun-core, #fffbe0)"/><rect x="13" y="5" width="3" height="1" fill="var(--sun, #ffe066)"/><rect x="16" y="5" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="1" y="6" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="3" y="6" width="2" height="1" fill="var(--sun, #ffe066)"/><rect x="5" y="6" width="9" height="1" fill="var(--sun-core, #fffbe0)"/><rect x="14" y="6" width="2" height="1" fill="var(--sun, #ffe066)"/><rect x="16" y="6" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="0" y="7" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="2" y="7" width="3" height="1" fill="var(--sun, #ffe066)"/><rect x="5" y="7" width="9" height="1" fill="var(--sun-core, #fffbe0)"/><rect x="14" y="7" width="3" height="1" fill="var(--sun, #ffe066)"/><rect x="17" y="7" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="0" y="8" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="2" y="8" width="2" height="1" fill="var(--sun, #ffe066)"/><rect x="4" y="8" width="11" height="1" fill="var(--sun-core, #fffbe0)"/><rect x="15" y="8" width="2" height="1" fill="var(--sun, #ffe066)"/><rect x="17" y="8" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="0" y="9" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="2" y="9" width="2" height="1" fill="var(--sun, #ffe066)"/><rect x="4" y="9" width="11" height="1" fill="var(--sun-core, #fffbe0)"/><rect x="15" y="9" width="2" height="1" fill="var(--sun, #ffe066)"/><rect x="17" y="9" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="0" y="10" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="2" y="10" width="2" height="1" fill="var(--sun, #ffe066)"/><rect x="4" y="10" width="11" height="1" fill="var(--sun-core, #fffbe0)"/><rect x="15" y="10" width="2" height="1" fill="var(--sun, #ffe066)"/><rect x="17" y="10" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="0" y="11" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="2" y="11" width="3" height="1" fill="var(--sun, #ffe066)"/><rect x="5" y="11" width="9" height="1" fill="var(--sun-core, #fffbe0)"/><rect x="14" y="11" width="3" height="1" fill="var(--sun, #ffe066)"/><rect x="17" y="11" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="1" y="12" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="3" y="12" width="2" height="1" fill="var(--sun, #ffe066)"/><rect x="5" y="12" width="9" height="1" fill="var(--sun-core, #fffbe0)"/><rect x="14" y="12" width="2" height="1" fill="var(--sun, #ffe066)"/><rect x="16" y="12" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="1" y="13" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="3" y="13" width="3" height="1" fill="var(--sun, #ffe066)"/><rect x="6" y="13" width="7" height="1" fill="var(--sun-core, #fffbe0)"/><rect x="13" y="13" width="3" height="1" fill="var(--sun, #ffe066)"/><rect x="16" y="13" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="2" y="14" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="4" y="14" width="4" height="1" fill="var(--sun, #ffe066)"/><rect x="8" y="14" width="3" height="1" fill="var(--sun-core, #fffbe0)"/><rect x="11" y="14" width="4" height="1" fill="var(--sun, #ffe066)"/><rect x="15" y="14" width="2" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="2" y="15" width="3" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="5" y="15" width="9" height="1" fill="var(--sun, #ffe066)"/><rect x="14" y="15" width="3" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="3" y="16" width="4" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="7" y="16" width="5" height="1" fill="var(--sun, #ffe066)"/><rect x="12" y="16" width="4" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="5" y="17" width="9" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/><rect x="7" y="18" width="5" height="1" fill="var(--sun-halo, rgba(255,240,170,.45))"/></symbol>
+      <symbol id="px-moon" viewBox="0 0 17 17"><rect x="6" y="0" width="5" height="1" fill="#eef2ff"/><rect x="4" y="1" width="9" height="1" fill="#eef2ff"/><rect x="3" y="2" width="11" height="1" fill="#eef2ff"/><rect x="2" y="3" width="13" height="1" fill="#eef2ff"/><rect x="1" y="4" width="15" height="1" fill="#eef2ff"/><rect x="1" y="5" width="11" height="1" fill="#eef2ff"/><rect x="12" y="5" width="1" height="1" fill="#c3cbe8"/><rect x="13" y="5" width="3" height="1" fill="#eef2ff"/><rect x="0" y="6" width="5" height="1" fill="#eef2ff"/><rect x="5" y="6" width="2" height="1" fill="#c3cbe8"/><rect x="7" y="6" width="10" height="1" fill="#eef2ff"/><rect x="0" y="7" width="5" height="1" fill="#eef2ff"/><rect x="5" y="7" width="1" height="1" fill="#c3cbe8"/><rect x="6" y="7" width="11" height="1" fill="#eef2ff"/><rect x="0" y="8" width="17" height="1" fill="#eef2ff"/><rect x="0" y="9" width="17" height="1" fill="#eef2ff"/><rect x="0" y="10" width="17" height="1" fill="#eef2ff"/><rect x="1" y="11" width="9" height="1" fill="#eef2ff"/><rect x="10" y="11" width="2" height="1" fill="#c3cbe8"/><rect x="12" y="11" width="4" height="1" fill="#eef2ff"/><rect x="1" y="12" width="6" height="1" fill="#eef2ff"/><rect x="7" y="12" width="1" height="1" fill="#c3cbe8"/><rect x="8" y="12" width="2" height="1" fill="#eef2ff"/><rect x="10" y="12" width="1" height="1" fill="#c3cbe8"/><rect x="11" y="12" width="5" height="1" fill="#eef2ff"/><rect x="2" y="13" width="13" height="1" fill="#eef2ff"/><rect x="3" y="14" width="11" height="1" fill="#eef2ff"/><rect x="4" y="15" width="9" height="1" fill="#eef2ff"/><rect x="6" y="16" width="5" height="1" fill="#eef2ff"/></symbol>
+      <symbol id="px-fire-a" viewBox="0 0 12 11"><rect x="5" y="0" width="1" height="1" fill="#ffe45c"/><rect x="4" y="1" width="2" height="1" fill="#ffe45c"/><rect x="4" y="2" width="1" height="1" fill="#ffe45c"/><rect x="5" y="2" width="1" height="1" fill="#ff9f2e"/><rect x="6" y="2" width="1" height="1" fill="#ffe45c"/><rect x="3" y="3" width="1" height="1" fill="#ffe45c"/><rect x="4" y="3" width="2" height="1" fill="#ff9f2e"/><rect x="6" y="3" width="1" height="1" fill="#ffe45c"/><rect x="3" y="4" width="1" height="1" fill="#ffe45c"/><rect x="4" y="4" width="3" height="1" fill="#ff9f2e"/><rect x="7" y="4" width="1" height="1" fill="#ffe45c"/><rect x="2" y="5" width="1" height="1" fill="#ffe45c"/><rect x="3" y="5" width="2" height="1" fill="#ff9f2e"/><rect x="5" y="5" width="1" height="1" fill="#ff5a2a"/><rect x="6" y="5" width="1" height="1" fill="#ff9f2e"/><rect x="7" y="5" width="1" height="1" fill="#ffe45c"/><rect x="2" y="6" width="1" height="1" fill="#ffe45c"/><rect x="3" y="6" width="1" height="1" fill="#ff9f2e"/><rect x="4" y="6" width="2" height="1" fill="#ff5a2a"/><rect x="6" y="6" width="1" height="1" fill="#ff9f2e"/><rect x="7" y="6" width="1" height="1" fill="#ffe45c"/><rect x="2" y="7" width="1" height="1" fill="#ffe45c"/><rect x="3" y="7" width="1" height="1" fill="#ff9f2e"/><rect x="4" y="7" width="3" height="1" fill="#ff5a2a"/><rect x="7" y="7" width="1" height="1" fill="#ff9f2e"/><rect x="8" y="7" width="1" height="1" fill="#ffe45c"/><rect x="3" y="8" width="1" height="1" fill="#ff9f2e"/><rect x="4" y="8" width="3" height="1" fill="#ff5a2a"/><rect x="7" y="8" width="1" height="1" fill="#ff9f2e"/><rect x="1" y="9" width="2" height="1" fill="#8f5d45"/><rect x="3" y="9" width="1" height="1" fill="#5a3a26"/><rect x="4" y="9" width="2" height="1" fill="#8f5d45"/><rect x="6" y="9" width="1" height="1" fill="#5a3a26"/><rect x="7" y="9" width="2" height="1" fill="#8f5d45"/><rect x="9" y="9" width="1" height="1" fill="#5a3a26"/><rect x="0" y="10" width="2" height="1" fill="#8f5d45"/><rect x="2" y="10" width="2" height="1" fill="#5a3a26"/><rect x="4" y="10" width="2" height="1" fill="#8f5d45"/><rect x="6" y="10" width="2" height="1" fill="#5a3a26"/><rect x="8" y="10" width="2" height="1" fill="#8f5d45"/><rect x="10" y="10" width="1" height="1" fill="#5a3a26"/></symbol>
+      <symbol id="px-fire-b" viewBox="0 0 12 11"><rect x="6" y="0" width="1" height="1" fill="#ffe45c"/><rect x="5" y="1" width="2" height="1" fill="#ffe45c"/><rect x="4" y="2" width="1" height="1" fill="#ffe45c"/><rect x="5" y="2" width="1" height="1" fill="#ff9f2e"/><rect x="6" y="2" width="1" height="1" fill="#ffe45c"/><rect x="4" y="3" width="1" height="1" fill="#ffe45c"/><rect x="5" y="3" width="2" height="1" fill="#ff9f2e"/><rect x="7" y="3" width="1" height="1" fill="#ffe45c"/><rect x="3" y="4" width="1" height="1" fill="#ffe45c"/><rect x="4" y="4" width="3" height="1" fill="#ff9f2e"/><rect x="7" y="4" width="1" height="1" fill="#ffe45c"/><rect x="3" y="5" width="1" height="1" fill="#ffe45c"/><rect x="4" y="5" width="1" height="1" fill="#ff9f2e"/><rect x="5" y="5" width="1" height="1" fill="#ff5a2a"/><rect x="6" y="5" width="1" height="1" fill="#ff9f2e"/><rect x="7" y="5" width="1" height="1" fill="#ffe45c"/><rect x="2" y="6" width="1" height="1" fill="#ffe45c"/><rect x="3" y="6" width="1" height="1" fill="#ff9f2e"/><rect x="4" y="6" width="2" height="1" fill="#ff5a2a"/><rect x="6" y="6" width="2" height="1" fill="#ff9f2e"/><rect x="8" y="6" width="1" height="1" fill="#ffe45c"/><rect x="2" y="7" width="1" height="1" fill="#ffe45c"/><rect x="3" y="7" width="1" height="1" fill="#ff9f2e"/><rect x="4" y="7" width="3" height="1" fill="#ff5a2a"/><rect x="7" y="7" width="1" height="1" fill="#ff9f2e"/><rect x="8" y="7" width="1" height="1" fill="#ffe45c"/><rect x="3" y="8" width="1" height="1" fill="#ff9f2e"/><rect x="4" y="8" width="3" height="1" fill="#ff5a2a"/><rect x="7" y="8" width="1" height="1" fill="#ff9f2e"/><rect x="1" y="9" width="2" height="1" fill="#8f5d45"/><rect x="3" y="9" width="1" height="1" fill="#5a3a26"/><rect x="4" y="9" width="2" height="1" fill="#8f5d45"/><rect x="6" y="9" width="1" height="1" fill="#5a3a26"/><rect x="7" y="9" width="2" height="1" fill="#8f5d45"/><rect x="9" y="9" width="1" height="1" fill="#5a3a26"/><rect x="0" y="10" width="2" height="1" fill="#8f5d45"/><rect x="2" y="10" width="2" height="1" fill="#5a3a26"/><rect x="4" y="10" width="2" height="1" fill="#8f5d45"/><rect x="6" y="10" width="2" height="1" fill="#5a3a26"/><rect x="8" y="10" width="2" height="1" fill="#8f5d45"/><rect x="10" y="10" width="1" height="1" fill="#5a3a26"/></symbol>
+      <symbol id="px-bank-a" viewBox="0 0 300 21" preserveAspectRatio="none"><path fill="currentColor" d="M0 4H5V5H8V6H10V7H12V6H19V7H22V8H23V9H26V8H27V7H30V6H37V7H40V6H42V5H45V4H54V5H56V4H57V3H59V2H62V1H66V0H73V1H77V2H80V3H82V4H85V3H87V2H91V1H100V2H104V3H106V4H108V5H109V6H110V5H111V4H114V3H120V2H121V3H127V4H130V5H131V6H133V7H134V8H136V7H139V6H143V5H144V4H146V3H148V2H152V1H161V2H165V1H169V0H176V1H180V2H183V3H185V4H186V5H187V6H188V7H189V8H190V7H191V6H193V5H196V4H205V5H208V6H210V7H211V8H212V9H214V8H215V7H218V6H225V5H227V4H229V3H232V2H243V3H246V4H247V3H250V2H261V3H264V4H266V5H268V6H269V7H270V6H272V5H275V4H284V5H287V6H289V7H291V6H293V5H296V4H300V21H0Z"/></symbol>
+      <symbol id="px-bank-b" viewBox="0 0 300 24" preserveAspectRatio="none"><path fill="currentColor" d="M0 1H5V2H9V3H12V4H14V5H16V6H17V7H18V8H19V9H21V8H23V7H27V6H34V7H38V8H39V7H42V6H48V5H49V6H55V7H58V8H59V9H60V8H62V7H66V6H73V7H77V8H79V9H80V10H81V11H82V12H83V11H84V10H86V9H88V8H92V7H94V6H95V5H98V4H101V3H114V4H117V5H120V6H121V7H123V8H125V7H127V6H129V5H133V4H142V5H146V6H148V7H150V8H151V9H152V10H154V9H156V8H157V7H160V6H166V5H167V6H173V7H175V6H176V5H177V4H179V3H181V2H184V1H191V0H194V1H201V2H204V3H206V4H208V5H209V6H210V7H211V6H217V5H218V6H224V7H227V8H228V9H230V7H231V6H233V5H234V4H236V3H237V2H240V1H243V0H258V1H261V2H264V3H265V4H267V5H268V6H270V7H274V6H280V5H281V6H285V5H287V4H289V3H292V2H296V1H300V24H0Z"/></symbol>
+      <symbol id="px-hills-a" viewBox="0 0 240 21" preserveAspectRatio="none"><path fill="currentColor" d="M0 4H2V5H4V6H6V7H8V8H12V9H24V10H26V11H30V12H32V11H34V10H36V9H38V8H40V7H42V6H44V5H50V6H56V5H60V4H68V5H70V6H78V5H80V4H82V3H84V2H94V3H110V4H112V6H114V7H116V8H118V9H120V10H124V9H126V8H138V9H142V8H146V7H150V6H154V7H156V8H158V9H160V10H168V9H170V8H172V7H176V6H184V5H186V4H188V3H190V2H192V1H196V0H198V1H200V2H202V3H204V4H208V5H212V4H220V5H222V6H226V7H228V6H232V5H236V4H240V21H0Z"/></symbol>
+      <symbol id="px-hills-b" viewBox="0 0 240 16" preserveAspectRatio="none"><path fill="currentColor" d="M0 4H4V5H6V6H8V7H18V6H32V5H34V4H36V3H38V2H42V1H46V2H50V3H58V2H70V3H76V2H80V1H82V0H90V1H94V2H96V3H104V4H110V5H112V6H114V7H122V6H126V5H128V4H136V5H146V4H154V5H158V6H164V5H166V4H168V3H170V2H174V1H188V0H198V1H200V2H202V3H204V4H212V3H222V4H232V3H240V16H0Z"/></symbol>
+      <!-- /gen:symbols -->
       </defs>
     </svg>
 
@@ -1393,11 +2576,21 @@
     </nav>
 
     <main id="top">
-      <!-- ============================================================ hero -->
-      <header class="hero">
+      <!-- ============================================================ hero: morning -->
+      <header class="hero" id="hero" data-scene>
+        <div class="sky" aria-hidden="true"></div>
+        <div class="decor" aria-hidden="true">
+          <div class="sun" data-par="-9"><svg class="art"><use href="#px-sun" /></svg></div>
+          <div style="left: 2%; top: 5%; color: #4f97f5; --cloud-shade: #3f89f0" data-par="-3"><svg class="art cloud drift" style="width: 260px; height: 78px; color: inherit; --t: 70s; --dx: 140px"><use href="#px-cloud-a" /></svg></div>
+          <div style="left: 30%; top: 60%; color: #9ccbff; --cloud-shade: #86bdfb" data-par="-4"><svg class="art cloud drift" style="width: 196px; height: 70px; color: inherit; --t: 100s; --dx: 120px"><use href="#px-cloud-b" /></svg></div>
+          <div style="left: 30%; top: 3%" data-par="-5"><svg class="art cloud drift" style="width: 168px; height: 60px; --t: 90s; --dx: -70px"><use href="#px-cloud-b" /></svg></div>
+          <div style="right: -4%; top: 40%" data-par="-7"><svg class="art cloud drift" style="width: 390px; height: 90px; --t: 80s; --dx: -160px"><use href="#px-cloud-c" /></svg></div>
+          <div class="bank" data-par="-6" style="color: #c4e2ff; translate: -180px 0"><svg class="art" style="height: 192px"><use href="#px-bank-b" /></svg><svg class="art" style="height: 192px"><use href="#px-bank-b" /></svg></div>
+          <div class="bank" data-par="-2" style="color: var(--c-how)"><svg class="art" style="height: 168px"><use href="#px-bank-a" /></svg><svg class="art" style="height: 168px"><use href="#px-bank-a" /></svg></div>
+        </div>
         <canvas id="motes" aria-hidden="true"></canvas>
         <div class="wrap">
-          <div>
+          <div class="hero-copy">
             <div class="badge"><span class="dot"></span><span><span id="version">JavaHost</span> · Minecraft 1.21 to 26.3</span></div>
             <h1>
               <span class="line" style="--n: 0"><span>Play with</span></span>
@@ -1420,9 +2613,24 @@
               <li><svg class="i" aria-hidden="true"><use href="media/icons.svg#check" /></svg>No account</li>
             </ul>
           </div>
-          <div class="stage" id="stage" data-reveal="zoom" style="--d: 0.3s">
+          <!-- The island is built by the script (see "the island"). Without it, the menu is shown here instead. -->
+          <div class="stage" id="stage">
+            <img
+              class="fallback"
+              src="media/shots/home.png"
+              width="1710"
+              height="1070"
+              loading="lazy"
+              alt="The JavaHost menu in Minecraft: your character, an Invite friends button and the friends who are online, each with Join or Invite"
+            />
+            <div class="floaty" aria-hidden="true">
+              <div class="island" id="island">
+                <div class="player host" data-skin="media/skin-host.png" data-at="3.3,7.2" style="--turn: 30deg"><span class="tag"><b>You</b></span></div>
+                <div class="player friend" data-skin="media/skin-friend.png" data-at="5.4,6.5" data-waves style="--turn: 16deg"><span class="tag"><b>AlexPlays</b></span></div>
+              </div>
+            </div>
             <div class="chip one" aria-hidden="true">
-              <span class="face" style="--c: #c98a5a"></span>
+              <span class="mug" style="--skin: url(media/skin-friend.png)"></span>
               <span>AlexPlays is hosting<small>Cherry Valley · 3 of 8</small></span>
               <span class="go">Join</span>
             </div>
@@ -1434,21 +2642,57 @@
               <span class="bars"><i></i><i></i><i></i><i></i></span>
               <span>LunaBuilds is talking<small>proximity voice</small></span>
             </div>
-            <div class="cast" aria-hidden="true">
-              <div class="player host" data-skin="media/skin-host.png" style="--turn: 30deg"><span class="tag">You</span></div>
-              <div class="player friend" data-skin="media/skin-friend.png" data-waves style="--turn: 6deg"><span class="tag">AlexPlays</span></div>
-            </div>
-            <div class="window">
-              <img
-                src="media/shots/home.png"
-                width="1710"
-                height="1070"
-                alt="The JavaHost menu in Minecraft: your character, an Invite friends button and the friends who are online, each with Join or Invite"
-              />
-            </div>
           </div>
         </div>
       </header>
+
+      <!-- ============================================================ how it works: in the clouds -->
+      <section id="how" class="band how pad" data-scene>
+        <div class="decor" aria-hidden="true">
+          <div style="right: 6%; top: 70px" data-par="6"><svg class="art cloud drift" style="width: 300px; height: 90px; color: #dcefff; --cloud-shade: #c4e2ff; --t: 80s; --dx: -120px"><use href="#px-cloud-a" /></svg></div>
+          <div style="left: -3%; bottom: 90px" data-par="10"><svg class="art cloud drift" style="width: 416px; height: 96px; color: #dcefff; --cloud-shade: #c4e2ff; --t: 90s"><use href="#px-cloud-c" /></svg></div>
+        </div>
+        <div class="wrap">
+          <div class="head" data-reveal>
+            <span class="eyebrow">How it works</span>
+            <h2>Three steps.<br />About a <span class="a">minute.</span></h2>
+            <p class="lede">Your PC is the server, so there is nothing to rent and nothing to set up on your router.</p>
+          </div>
+          <div class="cols">
+            <ol class="steps" data-build>
+              <li class="card" data-reveal style="--a: var(--green)">
+                <span class="num">01</span>
+                <h3>Host your world</h3>
+                <p>Open any world and press Host. From the title screen it's one click: the world opens and hosting starts.</p>
+                <span class="cube" style="--i: 0" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#wifi" /></svg></i><i class="r"></i></span>
+              </li>
+              <li class="card" data-reveal style="--a: var(--blue); --d: 0.1s">
+                <span class="num">02</span>
+                <h3>Invite a friend</h3>
+                <p>Add friends by their Minecraft name, then press Invite. A Join button pops up in their game. No codes to copy.</p>
+                <span class="cube" style="--i: 1" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#users" /></svg></i><i class="r"></i></span>
+              </li>
+              <li class="card" data-reveal style="--a: var(--purple); --d: 0.2s">
+                <span class="num">03</span>
+                <h3>Play together</h3>
+                <p>They're in. Talk with voice chat, and your resource packs and shaders come along if they want them.</p>
+                <span class="cube" style="--i: 2" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#play" /></svg></i><i class="r"></i></span>
+              </li>
+            </ol>
+            <div class="shot" data-reveal="right">
+              <figure class="frame" style="--deep: #2459c9; --sh: #2459c9">
+                <div class="bar" aria-hidden="true"><i></i><i></i><i></i><b>JavaHost · Home</b></div>
+                <img
+                  src="media/shots/home.png"
+                  width="1710"
+                  height="1070"
+                  alt="The JavaHost menu in Minecraft: your character, an Invite friends button and the friends who are online, each with Join or Invite"
+                />
+              </figure>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <div class="strip" aria-hidden="true">
         <div>
@@ -1459,37 +2703,16 @@
         </div>
       </div>
 
-      <!-- ============================================================ how it works -->
-      <section id="how" class="pad">
-        <div class="wrap">
-          <div class="head" data-reveal>
-            <span class="eyebrow">How it works</span>
-            <h2>Three steps.<br />About a <span class="a">minute.</span></h2>
-            <p>Your PC is the server, so there is nothing to rent and nothing to set up on your router.</p>
-          </div>
-          <div class="steps" data-reveal>
-            <article class="step">
-              <span class="num">01</span>
-              <h3>Host your world</h3>
-              <p>Open any world and press Host. From the title screen it's one click: the world opens and hosting starts.</p>
-            </article>
-            <article class="step">
-              <span class="num">02</span>
-              <h3>Invite a friend</h3>
-              <p>Add friends by their Minecraft name, then press Invite. A Join button pops up in their game. No codes to copy.</p>
-            </article>
-            <article class="step">
-              <span class="num">03</span>
-              <h3>Play together</h3>
-              <p>They're in. Talk with voice chat, and your resource packs and shaders come along if they want them.</p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============================================================ feature scenes -->
+      <!-- ============================================================ feature scenes: noon to dusk -->
       <div id="features">
-        <section class="scene pad rule" style="--a: var(--green)">
+        <section class="band scene s-host pad" data-scene>
+          <div class="decor" aria-hidden="true">
+            <div style="left: 30%; top: 70px" data-par="8"><svg class="art cloud drift" style="width: 280px; height: 84px; --t: 70s"><use href="#px-cloud-a" /></svg></div>
+            <div style="right: 26%; bottom: 190px" data-par="12"><svg class="art cloud drift" style="width: 182px; height: 65px; --t: 90s; --dx: -90px"><use href="#px-cloud-b" /></svg></div>
+            <div class="sun" data-par="-10"><svg class="art"><use href="#px-sun" /></svg></div>
+            <div class="hills" data-par="-4" style="color: #2ec275; translate: 260px 0"><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg></div>
+            <div class="hills" data-par="-1.5" style="color: var(--c-host-hills); scale: -1 1"><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg></div>
+          </div>
           <div class="wrap">
             <div class="copy" data-reveal="left">
               <span class="eyebrow">Hosting</span>
@@ -1501,13 +2724,26 @@
                 <li>Automatic backups while friends play</li>
               </ul>
             </div>
-            <div class="window" data-reveal="right">
-              <img src="media/shots/host.png" width="1710" height="1070" loading="lazy" alt="The Host page listing saved worlds, each with Play and Host buttons" />
+            <div class="shot" data-reveal="right">
+              <figure class="frame">
+                <div class="bar" aria-hidden="true"><i></i><i></i><i></i><b>JavaHost · Host</b></div>
+                <img src="media/shots/host.png" width="1710" height="1070" loading="lazy" alt="The Host page listing saved worlds, each with Play and Host buttons" />
+              </figure>
+              <div class="perch left" aria-hidden="true">
+                <div class="player" data-skin="media/skin-host.png" style="--turn: 34deg"><span class="tag"><b>You</b></span></div>
+                <div class="ledge"></div>
+              </div>
             </div>
           </div>
         </section>
 
-        <section class="scene flip pad rule" style="--a: var(--blue)">
+        <section class="band scene flip s-friends pad" data-scene>
+          <div class="decor" aria-hidden="true">
+            <div style="right: 4%; top: 80px" data-par="8"><svg class="art cloud drift" style="width: 338px; height: 78px; --t: 80s; --dx: -120px"><use href="#px-cloud-c" /></svg></div>
+            <div style="left: 30%; bottom: 210px" data-par="13"><svg class="art cloud drift" style="width: 220px; height: 66px; --t: 100s"><use href="#px-cloud-a" /></svg></div>
+            <div class="bank" data-par="-4" style="color: #3568d8; translate: 240px 0"><svg class="art" style="height: 192px"><use href="#px-bank-b" /></svg><svg class="art" style="height: 192px"><use href="#px-bank-b" /></svg></div>
+            <div class="bank" data-par="-1.5" style="color: var(--c-friends-bank); scale: -1 1"><svg class="art" style="height: 168px"><use href="#px-bank-a" /></svg><svg class="art" style="height: 168px"><use href="#px-bank-a" /></svg></div>
+          </div>
           <div class="wrap">
             <div class="copy" data-reveal="right">
               <span class="eyebrow">Friends</span>
@@ -1519,13 +2755,25 @@
                 <li>Chat and screenshots, end-to-end encrypted</li>
               </ul>
             </div>
-            <div class="window" data-reveal="left">
-              <img src="media/shots/friends.png" width="1710" height="1070" loading="lazy" alt="The Friends page with friends online, Invite buttons, favourite stars and a Recent activity list" />
+            <div class="shot" data-reveal="left">
+              <figure class="frame">
+                <div class="bar" aria-hidden="true"><i></i><i></i><i></i><b>JavaHost · Friends</b></div>
+                <img src="media/shots/friends.png" width="1710" height="1070" loading="lazy" alt="The Friends page with friends online, Invite buttons, favourite stars and a Recent activity list" />
+              </figure>
+              <div class="perch right" aria-hidden="true">
+                <div class="player" data-skin="media/skin-friend.png" data-waves style="--turn: -30deg"><span class="tag"><b>AlexPlays</b></span></div>
+                <div class="ledge"></div>
+              </div>
             </div>
           </div>
         </section>
 
-        <section class="scene pad rule" style="--a: var(--orange)">
+        <section class="band scene s-ping pad" data-scene>
+          <div class="decor" aria-hidden="true">
+            <div class="sun" data-par="-14"><svg class="art"><use href="#px-sun" /></svg></div>
+            <div class="hills" data-par="-4" style="color: #d67c1c; translate: -300px 0"><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg></div>
+            <div class="hills" data-par="-1.5" style="color: var(--c-ping-hills)"><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg></div>
+          </div>
           <div class="wrap">
             <div class="copy" data-reveal="left">
               <span class="eyebrow">Low ping</span>
@@ -1541,41 +2789,33 @@
               </ul>
             </div>
             <div data-reveal="right">
-              <div class="route">
+              <div class="frame route">
                 <svg viewBox="0 0 640 360" role="img" aria-label="Two ways to connect. Through a far-away relay, packets take a long detour. Connected directly, they go straight between the two players.">
-                  <path id="detour" d="M110 270 C 150 60, 490 60, 530 270" fill="none" stroke="#5d6875" stroke-width="2" class="dash" />
-                  <rect x="282" y="70" width="76" height="46" fill="#0c1016" stroke="#5d6875" stroke-width="2" />
-                  <text x="320" y="99" text-anchor="middle">relay</text>
-                  <text x="320" y="48" text-anchor="middle" class="big">≈ 240 ms</text>
-                  <rect width="10" height="10" x="-5" y="-5" fill="#98a3b1">
+                  <path id="detour" d="M110 250 V96 H530 V250" fill="none" stroke="#5b678f" stroke-width="4" class="dash" />
+                  <rect width="12" height="12" x="-6" y="-6" fill="#9fb0d6">
                     <animateMotion dur="3.4s" repeatCount="indefinite"><mpath href="#detour" /></animateMotion>
                   </rect>
-                  <rect width="10" height="10" x="-5" y="-5" fill="#98a3b1">
+                  <rect width="12" height="12" x="-6" y="-6" fill="#9fb0d6">
                     <animateMotion dur="3.4s" begin="-1.7s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#detour" /></animateMotion>
                   </rect>
-                  <path d="M150 290 L 490 290" fill="none" stroke="#f59e3b" stroke-width="14" opacity="0.18" />
-                  <path id="direct" d="M150 290 L 490 290" fill="none" stroke="#f59e3b" stroke-width="4" />
-                  <text x="320" y="268" text-anchor="middle" class="big" style="fill: #f59e3b">direct</text>
-                  <rect width="12" height="12" x="-6" y="-6" fill="#fff">
+                  <rect x="276" y="70" width="88" height="52" fill="#0a1024" stroke="#5b678f" stroke-width="4" />
+                  <text x="320" y="102" text-anchor="middle">relay</text>
+                  <text x="320" y="46" text-anchor="middle" class="big">via a relay: ≈ 240 ms</text>
+                  <path d="M150 290 L 490 290" fill="none" stroke="#f59e3b" stroke-width="20" opacity="0.2" />
+                  <path id="direct" d="M150 290 L 490 290" fill="none" stroke="#f59e3b" stroke-width="6" />
+                  <text x="320" y="262" text-anchor="middle" class="big" style="fill: #f59e3b">direct</text>
+                  <rect width="14" height="14" x="-7" y="-7" fill="#fff">
                     <animateMotion dur="0.7s" repeatCount="indefinite"><mpath href="#direct" /></animateMotion>
                   </rect>
-                  <rect width="12" height="12" x="-6" y="-6" fill="#fff">
+                  <rect width="14" height="14" x="-7" y="-7" fill="#fff">
                     <animateMotion dur="0.7s" begin="-0.35s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#direct" /></animateMotion>
                   </rect>
-                  <g>
-                    <rect x="70" y="250" width="80" height="80" fill="#3ddc84" />
-                    <rect x="70" y="298" width="80" height="32" fill="#000" opacity="0.22" />
-                    <rect x="88" y="278" width="14" height="14" fill="#04140b" />
-                    <rect x="118" y="278" width="14" height="14" fill="#04140b" />
-                    <text x="110" y="352" text-anchor="middle">you</text>
-                  </g>
-                  <g>
-                    <rect x="490" y="250" width="80" height="80" fill="#4f9df7" />
-                    <rect x="490" y="298" width="80" height="32" fill="#000" opacity="0.22" />
-                    <rect x="508" y="278" width="14" height="14" fill="#04140b" />
-                    <rect x="538" y="278" width="14" height="14" fill="#04140b" />
-                    <text x="530" y="352" text-anchor="middle">your friend</text>
-                  </g>
+                  <rect x="66" y="246" width="88" height="88" fill="#3ddc84" />
+                  <svg x="70" y="250" width="80" height="80" viewBox="8 8 8 8"><image href="media/skin-host.png" width="64" height="64" /></svg>
+                  <text x="110" y="356" text-anchor="middle">you</text>
+                  <rect x="486" y="246" width="88" height="88" fill="#4f9df7" />
+                  <svg x="490" y="250" width="80" height="80" viewBox="8 8 8 8"><image href="media/skin-friend.png" width="64" height="64" /></svg>
+                  <text x="530" y="356" text-anchor="middle">your friend</text>
                 </svg>
               </div>
               <p class="route-note">
@@ -1586,9 +2826,48 @@
           </div>
         </section>
 
-        <section class="scene flip pad rule" style="--a: var(--purple)">
+        <section class="band scene flip s-mods pad" data-scene>
+          <div class="decor" aria-hidden="true">
+            <div style="right: 5%; top: 90px; opacity: 0.35" data-par="8"><svg class="art cloud drift" style="width: 312px; height: 72px; --cloud-shade: #ffd1e6; --t: 90s; --dx: -100px"><use href="#px-cloud-c" /></svg></div>
+            <div class="stars" style="--o: 0.45"></div>
+            <div class="hills" data-par="-4" style="color: #b12b6b; translate: -520px 0; scale: -1 1"><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg></div>
+            <div class="hills" data-par="-1.5" style="color: var(--c-mods-hills); translate: 380px 0"><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg></div>
+          </div>
           <div class="wrap">
             <div class="copy" data-reveal="right">
+              <span class="eyebrow">Mods</span>
+              <h2>Mods,<br />minus the<br /><span class="a">homework.</span></h2>
+              <p>Browse mods and modpacks from inside the game and install with one click. Nobody has to compare mod lists again.</p>
+              <ul class="ticks">
+                <li>A friend joining gets the same mods automatically</li>
+                <li>Their own mods are put aside and come back after</li>
+                <li>One-click performance mods</li>
+              </ul>
+            </div>
+            <div class="shot" data-reveal="left">
+              <figure class="frame">
+                <div class="bar" aria-hidden="true"><i></i><i></i><i></i><b>JavaHost · Mods</b></div>
+                <img src="media/shots/mods.png" width="1710" height="1070" loading="lazy" alt="The Mods page with a search box, categories and Install buttons" />
+              </figure>
+              <div class="stack" data-build aria-hidden="true">
+                <span class="cube" style="left: 0; bottom: 0; --i: 0; --c: #ffb347"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#package" /></svg></i><i class="r"></i></span>
+                <span class="cube" style="left: 80px; bottom: 16px; --i: 1; --c: #4f9df7"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#speed-fast" /></svg></i><i class="r"></i></span>
+                <span class="cube" style="left: 34px; bottom: 76px; --i: 2; --c: #3ddc84"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#sparkles" /></svg></i><i class="r"></i></span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="band scene s-voice pad" data-scene>
+          <div class="decor" aria-hidden="true">
+            <div class="stars" style="--o: 0.8"></div>
+            <div class="stars twinkle" style="--o: 0.8"></div>
+            <div class="moon" data-par="-9"><svg class="art" style="width: 100%; height: 100%"><use href="#px-moon" /></svg></div>
+            <div class="hills" data-par="-4" style="color: #5636bf; translate: 120px 0"><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg><svg class="art" style="height: 160px"><use href="#px-hills-b" /></svg></div>
+            <div class="hills" data-par="-1.5" style="color: var(--c-voice-hills); translate: -640px 0; scale: -1 1"><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg><svg class="art" style="height: 210px"><use href="#px-hills-a" /></svg></div>
+          </div>
+          <div class="wrap">
+            <div class="copy" data-reveal="left">
               <span class="eyebrow">Voice chat</span>
               <h2>Hear who's<br /><span class="a">near.</span></h2>
               <p>Voices fade with distance, so a friend across the map sounds across the map. Or switch the whole world to party voice.</p>
@@ -1598,66 +2877,68 @@
                 <li>Nothing extra to install</li>
               </ul>
             </div>
-            <div class="window" data-reveal="left">
-              <img src="media/shots/voice.png" width="1710" height="1070" loading="lazy" alt="The Voice chat page: push to talk or voice activation, nearby players or everyone in the world" />
-            </div>
-          </div>
-        </section>
-
-        <section class="scene pad rule" style="--a: var(--pink)">
-          <div class="wrap">
-            <div class="copy" data-reveal="left">
-              <span class="eyebrow">Mods</span>
-              <h2>Mods, minus<br />the <span class="a">homework.</span></h2>
-              <p>Browse mods and modpacks from inside the game and install with one click. Nobody has to compare mod lists again.</p>
-              <ul class="ticks">
-                <li>A friend joining gets the same mods automatically</li>
-                <li>Their own mods are put aside and come back after</li>
-                <li>One-click performance mods</li>
-              </ul>
-            </div>
-            <div class="window" data-reveal="right">
-              <img src="media/shots/mods.png" width="1710" height="1070" loading="lazy" alt="The Mods page with a search box, categories and Install buttons" />
+            <div class="shot" data-reveal="right">
+              <figure class="frame">
+                <div class="bar" aria-hidden="true"><i></i><i></i><i></i><b>JavaHost · Voice</b></div>
+                <img src="media/shots/voice.png" width="1710" height="1070" loading="lazy" alt="The Voice chat page: push to talk or voice activation, nearby players or everyone in the world" />
+              </figure>
+              <div class="perch left" style="--n: 4; left: -190px" aria-hidden="true">
+                <div style="display: flex; gap: 46px; align-items: flex-end">
+                  <div class="player" data-skin="media/skin-host.png" style="--turn: 52deg"><span class="rings"><i></i><i></i><i></i></span></div>
+                  <div class="player" data-skin="media/skin-friend.png" style="--turn: -48deg"></div>
+                </div>
+                <div class="ledge"></div>
+              </div>
             </div>
           </div>
         </section>
       </div>
 
-      <!-- ============================================================ and more -->
-      <section class="pad rule">
+      <!-- ============================================================ and more: nightfall -->
+      <section class="band more pad" data-scene>
+        <div class="decor" aria-hidden="true">
+          <div class="stars"></div>
+          <div class="stars twinkle"></div>
+          <div class="shoot"></div>
+        </div>
         <div class="wrap">
           <div class="head" data-reveal>
             <span class="eyebrow">And more</span>
             <h2>The whole<br />multiplayer <span class="a">kit.</span></h2>
           </div>
-          <div class="bento">
-            <article class="tile" data-reveal style="--a: var(--pink)">
-              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#sliders" /></svg></span>
-              <h3>Quick menu</h3>
-              <p>Hold Z while playing for a ring of shortcuts: invite, mute, party voice, a screenshot, the invite code.</p>
+          <div class="bento" data-build>
+            <article class="tile wide" data-reveal style="--a: var(--pink)">
+              <div class="words">
+                <span class="cube" style="--i: 0" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#sliders" /></svg></i><i class="r"></i></span>
+                <div>
+                  <h3>Quick menu</h3>
+                  <p>Hold <kbd>Z</kbd> while playing for a ring of shortcuts: invite, mute, party voice, a screenshot, the invite code.</p>
+                </div>
+              </div>
+              <img src="media/shots/wheel.jpg" width="1710" height="1070" loading="lazy" alt="The quick menu in the game: a ring of buttons for Menu, Invite, Capture, Voice, Party and Copy code" />
             </article>
             <article class="tile" data-reveal style="--a: var(--blue); --d: 0.08s">
-              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#globe" /></svg></span>
+              <span class="cube" style="--i: 1" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#globe" /></svg></i><i class="r"></i></span>
               <h3>Public worlds</h3>
               <p>List your world for anyone to find, or join someone else's. Visitors can look around until you trust them to build.</p>
             </article>
             <article class="tile" data-reveal style="--a: var(--green); --d: 0.16s">
-              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#shield" /></svg></span>
+              <span class="cube" style="--i: 2" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#shield" /></svg></i><i class="r"></i></span>
               <h3>Your rules</h3>
               <p>Set game modes, kick or ban, and lock world rules like difficulty or keep inventory so they stay put.</p>
             </article>
             <article class="tile" data-reveal style="--a: var(--purple)">
-              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#lock" /></svg></span>
+              <span class="cube" style="--i: 3" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#lock" /></svg></i><i class="r"></i></span>
               <h3>Private</h3>
               <p>Invites, chat and screenshots are encrypted between you and your friend. There is no JavaHost account to make.</p>
             </article>
             <article class="tile" data-reveal style="--a: var(--orange); --d: 0.08s">
-              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#image" /></svg></span>
+              <span class="cube" style="--i: 4" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#image" /></svg></i><i class="r"></i></span>
               <h3>Shared look</h3>
               <p>Guests are offered your resource packs and shader settings, so everyone sees the same world you built.</p>
             </article>
             <article class="tile" data-reveal style="--a: var(--green); --d: 0.16s">
-              <span class="slot"><svg class="i" aria-hidden="true"><use href="media/icons.svg#upload" /></svg></span>
+              <span class="cube" style="--i: 5" aria-hidden="true"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#upload" /></svg></i><i class="r"></i></span>
               <h3>Send a world</h3>
               <p>Give a friend a copy of the world you're in, or a backup, without leaving the game.</p>
             </article>
@@ -1665,20 +2946,32 @@
         </div>
       </section>
 
-      <div class="stats" id="stats">
-        <div class="stat"><b data-count="0">0</b><span>servers to rent</span></div>
-        <div class="stat"><b data-count="1">1</b><span>click to invite</span></div>
-        <div class="stat"><b data-count="8">8</b><span>Minecraft versions</span></div>
-        <div class="stat"><b data-count="0" data-prefix="$">$0</b><span>forever</span></div>
+      <div class="band stats" id="stats">
+        <div class="decor" aria-hidden="true">
+          <div class="stars"></div>
+          <div class="stars twinkle"></div>
+        </div>
+        <div class="wrap">
+          <div class="stat"><b data-count="0">0</b><span>servers to rent</span></div>
+          <div class="stat"><b data-count="1">1</b><span>click to invite</span></div>
+          <div class="stat"><b data-count="8">8</b><span>builds, 1.21 to 26.3</span></div>
+          <div class="stat"><b data-count="0" data-prefix="$">$0</b><span>forever</span></div>
+        </div>
       </div>
 
-      <!-- ============================================================ download -->
-      <section id="download" class="get pad">
+      <!-- ============================================================ download: midnight -->
+      <section id="download" class="band get pad" data-scene>
+        <div class="decor" aria-hidden="true">
+          <div class="stars"></div>
+          <div class="stars twinkle"></div>
+          <div class="shoot" style="right: 30%; top: 60px; --dl: 5s"></div>
+          <div class="moon" data-par="-8"><svg class="art" style="width: 100%; height: 100%"><use href="#px-moon" /></svg></div>
+        </div>
         <div class="wrap">
           <div data-reveal="left">
             <span class="eyebrow">Download</span>
             <h2>Get<br /><span class="a">JavaHost.</span></h2>
-            <p class="lede" style="margin-top: 20px">Free and open source. It gets its own launcher profile, so your normal Minecraft stays untouched.</p>
+            <p class="lede">Free and open source. It gets its own launcher profile, so your normal Minecraft stays untouched.</p>
             <div class="versions" aria-label="Supported Minecraft versions">
               <span class="pill">26.3</span><span class="pill">26.2</span><span class="pill">26.1.x</span><span class="pill">1.21.11</span
               ><span class="pill">1.21.9–10</span><span class="pill">1.21.6–8</span><span class="pill">1.21.4</span><span class="pill">1.21–1.21.1</span>
@@ -1686,7 +2979,7 @@
             <p class="note">For Fabric. JavaHost keeps itself up to date. <a href="https://github.com/IbrahimMas1/javahost/releases">All downloads</a></p>
           </div>
           <div class="panel" data-reveal="right">
-            <div class="player friend" data-skin="media/skin-friend.png" data-waves style="--turn: -26deg" aria-hidden="true"><span class="tag">See you in game</span></div>
+            <div class="player" data-skin="media/skin-friend.png" data-waves style="--turn: -26deg" aria-hidden="true"><span class="tag"><b>See you in game</b></span></div>
             <div class="tabs" role="tablist" aria-label="Your computer">
               <button class="tab" role="tab" aria-selected="true" aria-controls="os-panel" data-os="win">Windows</button>
               <button class="tab" role="tab" aria-selected="false" aria-controls="os-panel" tabindex="-1" data-os="mac">Mac</button>
@@ -1695,7 +2988,7 @@
             <div id="os-panel" role="tabpanel">
               <ol>
                 <li>Open the <strong>Minecraft Launcher</strong> once, then close it.</li>
-                <li id="run-step"></li>
+                <li id="run-step">Run the <strong>JavaHost Installer</strong> you downloaded.</li>
                 <li>Pick your <strong>Minecraft version</strong>, then click <strong>Install</strong>.</li>
                 <li>In the launcher, choose the <strong>JavaHost</strong> profile and press <strong>Play</strong>.</li>
               </ol>
@@ -1708,11 +3001,22 @@
       </section>
 
       <!-- ============================================================ questions -->
-      <section id="faq" class="pad rule">
+      <section id="faq" class="band qa pad">
+        <div class="decor" aria-hidden="true">
+          <div class="stars"></div>
+          <div class="stars twinkle"></div>
+        </div>
         <div class="wrap">
           <div class="head" data-reveal>
             <span class="eyebrow">Questions</span>
             <h2>Good to <span class="a">know.</span></h2>
+            <p>The short answers. The long ones are in <a href="https://github.com/IbrahimMas1/javahost/blob/main/docs/HOW-IT-WORKS.md">how it works, in detail</a>, and anything else can go to <a href="https://github.com/IbrahimMas1/javahost/issues">GitHub</a>.</p>
+            <div class="pile" data-build aria-hidden="true">
+              <span class="cube stone" style="--i: 0"><i class="t"></i><i class="f"></i><i class="r"></i></span>
+              <span class="cube grass" style="--i: 1"><i class="t"></i><i class="f"></i><i class="r"></i></span>
+              <span class="cube" style="--i: 3; --c: #a77bf3"><i class="t"></i><i class="f"><svg><use href="media/icons.svg#message" /></svg></i><i class="r"></i></span>
+              <span class="cube grass" style="--i: 2"><i class="t"></i><i class="f"></i><i class="r"></i></span>
+            </div>
           </div>
           <div class="faq" data-reveal>
             <details>
@@ -1763,21 +3067,38 @@
       </section>
     </main>
 
+    <!-- ============================================================ the end of the day -->
     <footer>
-      <div class="wordmark" aria-hidden="true">JavaHost</div>
-      <div class="wrap">
-        <div class="foot">
-          <a class="brand" href="#top"><svg class="logo" aria-hidden="true"><use href="#jh" /></svg>JavaHost</a>
-          <a href="https://github.com/IbrahimMas1/javahost">Source</a>
-          <a href="https://github.com/IbrahimMas1/javahost/releases">Releases</a>
-          <a href="https://github.com/IbrahimMas1/javahost/blob/main/docs/HOW-IT-WORKS.md">How it works, in detail</a>
-          <a href="https://github.com/IbrahimMas1/javahost/issues">Report a problem</a>
+      <div class="camp" aria-hidden="true">
+        <div class="decor">
+          <div class="stars"></div>
+          <div class="stars twinkle"></div>
         </div>
-        <p class="legal">
-          © 2026 JavaHost · MIT licence. Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.<br />
-          Screenshots taken in Minecraft with JavaHost; player names are made up. Icons:
-          <a href="https://github.com/halfmage/pixelarticons">Pixelarticons</a> by Gerrit Halfmann (MIT).
-        </p>
+        <div class="wordmark">JavaHost</div>
+        <div class="fireside">
+          <div class="player sitting" data-skin="media/skin-host.png" style="--turn: 58deg"></div>
+          <div class="fire">
+            <svg class="art frame-a"><use href="#px-fire-a" /></svg>
+            <svg class="art frame-b"><use href="#px-fire-b" /></svg>
+          </div>
+          <div class="player sitting" data-skin="media/skin-friend.png" style="--turn: -58deg"></div>
+        </div>
+      </div>
+      <div class="ground">
+        <div class="wrap">
+          <div class="foot">
+            <a class="brand" href="#top"><svg class="logo" aria-hidden="true"><use href="#jh" /></svg>JavaHost</a>
+            <a href="https://github.com/IbrahimMas1/javahost">Source</a>
+            <a href="https://github.com/IbrahimMas1/javahost/releases">Releases</a>
+            <a href="https://github.com/IbrahimMas1/javahost/blob/main/docs/HOW-IT-WORKS.md">How it works, in detail</a>
+            <a href="https://github.com/IbrahimMas1/javahost/issues">Report a problem</a>
+          </div>
+          <p class="legal">
+            © 2026 JavaHost · MIT licence. Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.<br />
+            Screenshots taken in Minecraft with JavaHost; player names are made up. Icons:
+            <a href="https://github.com/halfmage/pixelarticons">Pixelarticons</a> by Gerrit Halfmann (MIT).
+          </p>
+        </div>
       </div>
     </footer>
 
@@ -1786,10 +3107,217 @@
         const $ = (s) => document.querySelector(s);
         const $$ = (s) => [...document.querySelectorAll(s)];
         const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const watching = "IntersectionObserver" in window;
+        const clamp = (n, low, high) => Math.max(low, Math.min(high, n));
         const RELEASES = "https://github.com/IbrahimMas1/javahost/releases/latest";
 
+        // ---------------------------------------------------------------- the island
+        // A small voxel world drawn with CSS 3D. Blocks live in a map; only the faces the camera can ever see are made
+        // (top, front and right: the island never turns far enough to show the others), and neighbours in a row share
+        // one element, so the whole thing is a few hundred flat rectangles. Sizes are in "u" (see .stage in the styles).
+        function buildIsland(root) {
+          const B = 12; // one block
+          const round = (n) => Math.round(n * 100) / 100;
+          const u = (n) => (n ? "calc(var(--u)*" + round(n) + ")" : "0px");
+          const out = document.createDocumentFragment();
+          const billboards = [];
+          const blocks = new Map();
+          const key = (x, y, z) => x + "," + y + "," + z;
+          const put = (x, y, z, what) => blocks.set(key(x, y, z), what);
+          const at = (x, y, z) => blocks.get(key(x, y, z));
+          // water is see-through at the edges: it only hides the side of more water
+          const hides = (what, neighbour) => neighbour !== undefined && (neighbour !== "water" || what === "water");
+          // block coordinates to places: x left to right, z back to front, y up (so its top is further up the page)
+          const X = (x) => (x - 4.5) * B;
+          const Z = (z) => (z - 4.5) * B;
+          const top = (y) => -(y + 1) * B;
+          const when = (y, z) => Math.round((y + 6) * 80 + z * 14); // the order things are built in: bottom up, back to front
+
+          // One flat rectangle. kind is t (lying flat, seen from above), f (facing the front) or r (facing right).
+          // x, y, z is its top-left corner; a right face runs from that corner toward the back.
+          function face(kind, look, x, y, z, w, h, delay, more) {
+            const el = document.createElement("div");
+            el.className = "vf " + kind + " " + look;
+            el.style.cssText =
+              "width:" + u(w) + ";height:" + u(h) + ";transform:translate3d(" + u(x) + "," + u(y) + "," + u(z) + ")" +
+              (kind === "t" ? " rotateX(90deg)" : kind === "r" ? " rotateY(90deg)" : "") + ";animation-delay:" + (delay || 0) + "ms" +
+              (more && more.c ? ";--c:" + more.c : "");
+            ((more && more.into) || out).append(el);
+            return el;
+          }
+          // A box smaller (or larger) than a block: x and z are the middle of its base, y is the ground it stands on.
+          function box(look, x, y, z, w, h, d, delay, more) {
+            face("t", look, x - w / 2, y - h, z - d / 2, w, d, delay, more);
+            face("f", look, x - w / 2, y - h, z + d / 2, w, h, delay, more);
+            face("r", look, x + w / 2, y - h, z + d / 2, d, h, delay, more);
+          }
+          // A point in the world that other things hang from.
+          function pin(x, y, z, kind, into) {
+            const el = document.createElement("div");
+            el.className = "grp" + (kind ? " " + kind : "");
+            el.style.transform = "translate3d(" + u(x) + "," + u(y) + "," + u(z) + ")";
+            (into || out).append(el);
+            return el;
+          }
+
+          // The land, seen from above (back row first): 1 grass, 2 a hill, p path, w water. And how deep it hangs below.
+          const LAND = [".22211111", "222211111", "122211111", "112111p11", "1111ppp11", "1111p1ww1", ".11111ww1", ".111111w.", "..1111..."];
+          const DEEP = [".12232211", "112343221", "123454321", "123465432", "123455432", "122345321", ".12344321", ".1123322.", "..1122..."];
+          LAND.forEach((row, z) =>
+            [...row].forEach((kind, x) => {
+              if (kind === ".") return;
+              for (let y = -DEEP[z][x]; y < 0; y++) put(x, y, z, y === -1 ? "dirt" : y <= -4 ? "deep" : "stone");
+              put(x, 0, z, kind === "w" ? "water" : kind === "p" ? "sand" : kind === "2" ? "dirt" : "grass");
+              if (kind === "2") put(x, 1, z, "grass");
+            }),
+          );
+          // gems in the rock, in JavaHost's colours
+          [[4, -3, 7, "ore-g"], [2, -2, 6, "ore-g"], [6, -3, 6, "ore-p"], [8, -2, 3, "ore-b"], [7, -3, 4, "ore-g"], [5, -4, 6, "ore-b"], [3, -4, 6, "ore-p"]].forEach(
+            ([x, y, z, what]) => at(x, y, z) && put(x, y, z, what),
+          );
+          // the house: plank walls, a stepped roof
+          for (let x = 5; x <= 7; x++)
+            for (let z = 0; z <= 2; z++) {
+              put(x, 1, z, "plank");
+              put(x, 2, z, "plank");
+              put(x, 3, z, "roof");
+              if (z === 1) put(x, 4, z, "roof");
+            }
+          // the tree, in blossom
+          put(2, 2, 1, "log");
+          put(2, 3, 1, "log");
+          for (let x = 1; x <= 3; x++)
+            for (let z = 0; z <= 2; z++) {
+              put(x, 4, z, "leaf");
+              if (x === 2 || z === 1) put(x, 5, z, "leaf");
+            }
+          put(2, 6, 1, "leaf");
+          put(0, 4, 1, "leaf");
+          put(2, 4, 3, "leaf");
+
+          // Blocks to faces. A face is made only where nothing covers it, and a run of the same block becomes one element.
+          for (let y = -7; y <= 7; y++) {
+            for (let z = 0; z < 9; z++) {
+              for (const kind of ["t", "f"]) {
+                let x = 0;
+                while (x < 9) {
+                  const what = at(x, y, z);
+                  const open = (xx) => at(xx, y, z) === what && !hides(what, kind === "t" ? at(xx, y + 1, z) : at(xx, y, z + 1));
+                  if (what === undefined || !open(x)) {
+                    x++;
+                    continue;
+                  }
+                  let run = 1;
+                  while (x + run < 9 && open(x + run)) run++;
+                  const low = what === "water" ? 2 : 0;
+                  if (kind === "t") face("t", "m-" + what, X(x), top(y) + low, Z(z), run * B, B, when(y, z));
+                  else face("f", "m-" + what, X(x), top(y) + low, Z(z) + B, run * B, B - low, when(y, z));
+                  x += run;
+                }
+              }
+            }
+            for (let x = 0; x < 9; x++) {
+              let z = 8;
+              while (z >= 0) {
+                const what = at(x, y, z);
+                const open = (zz) => at(x, y, zz) === what && !hides(what, at(x + 1, y, zz));
+                if (what === undefined || !open(z)) {
+                  z--;
+                  continue;
+                }
+                let run = 1;
+                while (z - run >= 0 && open(z - run)) run++;
+                const low = what === "water" ? 2 : 0;
+                face("r", "m-" + what, X(x) + B, top(y) + low, Z(z) + B, run * B, B - low, when(y, z));
+                z -= run;
+              }
+            }
+          }
+          const ground = top(0);
+          const late = when(3, 4);
+
+          // the door and windows
+          face("f", "flat", X(6) + 3, ground - 11, Z(3) + 0.2, 6, 11, late, { c: "#5a3a26" });
+          face("f", "flat", X(6) + 7, ground - 6, Z(3) + 0.4, 1, 1, late, { c: "#ffe45c" });
+          face("f", "flat win", X(5) + 3, ground - 19, Z(3) + 0.2, 6, 6, late, { c: "#ffe58a" });
+          face("f", "flat win", X(7) + 3, ground - 19, Z(3) + 0.2, 6, 6, late, { c: "#ffe58a" });
+          face("r", "flat win", X(8) + 0.2, ground - 19, Z(1) + 9, 6, 6, late, { c: "#ffe58a" });
+          // the chimney, and its smoke
+          box("flat", X(5) + 5, top(3), Z(0) + 6, 5, 9, 5, late + 80, { c: "#7d889d" });
+          const smoke = pin(X(5) + 5, top(3) - 9, Z(0) + 6);
+          const puffs = document.createElement("div");
+          puffs.className = "bb";
+          puffs.innerHTML = '<i class="puff"></i><i class="puff" style="--dl:-1.2s"></i><i class="puff" style="--dl:-2.4s"></i>';
+          smoke.append(puffs);
+          billboards.push(puffs);
+          // the tree's shadow on the hill
+          face("t", "flat", X(1), top(1) - 0.2, Z(1), 3 * B, 2 * B, late, { c: "rgba(13,34,92,.16)" });
+          // the campfire: a ring of stones, two logs, and a flame with two frames
+          const fx = X(3.0);
+          const fz = Z(5.3);
+          [[-5, 0], [5, 0], [0, -5], [0, 5], [-4, 4], [4, -4]].forEach(([dx, dz]) => box("flat", fx + dx, ground, fz + dz, 3, 2, 3, late, { c: "#7d889d" }));
+          box("flat", fx, ground, fz, 9, 2, 2, late, { c: "#7c5437" });
+          box("flat", fx, ground, fz, 2, 2.4, 9, late, { c: "#986a43" });
+          box("flat frame-a", fx, ground - 2, fz, 5, 6, 5, late, { c: "#ff8a2e" });
+          box("flat frame-a", fx - 0.5, ground - 2, fz + 0.1, 3, 10, 3, late, { c: "#ffe45c" });
+          box("flat frame-b", fx, ground - 2, fz, 4, 8, 4, late, { c: "#ff8a2e" });
+          box("flat frame-b", fx + 1, ground - 2, fz + 0.1, 3, 11, 3, late, { c: "#ffe45c" });
+          // flowers
+          [[0.6, 3.4, "#fff"], [1.5, 5.6, "#ffe45c"], [0.4, 5.3, "#f06baa"], [2.4, 7.4, "#fff"], [5.4, 7.5, "#ffe45c"], [8.5, 4.4, "#f06baa"], [8.4, 6.3, "#fff"], [4.6, 3.3, "#f06baa"]].forEach(
+            ([x, z, colour]) => {
+              box("flat", X(x), ground, Z(z), 1, 3, 1, late + 120, { c: "#2fb267" });
+              box("flat", X(x), ground - 3, Z(z), 3, 2, 3, late + 120, { c: colour });
+            },
+          );
+          // the flag
+          box("flat", X(0.5), ground, Z(4.5), 2, 42, 2, late, { c: "#e9eeff" });
+          const mast = pin(X(0.5) + 1, ground - 42, Z(4.5));
+          mast.innerHTML = '<div class="flag"><svg aria-hidden="true"><use href="#jh"/></svg></div>';
+          // the pond pours off the corner
+          for (const kind of ["f", "r"]) {
+            const fall = kind === "f" ? face("f", "fall f", X(7), ground + 2, Z(8) + 0.4, B, 70, late) : face("r", "fall r", X(8) + 0.4, ground + 2, Z(8), B, 70, late);
+            fall.append(document.createElement("i"));
+          }
+          // two little islands keeping it company, and clouds at its feet
+          const near = pin(-110, -25, -40, "sat");
+          box("m-grass", 0, 12, 0, 12, 12, 12, late + 200, { into: near });
+          box("m-dirt", 0, 18, 0, 7, 6, 7, late + 200, { into: near });
+          box("flat", -2, 0, 1, 3, 2, 3, late + 260, { into: near, c: "#ffe45c" });
+          const low = pin(40, 72, 48, "puffy");
+          box("flat puffc", 0, 0, 0, 52, 6, 26, late + 320, { into: low, c: "#fff" });
+          box("flat puffc", -5, -6, -2, 32, 5, 17, late + 320, { into: low, c: "#fff" });
+          box("flat puffc", 2, -11, -3, 15, 4, 10, late + 320, { into: low, c: "#fff" });
+
+          // the players stand on it
+          root.querySelectorAll(".player[data-at]").forEach((el) => {
+            const [x, z] = el.dataset.at.split(",").map(Number);
+            el.style.transform = "translate3d(" + u(X(x) - 8) + "," + u(ground - 32) + "," + u(Z(z)) + ")";
+            billboards.push(el.querySelector(".tag"));
+          });
+          root.prepend(out);
+          return { billboards: billboards.filter(Boolean) };
+        }
+
+        const stage = $("#stage");
+        const island = $("#island");
+        let world = null;
+        let yaw = -36; // how far the island is turned, and tipped toward us
+        let pitch = -27;
+        try {
+          world = buildIsland(island);
+          if (!calm) {
+            island.classList.add("building");
+            setTimeout(() => island.classList.remove("building"), 4200);
+          }
+        } catch (error) {
+          stage.classList.add("plain");
+        }
+
         // ---------------------------------------------------------------- things come in as you reach them
-        if ("IntersectionObserver" in window && !calm) {
+        const arriving = $$("[data-reveal], [data-build]");
+        // the first screen comes in straight away, in its own order (each has a delay)
+        $$("#hero [data-reveal]").forEach((el) => el.classList.add("in"));
+        if (watching && !calm) {
           const seen = new IntersectionObserver(
             (entries) => {
               for (const entry of entries) {
@@ -1801,38 +3329,46 @@
             },
             { rootMargin: "0px 0px -8% 0px", threshold: 0.08 },
           );
-          $$("[data-reveal]").forEach((el) => seen.observe(el));
+          arriving.forEach((el) => seen.observe(el));
         } else {
-          $$("[data-reveal]").forEach((el) => el.classList.add("in"));
+          arriving.forEach((el) => el.classList.add("in"));
         }
 
-        // ---------------------------------------------------------------- the experience bar
+        // ---------------------------------------------------------------- scrolling: the experience bar, and depth
+        // Each scene's backdrop gets --sy, how far the scene's middle is from the middle of the screen (in hundreds of
+        // pixels). Its layers multiply that by their own depth, so far things lag behind near ones. Only scenes on screen
+        // are measured, and the number is set on the backdrop alone so nothing else has to be restyled.
         const xp = $("#xp");
+        const live = new Set();
+        if (watching && !calm) {
+          const near = new IntersectionObserver((entries) => entries.forEach((entry) => (entry.isIntersecting ? live.add(entry.target) : live.delete(entry.target))), {
+            rootMargin: "15% 0px",
+          });
+          $$("[data-scene]").forEach((el) => near.observe(el));
+        }
         let ticking = false;
+        function scrolled() {
+          ticking = false;
+          const room = document.documentElement.scrollHeight - innerHeight;
+          xp.style.transform = "scaleX(" + (room > 0 ? Math.min(1, scrollY / room) : 0) + ")";
+          const middle = innerHeight / 2;
+          const moves = [];
+          for (const el of live) {
+            const box = el.getBoundingClientRect();
+            moves.push([el.querySelector(".decor"), ((box.top + box.height / 2 - middle) / 100).toFixed(2)]);
+          }
+          for (const [backdrop, sy] of moves) if (backdrop) backdrop.style.setProperty("--sy", sy);
+        }
         addEventListener(
           "scroll",
           () => {
-            if (ticking) return;
-            ticking = true;
-            requestAnimationFrame(() => {
-              const room = document.documentElement.scrollHeight - innerHeight;
-              xp.style.transform = "scaleX(" + (room > 0 ? Math.min(1, scrollY / room) : 0) + ")";
-              ticking = false;
-            });
+            if (!ticking) {
+              ticking = true;
+              requestAnimationFrame(scrolled);
+            }
           },
           { passive: true },
         );
-
-        // ---------------------------------------------------------------- the menu turns a little toward the mouse
-        const stage = $("#stage");
-        if (stage && !calm && matchMedia("(pointer: fine)").matches) {
-          addEventListener("mousemove", (event) => {
-            const x = event.clientX / innerWidth - 0.5;
-            const y = event.clientY / innerHeight - 0.5;
-            stage.style.setProperty("--ry", (x * 7).toFixed(2) + "deg");
-            stage.style.setProperty("--rx", (-y * 5).toFixed(2) + "deg");
-          });
-        }
 
         // ---------------------------------------------------------------- the players
         // Each is six boxes (head, body, arms, legs) whose faces show the right patch of a 64x64 skin, placed in 3D with
@@ -1878,12 +3414,23 @@
             }
             sway.append(part);
           }
-          const player = { el, turn: parseFloat(el.style.getPropertyValue("--turn")) || 24, hy: 0, hx: 0, wantY: 0, wantX: 0 };
+          const player = {
+            el,
+            head: el.querySelector(".head"),
+            onIsland: island.contains(el),
+            shown: true,
+            turn: parseFloat(el.style.getPropertyValue("--turn")) || 24,
+            hy: 0,
+            hx: 0,
+            wantY: 0,
+            wantX: 0,
+          };
           // Drag to turn them round.
           let dragFrom = null;
           el.addEventListener("pointerdown", (event) => {
             dragFrom = { x: event.clientX, turn: player.turn };
             el.setPointerCapture(event.pointerId);
+            event.stopPropagation();
           });
           el.addEventListener("pointermove", (event) => {
             if (dragFrom) {
@@ -1894,7 +3441,10 @@
           const drop = () => (dragFrom = null);
           el.addEventListener("pointerup", drop);
           el.addEventListener("pointercancel", drop);
-          el.addEventListener("click", () => wave(player));
+          el.addEventListener("click", () => {
+            wave(player);
+            hop(player);
+          });
           return player;
         });
         function wave(player) {
@@ -1902,43 +3452,105 @@
           player.el.classList.add("waving");
           setTimeout(() => player.el.classList.remove("waving"), 2300);
         }
+        function hop(player) {
+          if (calm || player.el.classList.contains("sitting")) return;
+          player.el.classList.remove("hop");
+          void player.el.offsetWidth;
+          player.el.classList.add("hop");
+          setTimeout(() => player.el.classList.remove("hop"), 520);
+        }
         if (!calm && players.length) {
+          // Only the ones on screen do anything.
+          if (watching) {
+            const cast = new IntersectionObserver((entries) => {
+              for (const entry of entries) {
+                const player = players.find((p) => p.el === entry.target);
+                if (player) player.shown = entry.isIntersecting;
+              }
+            });
+            players.forEach((player) => cast.observe(player.el));
+          }
           // Their heads follow the mouse, easing toward it.
-          addEventListener("mousemove", (event) => {
-            for (const player of players) {
-              const box = player.el.getBoundingClientRect();
-              const dx = event.clientX - (box.left + box.width / 2);
-              const dy = event.clientY - (box.top + box.height * 0.15);
-              const body = ((player.turn % 360) + 540) % 360 - 180; // which way the body faces, -180..180
-              player.wantY = Math.max(-55, Math.min(55, dx * 0.11 - body));
-              player.wantX = Math.max(-28, Math.min(28, -dy * 0.07));
-            }
-          });
+          let mouse = null;
+          addEventListener("mousemove", (event) => (mouse = event), { passive: true });
           (function look() {
+            const moved = mouse;
+            mouse = null;
             for (const player of players) {
+              if (!player.shown || !player.head) continue;
+              if (moved) {
+                const box = player.el.getBoundingClientRect();
+                const dx = moved.clientX - (box.left + box.width / 2);
+                const dy = moved.clientY - (box.top + box.height * 0.15);
+                const facing = player.turn + (player.onIsland ? yaw : 0);
+                const body = ((facing % 360) + 540) % 360 - 180; // which way the body faces, -180..180
+                player.wantY = clamp(dx * 0.11 - body, -55, 55);
+                player.wantX = clamp(-dy * 0.07, -28, 28);
+              }
+              if (Math.abs(player.wantY - player.hy) + Math.abs(player.wantX - player.hx) < 0.05) continue;
               player.hy += (player.wantY - player.hy) * 0.12;
               player.hx += (player.wantX - player.hx) * 0.12;
-              const head = player.el.querySelector(".head");
-              if (head) {
-                head.style.setProperty("--hy", player.hy.toFixed(1) + "deg");
-                head.style.setProperty("--hx", player.hx.toFixed(1) + "deg");
-              }
+              player.head.style.setProperty("--hy", player.hy.toFixed(1) + "deg");
+              player.head.style.setProperty("--hx", player.hx.toFixed(1) + "deg");
             }
             requestAnimationFrame(look);
           })();
           // A friend waves now and then; everyone walks on the spot while the page scrolls.
-          setInterval(() => players.filter((player) => "waves" in player.el.dataset).forEach(wave), 7000);
-          setTimeout(() => players.filter((player) => "waves" in player.el.dataset).forEach(wave), 1600);
+          const wavers = players.filter((player) => "waves" in player.el.dataset);
+          setInterval(() => wavers.filter((player) => player.shown).forEach(wave), 7000);
+          setTimeout(() => wavers.forEach(wave), 3200);
           let stop = 0;
           addEventListener(
             "scroll",
             () => {
-              players.forEach((player) => player.el.classList.add("walking"));
+              players.forEach((player) => player.shown && player.el.classList.add("walking"));
               clearTimeout(stop);
               stop = setTimeout(() => players.forEach((player) => player.el.classList.remove("walking")), 220);
             },
             { passive: true },
           );
+        }
+
+        // ---------------------------------------------------------------- the island turns: slowly by itself, toward the mouse, and when dragged
+        if (world && !calm) {
+          const chips = $$(".chip");
+          let mx = 0;
+          let my = 0;
+          let pull = 0;
+          let grab = null;
+          let onScreen = true;
+          addEventListener(
+            "mousemove",
+            (event) => {
+              mx = event.clientX / innerWidth - 0.5;
+              my = event.clientY / innerHeight - 0.5;
+            },
+            { passive: true },
+          );
+          island.addEventListener("pointerdown", (event) => {
+            grab = { x: event.clientX, pull };
+            island.setPointerCapture(event.pointerId);
+          });
+          island.addEventListener("pointermove", (event) => {
+            if (grab) pull = clamp(grab.pull + (event.clientX - grab.x) * 0.25, -22, 22);
+          });
+          const release = () => (grab = null);
+          island.addEventListener("pointerup", release);
+          island.addEventListener("pointercancel", release);
+          if (watching) new IntersectionObserver((entries) => (onScreen = entries[0].isIntersecting)).observe(stage);
+          (function turn(now) {
+            if (onScreen) {
+              const wantYaw = clamp(-36 + Math.sin(now / 3600) * 4 + mx * 16 + pull, -62, -10);
+              const wantPitch = -27 - my * 6;
+              yaw += (wantYaw - yaw) * 0.08;
+              pitch += (wantPitch - pitch) * 0.08;
+              island.style.transform = "rotateX(" + pitch.toFixed(2) + "deg) rotateY(" + yaw.toFixed(2) + "deg)";
+              const undo = "rotateY(" + (-yaw).toFixed(2) + "deg) rotateX(" + (-pitch).toFixed(2) + "deg)";
+              for (const el of world.billboards) el.style.transform = undo;
+              chips.forEach((chip, index) => (chip.style.translate = (-mx * (10 + index * 8)).toFixed(1) + "px " + (-my * (8 + index * 5)).toFixed(1) + "px"));
+            }
+            requestAnimationFrame(turn);
+          })(0);
         }
 
         // ---------------------------------------------------------------- a light follows the mouse across each tile
@@ -1960,14 +3572,14 @@
             const spin = setInterval(
               () => {
                 turns++;
-                el.textContent = prefix + (turns < 10 + index * 3 ? Math.floor(Math.random() * 90 + 10) : target);
+                el.textContent = prefix + (turns < 10 + index * 3 ? Math.floor(Math.random() * 9 + 1) : target);
                 if (turns >= 10 + index * 3) clearInterval(spin);
               },
               55,
             );
           });
         }
-        if ("IntersectionObserver" in window) {
+        if (watching) {
           const once = new IntersectionObserver(
             (entries) => {
               if (entries.some((entry) => entry.isIntersecting)) {
@@ -1980,11 +3592,11 @@
           once.observe($("#stats"));
         }
 
-        // ---------------------------------------------------------------- motes drifting up behind the headline
+        // ---------------------------------------------------------------- petals from the tree, drifting across the morning sky
         const canvas = $("#motes");
         if (canvas && !calm) {
           const ctx = canvas.getContext("2d");
-          const colours = ["#3ddc84", "#3ddc84", "#3ddc84", "#4f9df7", "#a77bf3"];
+          const colours = ["#ffc3da", "#f58ab5", "#ffffff", "#ffc3da", "#ffe9f2"];
           let motes = [];
           let width = 0;
           let height = 0;
@@ -1997,12 +3609,13 @@
             canvas.width = width * ratio;
             canvas.height = height * ratio;
             ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-            const count = Math.round(Math.min(70, width / 22));
+            const count = Math.round(Math.min(46, width / 30));
             motes = Array.from({ length: count }, () => ({
-              x: Math.random() * width,
+              x: Math.random() * width * 1.2,
               y: Math.random() * height,
-              s: 2 + Math.floor(Math.random() * 3) * 2,
-              v: 0.15 + Math.random() * 0.45,
+              s: 4 + Math.floor(Math.random() * 2) * 2,
+              vx: -(0.25 + Math.random() * 0.5),
+              vy: 0.2 + Math.random() * 0.45,
               c: colours[Math.floor(Math.random() * colours.length)],
               p: Math.random() * Math.PI * 2,
             }));
@@ -2011,28 +3624,32 @@
             if (!running) return;
             ctx.clearRect(0, 0, width, height);
             for (const m of motes) {
-              m.y -= m.v;
-              if (m.y < -10) {
-                m.y = height + 10;
-                m.x = Math.random() * width;
+              m.x += m.vx;
+              m.y += m.vy;
+              if (m.y > height + 10 || m.x < -10) {
+                m.y = Math.random() < 0.5 ? -10 : Math.random() * height * 0.6;
+                m.x = m.y < 0 ? Math.random() * width * 1.2 : width + 10;
               }
-              ctx.globalAlpha = 0.18 + 0.32 * (0.5 + 0.5 * Math.sin(time / 900 + m.p));
+              ctx.globalAlpha = 0.45 + 0.4 * (0.5 + 0.5 * Math.sin(time / 700 + m.p));
               ctx.fillStyle = m.c;
-              ctx.fillRect(Math.round(m.x + Math.sin(time / 1700 + m.p) * 8), Math.round(m.y), m.s, m.s);
+              // snapped to a 2px grid so they move like pixels
+              ctx.fillRect(Math.round((m.x + Math.sin(time / 1300 + m.p) * 10) / 2) * 2, Math.round(m.y / 2) * 2, m.s, m.s);
             }
             requestAnimationFrame(draw);
           }
           size();
           addEventListener("resize", size);
           // Only while the top of the page is on screen.
-          new IntersectionObserver((entries) => {
-            const visible = entries[0].isIntersecting;
-            if (visible && !running) {
-              running = true;
-              requestAnimationFrame(draw);
-            }
-            running = visible;
-          }).observe(canvas);
+          if (watching) {
+            new IntersectionObserver((entries) => {
+              const visible = entries[0].isIntersecting;
+              if (visible && !running) {
+                running = true;
+                requestAnimationFrame(draw);
+              }
+              running = visible;
+            }).observe(canvas);
+          }
         }
 
         // ---------------------------------------------------------------- downloads
@@ -2082,6 +3699,7 @@
             pickOs(current);
           })
           .catch(() => {});
+        document.documentElement.classList.add("ok");
       })();
     </script>
   </body>

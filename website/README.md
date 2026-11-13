@@ -1,24 +1,30 @@
 # JavaHost website
 
-A single page with no build step: `index.html` holds the CSS and JavaScript. To look at it locally, serve this folder with any static server, for example `python3 -m http.server 4173 --directory website` from the repository root.
+One page, `index.html`, with its CSS and JavaScript inline. It is **built**: edit the parts in `../website-src/parts/` and run
+
+    sh website-src/tools/build.sh
+
+from the repository root. That stitches the parts together and draws the page's pixel art into it (`website-src/tools/gen.py`, Python standard library only). Don't edit `index.html` by hand; the next build would overwrite it.
+
+To look at it locally, serve this folder with any static server, for example `python3 -m http.server 4173 --directory website`.
 
 ## What's on it
 
-Top to bottom: the headline with the download button and the menu standing beside it, a running strip, how it works in three steps, five feature scenes (hosting, friends, low ping, voice, mods), six more features in a grid, four numbers, install steps for Windows, Mac and Linux, and common questions.
+A day in a small world, from morning to night:
 
-The look: a near-black page drawn on a visible grid, very large pixel headlines (Silkscreen), Pixelify Sans for labels and buttons, the visitor's system font for body text, square buttons with a hard pixel shadow, and Pixelarticons (`media/icons.svg`). Each feature scene takes one of the mod's five accent colours. Fonts come from Google Fonts; there are no external scripts.
+- **Hero:** a floating island made of voxel blocks in CSS 3D (grass, a blossom tree, a plank house, a pond and waterfall, a flag, a campfire), with two 3D players standing on it. It assembles on load, turns slowly, leans toward the mouse and can be dragged. Petals drift, clouds move in parallax, and three notes float beside it.
+- **Three steps**, then one scene per feature, each in its own colour of sky with pixel hills and clouds: hosting (green), friends (blue), low ping (an orange sunset, with an animated picture of relay versus direct), mods (pink), voice (purple).
+- **Night:** a grid of the remaining features around the quick-menu screenshot, four numbers, the download box under the moon, the questions, and a campfire footer with the two players.
 
-Motion, all in `index.html`: the headline rises in line by line with a blinking block cursor; the menu in the hero is tilted in 3D and turns toward the mouse, with three floating notes; pixel motes drift up behind it (a small canvas, paused when off screen); sections slide in as you reach them; an experience bar under the top bar fills as you scroll; the steps get a line of light; packets travel the two routes in the low-ping picture (SVG); a light follows the mouse across the grid tiles; the numbers spin before landing. With "reduce motion" on, all of it is switched off and everything is simply there.
+Throughout: sections slide in as you reach them, blocks drop into place, the numbers spin before landing, a bar under the top bar fills as you scroll, and stars twinkle. With "reduce motion" on, all motion is off and everything is simply there. If the script fails or is switched off, the content still shows.
 
-## The 3D players
+## Everything is original
 
-The characters in the hero and on the download box are real 3D, built in the page with CSS: six boxes each (head, body, arms, legs), every face showing its patch of a 64x64 player skin. No 3D library, no model files. They sway, their heads follow the mouse, one waves now and then (or when clicked), they walk on the spot while the page scrolls, and they can be dragged round. The code is the "players" block in `index.html`'s script and styles; a player is any `<div class="player" data-skin="...">`.
-
-The skins (`media/skin-host.png`, `media/skin-friend.png`) are original pixel art painted by `scripts/gen-website-skins.py`, not Mojang's textures. Run it again to change colours or add a character.
+No Mojang or Microsoft artwork is used. The block textures, sky, sun, moon, clouds and hills are drawn by `gen.py`; the two player skins (`media/skin-host.png`, `media/skin-friend.png`) are painted by `scripts/gen-website-skins.py`. The players are six CSS boxes each, wearing a skin; there is no 3D library.
 
 ## Media
 
-- `media/shots/`: screenshots of the real menus, taken by the automated game test at 1710x1070 (`build/run/clientGameTest/screenshots` after `./gradlew :26.3:runClientGameTest`). Player names are made up, and none of them shows an invite code or an address. To refresh them, copy the new files over the old names.
+- `media/shots/`: screenshots of the real menus, taken by the automated game test at 1710x1070 (`build/run/clientGameTest/screenshots` after `./gradlew :26.3:runClientGameTest`). Player names are made up, and none shows an invite code or an address.
 - `media/og.jpg`: the picture shown when the link is shared.
 - `media/icons.svg`: the icon sprite (see `media/ICONS-LICENSE.txt`).
 
@@ -28,12 +34,6 @@ The skins (`media/skin-host.png`, `media/skin-friend.png`) are original pixel ar
 
 ## Publishing
 
-`.github/workflows/pages.yml` deploys this folder to GitHub Pages (https://ibrahimmas1.github.io/javahost/) whenever `website/` changes on `main`, or from a manual run. The canonical and Open Graph addresses in `index.html` use that address; change them if the site moves to its own domain.
+`.github/workflows/pages.yml` deploys this folder to GitHub Pages (https://ibrahimmas1.github.io/javahost/) whenever `website/` changes on `main`, or from a manual run.
 
 The download buttons point at the latest GitHub release. When GitHub's API answers, they link straight to the right installer for the visitor's computer (`.exe`, `.dmg`, or the installer `.jar` on Linux) and the badge shows the newest version; without it they open the releases page.
-
-## Accessibility
-
-- The computer picker is a real tab list: click, or use the arrow keys.
-- Questions are plain `<details>` elements, so they work without JavaScript; so does the rest of the page (nothing is hidden unless the script is running to reveal it).
-- With "reduce motion" on, animations, transitions and smooth scrolling are off.

@@ -1,0 +1,603 @@
+
+    <script>
+      (() => {
+        const $ = (s) => document.querySelector(s);
+        const $$ = (s) => [...document.querySelectorAll(s)];
+        const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const watching = "IntersectionObserver" in window;
+        const clamp = (n, low, high) => Math.max(low, Math.min(high, n));
+        const RELEASES = "https://github.com/IbrahimMas1/javahost/releases/latest";
+
+        // ---------------------------------------------------------------- the island
+        // A small voxel world drawn with CSS 3D. Blocks live in a map; only the faces the camera can ever see are made
+        // (top, front and right: the island never turns far enough to show the others), and neighbours in a row share
+        // one element, so the whole thing is a few hundred flat rectangles. Sizes are in "u" (see .stage in the styles).
+        function buildIsland(root) {
+          const B = 12; // one block
+          const round = (n) => Math.round(n * 100) / 100;
+          const u = (n) => (n ? "calc(var(--u)*" + round(n) + ")" : "0px");
+          const out = document.createDocumentFragment();
+          const billboards = [];
+          const blocks = new Map();
+          const key = (x, y, z) => x + "," + y + "," + z;
+          const put = (x, y, z, what) => blocks.set(key(x, y, z), what);
+          const at = (x, y, z) => blocks.get(key(x, y, z));
+          // water is see-through at the edges: it only hides the side of more water
+          const hides = (what, neighbour) => neighbour !== undefined && (neighbour !== "water" || what === "water");
+          // block coordinates to places: x left to right, z back to front, y up (so its top is further up the page)
+          const X = (x) => (x - 4.5) * B;
+          const Z = (z) => (z - 4.5) * B;
+          const top = (y) => -(y + 1) * B;
+          const when = (y, z) => Math.round((y + 6) * 80 + z * 14); // the order things are built in: bottom up, back to front
+
+          // One flat rectangle. kind is t (lying flat, seen from above), f (facing the front) or r (facing right).
+          // x, y, z is its top-left corner; a right face runs from that corner toward the back.
+          function face(kind, look, x, y, z, w, h, delay, more) {
+            const el = document.createElement("div");
+            el.className = "vf " + kind + " " + look;
+            el.style.cssText =
+              "width:" + u(w) + ";height:" + u(h) + ";transform:translate3d(" + u(x) + "," + u(y) + "," + u(z) + ")" +
+              (kind === "t" ? " rotateX(90deg)" : kind === "r" ? " rotateY(90deg)" : "") + ";animation-delay:" + (delay || 0) + "ms" +
+              (more && more.c ? ";--c:" + more.c : "");
+            ((more && more.into) || out).append(el);
+            return el;
+          }
+          // A box smaller (or larger) than a block: x and z are the middle of its base, y is the ground it stands on.
+          function box(look, x, y, z, w, h, d, delay, more) {
+            face("t", look, x - w / 2, y - h, z - d / 2, w, d, delay, more);
+            face("f", look, x - w / 2, y - h, z + d / 2, w, h, delay, more);
+            face("r", look, x + w / 2, y - h, z + d / 2, d, h, delay, more);
+          }
+          // A point in the world that other things hang from.
+          function pin(x, y, z, kind, into) {
+            const el = document.createElement("div");
+            el.className = "grp" + (kind ? " " + kind : "");
+            el.style.transform = "translate3d(" + u(x) + "," + u(y) + "," + u(z) + ")";
+            (into || out).append(el);
+            return el;
+          }
+
+          // The land, seen from above (back row first): 1 grass, 2 a hill, p path, w water. And how deep it hangs below.
+          const LAND = [".22211111", "222211111", "122211111", "112111p11", "1111ppp11", "1111p1ww1", ".11111ww1", ".111111w.", "..1111..."];
+          const DEEP = [".12232211", "112343221", "123454321", "123465432", "123455432", "122345321", ".12344321", ".1123322.", "..1122..."];
+          LAND.forEach((row, z) =>
+            [...row].forEach((kind, x) => {
+              if (kind === ".") return;
+              for (let y = -DEEP[z][x]; y < 0; y++) put(x, y, z, y === -1 ? "dirt" : y <= -4 ? "deep" : "stone");
+              put(x, 0, z, kind === "w" ? "water" : kind === "p" ? "sand" : kind === "2" ? "dirt" : "grass");
+              if (kind === "2") put(x, 1, z, "grass");
+            }),
+          );
+          // gems in the rock, in JavaHost's colours
+          [[4, -3, 7, "ore-g"], [2, -2, 6, "ore-g"], [6, -3, 6, "ore-p"], [8, -2, 3, "ore-b"], [7, -3, 4, "ore-g"], [5, -4, 6, "ore-b"], [3, -4, 6, "ore-p"]].forEach(
+            ([x, y, z, what]) => at(x, y, z) && put(x, y, z, what),
+          );
+          // the house: plank walls, a stepped roof
+          for (let x = 5; x <= 7; x++)
+            for (let z = 0; z <= 2; z++) {
+              put(x, 1, z, "plank");
+              put(x, 2, z, "plank");
+              put(x, 3, z, "roof");
+              if (z === 1) put(x, 4, z, "roof");
+            }
+          // the tree, in blossom
+          put(2, 2, 1, "log");
+          put(2, 3, 1, "log");
+          for (let x = 1; x <= 3; x++)
+            for (let z = 0; z <= 2; z++) {
+              put(x, 4, z, "leaf");
+              if (x === 2 || z === 1) put(x, 5, z, "leaf");
+            }
+          put(2, 6, 1, "leaf");
+          put(0, 4, 1, "leaf");
+          put(2, 4, 3, "leaf");
+
+          // Blocks to faces. A face is made only where nothing covers it, and a run of the same block becomes one element.
+          for (let y = -7; y <= 7; y++) {
+            for (let z = 0; z < 9; z++) {
+              for (const kind of ["t", "f"]) {
+                let x = 0;
+                while (x < 9) {
+                  const what = at(x, y, z);
+                  const open = (xx) => at(xx, y, z) === what && !hides(what, kind === "t" ? at(xx, y + 1, z) : at(xx, y, z + 1));
+                  if (what === undefined || !open(x)) {
+                    x++;
+                    continue;
+                  }
+                  let run = 1;
+                  while (x + run < 9 && open(x + run)) run++;
+                  const low = what === "water" ? 2 : 0;
+                  if (kind === "t") face("t", "m-" + what, X(x), top(y) + low, Z(z), run * B, B, when(y, z));
+                  else face("f", "m-" + what, X(x), top(y) + low, Z(z) + B, run * B, B - low, when(y, z));
+                  x += run;
+                }
+              }
+            }
+            for (let x = 0; x < 9; x++) {
+              let z = 8;
+              while (z >= 0) {
+                const what = at(x, y, z);
+                const open = (zz) => at(x, y, zz) === what && !hides(what, at(x + 1, y, zz));
+                if (what === undefined || !open(z)) {
+                  z--;
+                  continue;
+                }
+                let run = 1;
+                while (z - run >= 0 && open(z - run)) run++;
+                const low = what === "water" ? 2 : 0;
+                face("r", "m-" + what, X(x) + B, top(y) + low, Z(z) + B, run * B, B - low, when(y, z));
+                z -= run;
+              }
+            }
+          }
+          const ground = top(0);
+          const late = when(3, 4);
+
+          // the door and windows
+          face("f", "flat", X(6) + 3, ground - 11, Z(3) + 0.2, 6, 11, late, { c: "#5a3a26" });
+          face("f", "flat", X(6) + 7, ground - 6, Z(3) + 0.4, 1, 1, late, { c: "#ffe45c" });
+          face("f", "flat win", X(5) + 3, ground - 19, Z(3) + 0.2, 6, 6, late, { c: "#ffe58a" });
+          face("f", "flat win", X(7) + 3, ground - 19, Z(3) + 0.2, 6, 6, late, { c: "#ffe58a" });
+          face("r", "flat win", X(8) + 0.2, ground - 19, Z(1) + 9, 6, 6, late, { c: "#ffe58a" });
+          // the chimney, and its smoke
+          box("flat", X(5) + 5, top(3), Z(0) + 6, 5, 9, 5, late + 80, { c: "#7d889d" });
+          const smoke = pin(X(5) + 5, top(3) - 9, Z(0) + 6);
+          const puffs = document.createElement("div");
+          puffs.className = "bb";
+          puffs.innerHTML = '<i class="puff"></i><i class="puff" style="--dl:-1.2s"></i><i class="puff" style="--dl:-2.4s"></i>';
+          smoke.append(puffs);
+          billboards.push(puffs);
+          // the tree's shadow on the hill
+          face("t", "flat", X(1), top(1) - 0.2, Z(1), 3 * B, 2 * B, late, { c: "rgba(13,34,92,.16)" });
+          // the campfire: a ring of stones, two logs, and a flame with two frames
+          const fx = X(3.0);
+          const fz = Z(5.3);
+          [[-5, 0], [5, 0], [0, -5], [0, 5], [-4, 4], [4, -4]].forEach(([dx, dz]) => box("flat", fx + dx, ground, fz + dz, 3, 2, 3, late, { c: "#7d889d" }));
+          box("flat", fx, ground, fz, 9, 2, 2, late, { c: "#7c5437" });
+          box("flat", fx, ground, fz, 2, 2.4, 9, late, { c: "#986a43" });
+          box("flat frame-a", fx, ground - 2, fz, 5, 6, 5, late, { c: "#ff8a2e" });
+          box("flat frame-a", fx - 0.5, ground - 2, fz + 0.1, 3, 10, 3, late, { c: "#ffe45c" });
+          box("flat frame-b", fx, ground - 2, fz, 4, 8, 4, late, { c: "#ff8a2e" });
+          box("flat frame-b", fx + 1, ground - 2, fz + 0.1, 3, 11, 3, late, { c: "#ffe45c" });
+          // flowers
+          [[0.6, 3.4, "#fff"], [1.5, 5.6, "#ffe45c"], [0.4, 5.3, "#f06baa"], [2.4, 7.4, "#fff"], [5.4, 7.5, "#ffe45c"], [8.5, 4.4, "#f06baa"], [8.4, 6.3, "#fff"], [4.6, 3.3, "#f06baa"]].forEach(
+            ([x, z, colour]) => {
+              box("flat", X(x), ground, Z(z), 1, 3, 1, late + 120, { c: "#2fb267" });
+              box("flat", X(x), ground - 3, Z(z), 3, 2, 3, late + 120, { c: colour });
+            },
+          );
+          // the flag
+          box("flat", X(0.5), ground, Z(4.5), 2, 42, 2, late, { c: "#e9eeff" });
+          const mast = pin(X(0.5) + 1, ground - 42, Z(4.5));
+          mast.innerHTML = '<div class="flag"><svg aria-hidden="true"><use href="#jh"/></svg></div>';
+          // the pond pours off the corner
+          for (const kind of ["f", "r"]) {
+            const fall = kind === "f" ? face("f", "fall f", X(7), ground + 2, Z(8) + 0.4, B, 70, late) : face("r", "fall r", X(8) + 0.4, ground + 2, Z(8), B, 70, late);
+            fall.append(document.createElement("i"));
+          }
+          // two little islands keeping it company, and clouds at its feet
+          const near = pin(-110, -25, -40, "sat");
+          box("m-grass", 0, 12, 0, 12, 12, 12, late + 200, { into: near });
+          box("m-dirt", 0, 18, 0, 7, 6, 7, late + 200, { into: near });
+          box("flat", -2, 0, 1, 3, 2, 3, late + 260, { into: near, c: "#ffe45c" });
+          const low = pin(40, 72, 48, "puffy");
+          box("flat puffc", 0, 0, 0, 52, 6, 26, late + 320, { into: low, c: "#fff" });
+          box("flat puffc", -5, -6, -2, 32, 5, 17, late + 320, { into: low, c: "#fff" });
+          box("flat puffc", 2, -11, -3, 15, 4, 10, late + 320, { into: low, c: "#fff" });
+
+          // the players stand on it
+          root.querySelectorAll(".player[data-at]").forEach((el) => {
+            const [x, z] = el.dataset.at.split(",").map(Number);
+            el.style.transform = "translate3d(" + u(X(x) - 8) + "," + u(ground - 32) + "," + u(Z(z)) + ")";
+            billboards.push(el.querySelector(".tag"));
+          });
+          root.prepend(out);
+          return { billboards: billboards.filter(Boolean) };
+        }
+
+        const stage = $("#stage");
+        const island = $("#island");
+        let world = null;
+        let yaw = -36; // how far the island is turned, and tipped toward us
+        let pitch = -27;
+        try {
+          world = buildIsland(island);
+          if (!calm) {
+            island.classList.add("building");
+            setTimeout(() => island.classList.remove("building"), 4200);
+          }
+        } catch (error) {
+          stage.classList.add("plain");
+        }
+
+        // ---------------------------------------------------------------- things come in as you reach them
+        const arriving = $$("[data-reveal], [data-build]");
+        // the first screen comes in straight away, in its own order (each has a delay)
+        $$("#hero [data-reveal]").forEach((el) => el.classList.add("in"));
+        if (watching && !calm) {
+          const seen = new IntersectionObserver(
+            (entries) => {
+              for (const entry of entries) {
+                if (entry.isIntersecting) {
+                  entry.target.classList.add("in");
+                  seen.unobserve(entry.target);
+                }
+              }
+            },
+            { rootMargin: "0px 0px -8% 0px", threshold: 0.08 },
+          );
+          arriving.forEach((el) => seen.observe(el));
+        } else {
+          arriving.forEach((el) => el.classList.add("in"));
+        }
+
+        // ---------------------------------------------------------------- scrolling: the experience bar, and depth
+        // Each scene's backdrop gets --sy, how far the scene's middle is from the middle of the screen (in hundreds of
+        // pixels). Its layers multiply that by their own depth, so far things lag behind near ones. Only scenes on screen
+        // are measured, and the number is set on the backdrop alone so nothing else has to be restyled.
+        const xp = $("#xp");
+        const live = new Set();
+        if (watching && !calm) {
+          const near = new IntersectionObserver((entries) => entries.forEach((entry) => (entry.isIntersecting ? live.add(entry.target) : live.delete(entry.target))), {
+            rootMargin: "15% 0px",
+          });
+          $$("[data-scene]").forEach((el) => near.observe(el));
+        }
+        let ticking = false;
+        function scrolled() {
+          ticking = false;
+          const room = document.documentElement.scrollHeight - innerHeight;
+          xp.style.transform = "scaleX(" + (room > 0 ? Math.min(1, scrollY / room) : 0) + ")";
+          const middle = innerHeight / 2;
+          const moves = [];
+          for (const el of live) {
+            const box = el.getBoundingClientRect();
+            moves.push([el.querySelector(".decor"), ((box.top + box.height / 2 - middle) / 100).toFixed(2)]);
+          }
+          for (const [backdrop, sy] of moves) if (backdrop) backdrop.style.setProperty("--sy", sy);
+        }
+        addEventListener(
+          "scroll",
+          () => {
+            if (!ticking) {
+              ticking = true;
+              requestAnimationFrame(scrolled);
+            }
+          },
+          { passive: true },
+        );
+
+        // ---------------------------------------------------------------- the players
+        // Each is six boxes (head, body, arms, legs) whose faces show the right patch of a 64x64 skin, placed in 3D with
+        // CSS. Sizes are in "u", one skin pixel, so the whole figure scales with one variable.
+        const BOXES = [
+          // name, x, y, width, height, depth, then where each face is on the skin: top, bottom, right, front, left, back
+          ["head", 4, 0, 8, 8, 8, [8, 0, 16, 0, 0, 8, 8, 8, 16, 8, 24, 8]],
+          ["torso", 4, 8, 8, 12, 4, [20, 16, 28, 16, 16, 20, 20, 20, 28, 20, 32, 20]],
+          ["armR", 0, 8, 4, 12, 4, [44, 16, 48, 16, 40, 20, 44, 20, 48, 20, 52, 20]],
+          ["armL", 12, 8, 4, 12, 4, [36, 48, 40, 48, 32, 52, 36, 52, 40, 52, 44, 52]],
+          ["legR", 4, 20, 4, 12, 4, [4, 16, 8, 16, 0, 20, 4, 20, 8, 20, 12, 20]],
+          ["legL", 8, 20, 4, 12, 4, [20, 48, 24, 48, 16, 52, 20, 52, 24, 52, 28, 52]],
+        ];
+        const u = (n) => "calc(var(--u) * " + n + ")";
+        const players = $$(".player").map((el) => {
+          el.style.setProperty("--skin", "url(" + el.dataset.skin + ")");
+          const turn = document.createElement("div");
+          const sway = document.createElement("div");
+          turn.className = "turn";
+          sway.className = "sway";
+          turn.append(sway);
+          el.append(turn);
+          for (const [name, x, y, w, h, d, at] of BOXES) {
+            const part = document.createElement("div");
+            part.className = "part " + name;
+            part.style.cssText = "left:" + u(x) + ";top:" + u(y) + ";width:" + u(w) + ";height:" + u(h);
+            const faces = [
+              // width, height, skin x, skin y, where it goes, how brightly it's lit
+              [w, d, at[0], at[1], "rotateX(90deg) translateZ(" + u(h / 2) + ")", 1.12],
+              [w, d, at[2], at[3], "rotateX(-90deg) translateZ(" + u(h / 2) + ")", 0.5],
+              [d, h, at[4], at[5], "rotateY(-90deg) translateZ(" + u(w / 2) + ")", 0.78],
+              [w, h, at[6], at[7], "translateZ(" + u(d / 2) + ")", 1],
+              [d, h, at[8], at[9], "rotateY(90deg) translateZ(" + u(w / 2) + ")", 0.78],
+              [w, h, at[10], at[11], "rotateY(180deg) translateZ(" + u(d / 2) + ")", 0.6],
+            ];
+            for (const [fw, fh, sx, sy, transform, light] of faces) {
+              const face = document.createElement("div");
+              face.className = "face";
+              face.style.cssText =
+                "width:" + u(fw) + ";height:" + u(fh) + ";left:" + u((w - fw) / 2) + ";top:" + u((h - fh) / 2) +
+                ";background-position:" + u(-sx) + " " + u(-sy) + ";transform:" + transform + ";filter:brightness(" + light + ")";
+              part.append(face);
+            }
+            sway.append(part);
+          }
+          const player = {
+            el,
+            head: el.querySelector(".head"),
+            onIsland: island.contains(el),
+            shown: true,
+            turn: parseFloat(el.style.getPropertyValue("--turn")) || 24,
+            hy: 0,
+            hx: 0,
+            wantY: 0,
+            wantX: 0,
+          };
+          // Drag to turn them round.
+          let dragFrom = null;
+          el.addEventListener("pointerdown", (event) => {
+            dragFrom = { x: event.clientX, turn: player.turn };
+            el.setPointerCapture(event.pointerId);
+            event.stopPropagation();
+          });
+          el.addEventListener("pointermove", (event) => {
+            if (dragFrom) {
+              player.turn = dragFrom.turn + (event.clientX - dragFrom.x) * 0.7;
+              el.style.setProperty("--turn", player.turn.toFixed(1) + "deg");
+            }
+          });
+          const drop = () => (dragFrom = null);
+          el.addEventListener("pointerup", drop);
+          el.addEventListener("pointercancel", drop);
+          el.addEventListener("click", () => {
+            wave(player);
+            hop(player);
+          });
+          return player;
+        });
+        function wave(player) {
+          if (calm || player.el.classList.contains("waving")) return;
+          player.el.classList.add("waving");
+          setTimeout(() => player.el.classList.remove("waving"), 2300);
+        }
+        function hop(player) {
+          if (calm || player.el.classList.contains("sitting")) return;
+          player.el.classList.remove("hop");
+          void player.el.offsetWidth;
+          player.el.classList.add("hop");
+          setTimeout(() => player.el.classList.remove("hop"), 520);
+        }
+        if (!calm && players.length) {
+          // Only the ones on screen do anything.
+          if (watching) {
+            const cast = new IntersectionObserver((entries) => {
+              for (const entry of entries) {
+                const player = players.find((p) => p.el === entry.target);
+                if (player) player.shown = entry.isIntersecting;
+              }
+            });
+            players.forEach((player) => cast.observe(player.el));
+          }
+          // Their heads follow the mouse, easing toward it.
+          let mouse = null;
+          addEventListener("mousemove", (event) => (mouse = event), { passive: true });
+          (function look() {
+            const moved = mouse;
+            mouse = null;
+            for (const player of players) {
+              if (!player.shown || !player.head) continue;
+              if (moved) {
+                const box = player.el.getBoundingClientRect();
+                const dx = moved.clientX - (box.left + box.width / 2);
+                const dy = moved.clientY - (box.top + box.height * 0.15);
+                const facing = player.turn + (player.onIsland ? yaw : 0);
+                const body = ((facing % 360) + 540) % 360 - 180; // which way the body faces, -180..180
+                player.wantY = clamp(dx * 0.11 - body, -55, 55);
+                player.wantX = clamp(-dy * 0.07, -28, 28);
+              }
+              if (Math.abs(player.wantY - player.hy) + Math.abs(player.wantX - player.hx) < 0.05) continue;
+              player.hy += (player.wantY - player.hy) * 0.12;
+              player.hx += (player.wantX - player.hx) * 0.12;
+              player.head.style.setProperty("--hy", player.hy.toFixed(1) + "deg");
+              player.head.style.setProperty("--hx", player.hx.toFixed(1) + "deg");
+            }
+            requestAnimationFrame(look);
+          })();
+          // A friend waves now and then; everyone walks on the spot while the page scrolls.
+          const wavers = players.filter((player) => "waves" in player.el.dataset);
+          setInterval(() => wavers.filter((player) => player.shown).forEach(wave), 7000);
+          setTimeout(() => wavers.forEach(wave), 3200);
+          let stop = 0;
+          addEventListener(
+            "scroll",
+            () => {
+              players.forEach((player) => player.shown && player.el.classList.add("walking"));
+              clearTimeout(stop);
+              stop = setTimeout(() => players.forEach((player) => player.el.classList.remove("walking")), 220);
+            },
+            { passive: true },
+          );
+        }
+
+        // ---------------------------------------------------------------- the island turns: slowly by itself, toward the mouse, and when dragged
+        if (world && !calm) {
+          const chips = $$(".chip");
+          let mx = 0;
+          let my = 0;
+          let pull = 0;
+          let grab = null;
+          let onScreen = true;
+          addEventListener(
+            "mousemove",
+            (event) => {
+              mx = event.clientX / innerWidth - 0.5;
+              my = event.clientY / innerHeight - 0.5;
+            },
+            { passive: true },
+          );
+          island.addEventListener("pointerdown", (event) => {
+            grab = { x: event.clientX, pull };
+            island.setPointerCapture(event.pointerId);
+          });
+          island.addEventListener("pointermove", (event) => {
+            if (grab) pull = clamp(grab.pull + (event.clientX - grab.x) * 0.25, -22, 22);
+          });
+          const release = () => (grab = null);
+          island.addEventListener("pointerup", release);
+          island.addEventListener("pointercancel", release);
+          if (watching) new IntersectionObserver((entries) => (onScreen = entries[0].isIntersecting)).observe(stage);
+          (function turn(now) {
+            if (onScreen) {
+              const wantYaw = clamp(-36 + Math.sin(now / 3600) * 4 + mx * 16 + pull, -62, -10);
+              const wantPitch = -27 - my * 6;
+              yaw += (wantYaw - yaw) * 0.08;
+              pitch += (wantPitch - pitch) * 0.08;
+              island.style.transform = "rotateX(" + pitch.toFixed(2) + "deg) rotateY(" + yaw.toFixed(2) + "deg)";
+              const undo = "rotateY(" + (-yaw).toFixed(2) + "deg) rotateX(" + (-pitch).toFixed(2) + "deg)";
+              for (const el of world.billboards) el.style.transform = undo;
+              chips.forEach((chip, index) => (chip.style.translate = (-mx * (10 + index * 8)).toFixed(1) + "px " + (-my * (8 + index * 5)).toFixed(1) + "px"));
+            }
+            requestAnimationFrame(turn);
+          })(0);
+        }
+
+        // ---------------------------------------------------------------- a light follows the mouse across each tile
+        $$(".tile").forEach((tile) => {
+          tile.addEventListener("mousemove", (event) => {
+            const box = tile.getBoundingClientRect();
+            tile.style.setProperty("--mx", event.clientX - box.left + "px");
+            tile.style.setProperty("--my", event.clientY - box.top + "px");
+          });
+        });
+
+        // ---------------------------------------------------------------- the numbers spin, then land
+        function countUp() {
+          if (calm) return;
+          $$("[data-count]").forEach((el, index) => {
+            const target = el.dataset.count;
+            const prefix = el.dataset.prefix || "";
+            let turns = 0;
+            const spin = setInterval(
+              () => {
+                turns++;
+                el.textContent = prefix + (turns < 10 + index * 3 ? Math.floor(Math.random() * 9 + 1) : target);
+                if (turns >= 10 + index * 3) clearInterval(spin);
+              },
+              55,
+            );
+          });
+        }
+        if (watching) {
+          const once = new IntersectionObserver(
+            (entries) => {
+              if (entries.some((entry) => entry.isIntersecting)) {
+                once.disconnect();
+                countUp();
+              }
+            },
+            { threshold: 0.4 },
+          );
+          once.observe($("#stats"));
+        }
+
+        // ---------------------------------------------------------------- petals from the tree, drifting across the morning sky
+        const canvas = $("#motes");
+        if (canvas && !calm) {
+          const ctx = canvas.getContext("2d");
+          const colours = ["#ffc3da", "#f58ab5", "#ffffff", "#ffc3da", "#ffe9f2"];
+          let motes = [];
+          let width = 0;
+          let height = 0;
+          let running = false;
+          function size() {
+            const box = canvas.getBoundingClientRect();
+            const ratio = Math.min(2, devicePixelRatio || 1);
+            width = box.width;
+            height = box.height;
+            canvas.width = width * ratio;
+            canvas.height = height * ratio;
+            ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+            const count = Math.round(Math.min(46, width / 30));
+            motes = Array.from({ length: count }, () => ({
+              x: Math.random() * width * 1.2,
+              y: Math.random() * height,
+              s: 4 + Math.floor(Math.random() * 2) * 2,
+              vx: -(0.25 + Math.random() * 0.5),
+              vy: 0.2 + Math.random() * 0.45,
+              c: colours[Math.floor(Math.random() * colours.length)],
+              p: Math.random() * Math.PI * 2,
+            }));
+          }
+          function draw(time) {
+            if (!running) return;
+            ctx.clearRect(0, 0, width, height);
+            for (const m of motes) {
+              m.x += m.vx;
+              m.y += m.vy;
+              if (m.y > height + 10 || m.x < -10) {
+                m.y = Math.random() < 0.5 ? -10 : Math.random() * height * 0.6;
+                m.x = m.y < 0 ? Math.random() * width * 1.2 : width + 10;
+              }
+              ctx.globalAlpha = 0.45 + 0.4 * (0.5 + 0.5 * Math.sin(time / 700 + m.p));
+              ctx.fillStyle = m.c;
+              // snapped to a 2px grid so they move like pixels
+              ctx.fillRect(Math.round((m.x + Math.sin(time / 1300 + m.p) * 10) / 2) * 2, Math.round(m.y / 2) * 2, m.s, m.s);
+            }
+            requestAnimationFrame(draw);
+          }
+          size();
+          addEventListener("resize", size);
+          // Only while the top of the page is on screen.
+          if (watching) {
+            new IntersectionObserver((entries) => {
+              const visible = entries[0].isIntersecting;
+              if (visible && !running) {
+                running = true;
+                requestAnimationFrame(draw);
+              }
+              running = visible;
+            }).observe(canvas);
+          }
+        }
+
+        // ---------------------------------------------------------------- downloads
+        const os = {
+          win: { name: "Windows", file: /\.exe$/i, url: null, step: "Run the <strong>JavaHost Installer .exe</strong>. If SmartScreen appears, choose <strong>More info → Run anyway</strong>." },
+          mac: { name: "Mac", file: /\.dmg$/i, url: null, step: "Open the <strong>JavaHost Installer .dmg</strong> and run the installer. If macOS warns you, right-click it and choose <strong>Open</strong>." },
+          linux: { name: "Linux", file: /Installer.*\.jar$/i, url: null, step: "Run the installer: <code>java -jar JavaHost-Installer.jar</code> (it needs Java 21 or newer)." },
+        };
+        const osTabs = $$("[data-os]");
+        let current = "win";
+        function pickOs(key) {
+          current = key;
+          osTabs.forEach((button) => {
+            const on = button.dataset.os === key;
+            button.setAttribute("aria-selected", String(on));
+            button.tabIndex = on ? 0 : -1;
+          });
+          $("#run-step").innerHTML = os[key].step;
+          $$("[data-download]").forEach((link) => (link.href = os[key].url || RELEASES));
+          $$("[data-download-label]").forEach((label) => (label.textContent = "Download for " + os[key].name));
+        }
+        osTabs.forEach((button, index) => {
+          button.addEventListener("click", () => pickOs(button.dataset.os));
+          button.addEventListener("keydown", (event) => {
+            const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+            if (step) {
+              const next = osTabs[(index + step + osTabs.length) % osTabs.length];
+              pickOs(next.dataset.os);
+              next.focus();
+            }
+          });
+        });
+        const platform = navigator.userAgentData?.platform || navigator.platform || navigator.userAgent;
+        pickOs(/Mac|iPhone|iPad/i.test(platform) ? "mac" : /Linux|X11/i.test(platform) && !/Android/i.test(navigator.userAgent) ? "linux" : "win");
+
+        // The newest release's installers and version number, when GitHub answers. The buttons work without it.
+        fetch("https://api.github.com/repos/IbrahimMas1/javahost/releases/latest")
+          .then((response) => (response.ok ? response.json() : Promise.reject()))
+          .then((release) => {
+            const tag = String(release.tag_name || "").replace(/^v/, "");
+            if (/^[\d.]+$/.test(tag)) $("#version").textContent = "JavaHost " + tag;
+            for (const asset of release.assets || []) {
+              for (const key in os) {
+                if (os[key].file.test(asset.name) && /^https:\/\/github\.com\//.test(asset.browser_download_url)) os[key].url = asset.browser_download_url;
+              }
+            }
+            pickOs(current);
+          })
+          .catch(() => {});
+        document.documentElement.classList.add("ok");
+      })();
+    </script>
+  </body>
+</html>

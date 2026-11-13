@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JavaHost: play your Minecraft world with friends, no server needed</title>
+    <meta
+      name="description"
+      content="Turn your Minecraft Java world into one friends can join in a click. Invites, voice chat, mods and shared packs built in. Free and open source, for Fabric on Minecraft 1.21 to 26.3."
+    />
+    <meta name="theme-color" content="#0a1024" />
+    <meta property="og:title" content="JavaHost: play with friends. No server." />
+    <meta
+      property="og:description"
+      content="Host your Minecraft world from your own PC. One-click invites, voice chat, mods and shared packs. Free and open source."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ibrahimmas1.github.io/javahost/" />
+    <meta property="og:image" content="https://ibrahimmas1.github.io/javahost/media/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="JavaHost: host your Minecraft world from your own PC" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://ibrahimmas1.github.io/javahost/" />
+    <link rel="icon" href="media/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="media/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;600;700&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
+    <script>
+      (() => {
+        // Content waits for the page script to bring it in. If that script fails or never finishes, show everything.
+        const root = document.documentElement;
+        const giveUp = () => root.classList.contains("ok") || root.classList.toggle("js", false);
+        root.classList.add("js");
+        addEventListener("error", giveUp);
+        setTimeout(giveUp, 5000);
+      })();
+    </script>
+    <style>
+      /* gen:textures */
+      /* /gen:textures */
+
+      :root {
+        --ink: #0a1024;
+        --paper: #f3faff;
+        --green: #3ddc84;
+        --blue: #4f9df7;
+        --purple: #a77bf3;
+        --orange: #f59e3b;
+        --pink: #f06baa;
+        --a: var(--green);
+        --display: "Silkscreen", "Pixelify Sans", ui-monospace, monospace;
+        --pixel: "Pixelify Sans", ui-monospace, monospace;
+        --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        --width: 1320px;
+        --gutter: clamp(20px, 4vw, 48px);
+        /* the page's colours, section by section: one day, from morning to night */
+        --c-how: #f3faff;
+        --c-host: #3ddc84;
+        --c-host-hills: #1fa862;
+        --c-friends: #2459c9;
+        --c-friends-bank: #4a7de6;
+        --c-ping: #f59e3b;
+        --c-ping-hills: #a8500f;
+        --c-mods: #cf3a7f;
+        --c-mods-hills: #8f1f56;
+        --c-voice: #6b46d6;
+        --c-voice-hills: #3f2799;
+        --c-more: #1c1a52;
+        --c-stats: #121338;
+        --c-get: #0c0e28;
+        --c-faq: #080a1c;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 72px;
+      }
+      body {
+        margin: 0;
+        background: var(--ink);
+        color: #fff;
+        font: 17px/1.6 var(--body);
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+      img {
+        max-width: 100%;
+        display: block;
+      }
+      a {
+        color: inherit;
+      }
+      ::selection {
+        background: var(--green);
+        color: #04140b;
+      }
+      :focus-visible {
+        outline: 4px solid var(--fg, #fff);
+        outline-offset: 4px;
+      }
+      .wrap {
+        width: min(var(--width), 100% - var(--gutter) * 2);
+        margin-inline: auto;
+        position: relative;
+      }
+      svg.i {
+        width: 1.2em;
+        height: 1.2em;
+        fill: currentColor;
+        flex: none;
+        shape-rendering: crispEdges;
+      }
+      .art {
+        /* pixel art drawn as vectors: keep the edges hard */
+        shape-rendering: crispEdges;
+        display: block;
+        overflow: visible;
+      }
+
+      /* ------------------------------------------------------------ type */
+      h1,
+      h2 {
+        font-family: var(--display);
+        font-weight: 700;
+        text-transform: uppercase;
+        line-height: 1.02;
+        letter-spacing: -0.09em;
+        margin: 0;
+      }
+      h1 {
+        font-size: clamp(2.35rem, 6.7vw, 6.2rem);
+      }
+      h2 {
+        font-size: clamp(2rem, 5.2vw, 4.4rem);
+        text-shadow: 0.07em 0.07em 0 var(--deep);
+      }
+      h3 {
+        font: 600 1.4rem/1.2 var(--pixel);
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 0 0 14px;
+      }
+      /* the word that matters sits on a slab, like a block someone just placed */
+      .a {
+        display: inline-block;
+        padding: 0.02em 0.2em 0.1em 0.14em;
+        margin: 0.06em 0.1em 0.1em 0;
+        background: var(--slab);
+        color: var(--slab-ink);
+        text-shadow: none;
+        box-shadow:
+          0 -4px 0 0 var(--slab),
+          0 4px 0 0 var(--slab),
+          -4px 0 0 0 var(--slab),
+          4px 0 0 0 var(--slab),
+          4px 8px 0 0 var(--deep),
+          12px 8px 0 0 var(--deep),
+          8px 4px 0 0 var(--deep),
+          8px 12px 0 0 var(--deep);
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        font: 600 1.05rem var(--pixel);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        margin-bottom: 22px;
+      }
+      .eyebrow::before {
+        content: "";
+        width: 12px;
+        height: 12px;
+        background: currentColor;
+        box-shadow: 16px 0 0 0 currentColor;
+        margin-right: 16px;
+        opacity: 0.9;
+      }
+      .lede {
+        font: 500 clamp(1.12rem, 1.7vw, 1.35rem) / 1.5 var(--pixel);
+        max-width: 32em;
+      }
+
+      /* ------------------------------------------------------------ pixel edges: a stepped outline and a hard shadow, all box-shadow */
+      .btn,
+      .frame,
+      .card,
+      .chip,
+      .panel,
+      .tile,
+      .badge,
+      .pill,
+      details {
+        --p: 4px;
+        --so: 8px;
+        --bd: var(--ink);
+        --sh: var(--deep, rgba(0, 0, 0, 0.35));
+        box-shadow:
+          0 calc(var(--p) * -1) 0 0 var(--bd),
+          0 var(--p) 0 0 var(--bd),
+          calc(var(--p) * -1) 0 0 0 var(--bd),
+          var(--p) 0 0 0 var(--bd),
+          calc(var(--so) - var(--p)) var(--so) 0 0 var(--sh),
+          calc(var(--so) + var(--p)) var(--so) 0 0 var(--sh),
+          var(--so) calc(var(--so) - var(--p)) 0 0 var(--sh),
+          var(--so) calc(var(--so) + var(--p)) 0 0 var(--sh);
+      }
+
+      /* ------------------------------------------------------------ buttons: chunky, lit from above, they press into their shadow */
+      .btn {
+        --fill: #fff;
+        --so: 6px;
+        --sh: var(--ink);
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 14px 24px 16px;
+        font: 600 1.18rem var(--pixel);
+        letter-spacing: 0.02em;
+        text-decoration: none;
+        color: var(--ink);
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4)) 0 0 / 100% 4px no-repeat,
+          linear-gradient(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.16)) 0 100% / 100% 6px no-repeat,
+          var(--fill);
+        border: 0;
+        cursor: pointer;
+        transition:
+          transform 0.1s steps(2),
+          box-shadow 0.1s steps(2);
+      }
+      .btn:hover {
+        --so: 8px;
+        transform: translate(-2px, -2px);
+      }
+      .btn:active {
+        --so: 2px;
+        transform: translate(4px, 4px);
+      }
+      .btn.primary {
+        --fill: var(--green);
+        color: #04140b;
+      }
+      .btn.small {
+        --so: 4px;
+        padding: 8px 14px 10px;
+        font-size: 1rem;
+      }
+      .btn.small:hover {
+        --so: 6px;
+      }
+
+      /* ------------------------------------------------------------ top bar */
+      .nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: var(--ink);
+        box-shadow: 0 4px 0 rgba(4, 8, 24, 0.45);
+      }
+      .nav .wrap {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        height: 64px;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        font: 700 1.2rem var(--display);
+        letter-spacing: -0.06em;
+        text-transform: uppercase;
+        text-decoration: none;
+        margin-right: auto;
+        color: #fff;
+      }
+      .logo {
+        width: 30px;
+        height: 30px;
+        color: var(--green);
+      }
+      .logo .ink {
+        fill: #04140b;
+      }
+      .nav-links {
+        display: flex;
+        gap: 28px;
+      }
+      .nav-links a {
+        position: relative;
+        color: #aab6d3;
+        text-decoration: none;
+        font: 500 1.05rem var(--pixel);
+      }
+      .nav-links a::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -8px;
+        height: 4px;
+        background: var(--green);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.2s steps(4);
+      }
+      .nav-links a:hover {
+        color: #fff;
+      }
+      .nav-links a:hover::after {
+        transform: scaleX(1);
+      }
+      /* An experience bar that fills as you read down the page. */
+      .xp {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -4px;
+        height: 4px;
+        background: repeating-linear-gradient(90deg, var(--green) 0 20px, #1c9a57 20px 24px);
+        transform: scaleX(0);
+        transform-origin: left;
+      }
+
+      /* ------------------------------------------------------------ bands: every section has a colour of its own, and the
+         one before it dissolves into it through three rows of dither */
+      .band {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--fg);
+        --grid: rgba(255, 255, 255, 0.07);
+        --slab: #fff;
+        --slab-ink: var(--bg);
+        --mut: var(--fg);
+      }
+      .band::before {
+        content: "";
+        position: absolute;
+        z-index: -1;
+        inset: 0;
+        pointer-events: none;
+        background:
+          conic-gradient(transparent 25%, var(--prev) 0) 0 0 / 16px 16px repeat-x,
+          repeating-conic-gradient(var(--prev) 0 25%, transparent 0 50%) 0 16px / 16px 16px repeat-x,
+          conic-gradient(var(--prev) 25%, transparent 0) 0 32px / 16px 16px repeat-x,
+          linear-gradient(var(--grid) 2px, transparent 2px) 0 62px / 100% 64px,
+          linear-gradient(90deg, var(--grid) 2px, transparent 2px) calc(50% + 31px) 0 / 64px 100%;
+      }
+      .pad {
+        padding-block: clamp(84px, 10vw, 150px);
+      }
+      .head {
+        max-width: 900px;
+        margin-bottom: clamp(40px, 5vw, 72px);
+      }
+      .head p {
+        margin: 22px 0 0;
+      }
+      .band p {
+        color: var(--mut);
+      }
+      .decor {
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        overflow: hidden;
+      }
+      .decor > * {
+        position: absolute;
+      }
+      /* far things move less than near things while the page scrolls (the script sets --sy on each band) */
+      [data-par] {
+        transform: translate3d(0, calc(var(--sy, 0) * var(--par) * 1px), 0);
+      }
+      .cloud {
+        color: #fff;
+        height: auto;
+      }
+      .drift {
+        animation: drift var(--t, 60s) linear infinite alternate;
+      }
+      @keyframes drift {
+        to {
+          translate: var(--dx, 80px) 0;
+        }
+      }
+      .stars {
+        inset: 0;
+        background: var(--stars-a) 0 0 / 384px 384px;
+        image-rendering: pixelated;
+        opacity: var(--o, 1);
+      }
+      .stars.twinkle {
+        background: var(--stars-b) 150px 90px / 512px 512px;
+        animation: twinkle 3.2s steps(4) infinite alternate;
+      }
+      @keyframes twinkle {
+        from {
+          opacity: 0;
+        }
+      }
+
+      /* things come in as you reach them */
+      .js [data-reveal] {
+        opacity: 0;
+        transform: translateY(40px);
+        transition:
+          opacity 0.5s steps(5),
+          transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+        transition-delay: var(--d, 0s);
+      }
+      .js [data-reveal="left"] {
+        transform: translateX(-56px);
+      }
+      .js [data-reveal="right"] {
+        transform: translateX(56px);
+      }
+      .js [data-reveal="zoom"] {
+        transform: scale(0.92);
+      }
+      .js [data-reveal].in {
+        opacity: 1;
+        transform: none;
+      }
+
+      /* ------------------------------------------------------------ cubes: little blocks that carry an icon. No perspective, so
+         they sit in the page the way isometric pixel art does. */
+      .cube {
+        --s: 56px;
+        --c: var(--a);
+        position: relative;
+        display: block;
+        flex: none;
+        width: var(--s);
+        height: var(--s);
+        transform-style: preserve-3d;
+        transform: rotateX(-24deg) rotateY(-38deg);
+      }
+      .cube > i {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: var(--c);
+        color: #fff;
+        box-shadow:
+          inset calc(var(--s) / 14) calc(var(--s) / 14) 0 0 rgba(255, 255, 255, 0.28),
+          inset calc(var(--s) / -14) calc(var(--s) / -14) 0 0 rgba(0, 0, 0, 0.2);
+      }
+      .cube > .t {
+        transform: rotateX(90deg) translateZ(calc(var(--s) / 2));
+        background: color-mix(in srgb, var(--c), #fff 28%);
+      }
+      .cube > .f {
+        transform: translateZ(calc(var(--s) / 2));
+      }
+      .cube > .r {
+        transform: rotateY(90deg) translateZ(calc(var(--s) / 2));
+        background: color-mix(in srgb, var(--c), #000 30%);
+      }
+      .cube svg {
+        width: 58%;
+        height: 58%;
+        fill: currentColor;
+        shape-rendering: crispEdges;
+      }
+      .cube.grass > i {
+        box-shadow: none;
+        background: var(--t-grass-side) 0 0 / 100% 100%;
+        image-rendering: pixelated;
+      }
+      .cube.grass > .t {
+        background: var(--t-grass) 0 0 / 100% 100%;
+      }
+      .cube.grass > .r {
+        background:
+          linear-gradient(rgba(10, 16, 36, 0.3), rgba(10, 16, 36, 0.3)),
+          var(--t-grass-side) 0 0 / 100% 100%;
+      }
+      .cube.stone > i {
+        box-shadow: none;
+        background: var(--t-stone) 0 0 / 100% 100%;
+        image-rendering: pixelated;
+      }
+      .cube.stone > .r {
+        background:
+          linear-gradient(rgba(10, 16, 36, 0.3), rgba(10, 16, 36, 0.3)),
+          var(--t-stone) 0 0 / 100% 100%;
+      }
+      .bob {
+        animation: bob var(--t, 5s) ease-in-out infinite;
+        animation-delay: var(--dl, 0s);
+      }
+      @keyframes bob {
+        50% {
+          translate: 0 -10px;
+        }
+      }
+      /* blocks drop into place when their part of the page arrives */
+      .js [data-build] .cube,
+      .js [data-build] .drop {
+        opacity: 0;
+        translate: 0 -70px;
+        transition:
+          opacity 0.2s steps(2),
+          translate 0.5s cubic-bezier(0.3, 1.5, 0.5, 1);
+        transition-delay: calc(var(--i, 0) * 110ms + 150ms);
+      }
+      .js [data-build].in .cube,
+      .js [data-build].in .drop {
+        opacity: 1;
+        translate: 0 0;
+      }
