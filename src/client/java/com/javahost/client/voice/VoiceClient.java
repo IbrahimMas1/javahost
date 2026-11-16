@@ -114,7 +114,7 @@ public final class VoiceClient {
 	}
 
 	/**
-	 * The world's voice rule, "nearby" or "party", set by the host and co-hosts for everyone (JavaHost 1.11+ hosts);
+	 * The world's voice rule, "nearby" or "party", set by the host and operators for everyone (JavaHost 1.11+ hosts);
 	 * null when the host doesn't set one, and then each player's own choice applies as before.
 	 */
 	public static String worldRule() {

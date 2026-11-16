@@ -33,6 +33,12 @@ public class Segmented<T> extends AbstractWidget {
 		return selected;
 	}
 
+	/** Shows no choice as selected (e.g. while a page shown from elsewhere is open); clicking any segment picks it. */
+	public Segmented<T> clearSelection() {
+		selected = null;
+		return this;
+	}
+
 	/**
 	 * Segment edges: each label gets its own width plus an even share of what's left, so a long label
 	 * ("Fabulous", "Peaceful") isn't cut while short ones have room to spare. Equal widths if they don't fit.
@@ -85,6 +91,10 @@ public class Segmented<T> extends AbstractWidget {
 		var event = new KeyEvent(key, scancode, modifiers);
 	*///?}
 		int index = options.indexOf(selected);
+		if (index < 0 && (event.isLeft() || event.isRight())) {
+			select(0);
+			return true;
+		}
 		if (event.isLeft() && index > 0) {
 			select(index - 1);
 			return true;
@@ -106,7 +116,9 @@ public class Segmented<T> extends AbstractWidget {
 
 	@Override
 	protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
-		slide = Draw.approach(slide, options.indexOf(selected), 0.3f);
+		if (selected != null) {
+			slide = Draw.approach(slide, options.indexOf(selected), 0.3f);
+		}
 		int x = getX();
 		int y = getY();
 		int[] edges = edges();
@@ -119,7 +131,9 @@ public class Segmented<T> extends AbstractWidget {
 		float t = slide - from;
 		float hx = edges[from] + (edges[to] - edges[from]) * t;
 		float hw = (edges[from + 1] - edges[from]) + ((edges[to + 1] - edges[to]) - (edges[from + 1] - edges[from])) * t;
-		Draw.roundRect(g, x + 2 + Math.round(hx), y + 2, Math.round(hw) - 4, getHeight() - 4, 3, active ? Theme.withAlpha(Theme.ACCENT, 0.20f) : 0x14FFFFFF);
+		if (selected != null) {
+			Draw.roundRect(g, x + 2 + Math.round(hx), y + 2, Math.round(hw) - 4, getHeight() - 4, 3, active ? Theme.withAlpha(Theme.ACCENT, 0.20f) : 0x14FFFFFF);
+		}
 		for (int i = 0; i < n; i++) {
 			int sx = x + edges[i];
 			int seg = edges[i + 1] - edges[i];
@@ -137,6 +151,6 @@ public class Segmented<T> extends AbstractWidget {
 
 	@Override
 	protected void updateWidgetNarration(NarrationElementOutput output) {
-		output.add(NarratedElementType.TITLE, Component.literal(labels.apply(selected)));
+		output.add(NarratedElementType.TITLE, Component.literal(selected == null ? "" : labels.apply(selected)));
 	}
 }

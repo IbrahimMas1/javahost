@@ -207,7 +207,7 @@ public class JavaHostClient implements ClientModInitializer {
 
 	/**
 	 * Switches between nearby (proximity) and party (whole world) voice. In a world whose host sets this for everyone,
-	 * only the host and co-hosts can switch it; others are told who decides.
+	 * only the host and operators can switch it; others are told who decides.
 	 */
 	public static void toggleParty() {
 		String rule = VoiceClient.worldRule();
@@ -219,7 +219,7 @@ public class JavaHostClient implements ClientModInitializer {
 			} else {
 				Toasts.show("voice-mode", party ? "Party voice" : "Nearby voice", rules.locked()
 						? "The world rules are locked, so voice stays as it is."
-						: "The host chooses this for everyone in the world.");
+						: "The host and operators choose this for everyone in the world.");
 			}
 			return;
 		}

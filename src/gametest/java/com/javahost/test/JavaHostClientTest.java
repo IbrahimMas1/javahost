@@ -334,9 +334,11 @@ public class JavaHostClientTest implements FabricClientGameTest {
 	private static void quickHub(ClientGameTestContext context) {
 		try (TestSingleplayerContext world = context.worldBuilder().create()) {
 			TestCompat.waitForChunks(world);
+			worldPageNotHosting(context);
 			context.runOnClient(mc -> HostController.start(mc.getSingleplayerServer()));
 			context.waitTicks(20);
 			worldOptions(context);
+			worldPage(context);
 			hubWithFriends(context);
 			shellInWorld(context);
 			reviewAtScale(context, 4, 1710, 1070);
@@ -356,6 +358,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.takeScreenshot("quick-title");
 		titleScreenModes(context);
 		hostFromTitle(context);
+		worldPageNoWorld(context);
 	}
 
 	// ================================================================ 2.0: World options (server side)
@@ -1886,7 +1889,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		try {
 			for (int[] s : new int[][] {{1710, 1070, 4}, {1280, 800, 3}, {2000, 1250, 3}}) {
 				size(context, s[0], s[1], s[2]);
-				for (String section : List.of("players", "settings", "backups")) {
+				for (String section : List.of("members", "general", "rules", "sharing", "backups", "connection", "advanced")) {
 					com.javahost.client.gui.pages.HostPage.showSection(section);
 					context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
 					context.waitTicks(8);
@@ -1896,7 +1899,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 				}
 			}
 			size(context, 1710, 1070, 4);
-			com.javahost.client.gui.pages.HostPage.showSection("players");
+			com.javahost.client.gui.pages.HostPage.showSection("members");
 			context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
 			context.waitTicks(8);
 			clickMenu(context, "More");
@@ -1909,6 +1912,264 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		} finally {
 			context.runOnClient(mc -> HostController.previewGuests(null));
 			size(context, 1710, 1070, 4);
+		}
+	}
+
+	// ================================================================ 2.0: the World page (World options)
+
+	private static final int[][] WORLD_SIZES = {{1710, 1070, 4}, {1280, 800, 3}};
+
+	private static String worldShot(int[] s) {
+		return "world-" + s[0] + "-s" + s[2] + "-";
+	}
+
+	private static void openWorldPart(ClientGameTestContext context, String part) {
+		com.javahost.client.gui.pages.HostPage.showSection(part);
+		context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
+		context.waitTicks(8);
+	}
+
+	/** The n-th visible segmented control on the screen (0 = the first). */
+	private static com.javahost.client.gui.ui.Segmented<?> segmented(ClientGameTestContext context, int n) {
+		return context.computeOnClient(mc -> mc.gui.screen().children().stream()
+				.filter(c -> c instanceof com.javahost.client.gui.ui.Segmented<?> w && w.visible)
+				.map(c -> (com.javahost.client.gui.ui.Segmented<?>) c).skip(n).findFirst().orElse(null));
+	}
+
+	/** Clicks choice {@code index} of {@code count} on the n-th segmented control, with the real mouse. */
+	private static void clickSegment(ClientGameTestContext context, int n, int index, int count) {
+		var control = segmented(context, n);
+		if (control == null) {
+			throw new AssertionError("[JavaHost test] FAILED: no segmented control #" + n);
+		}
+		double[] at = context.computeOnClient(mc -> {
+			double scale = mc.getWindow().getGuiScale();
+			return new double[] {(control.getX() + control.getWidth() * (index + 0.5) / count) * scale, (control.getY() + control.getHeight() / 2.0) * scale};
+		});
+		context.getInput().setCursorPos(at[0], at[1]);
+		context.waitTicks(2);
+		context.getInput().pressMouse(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);
+		context.waitTicks(4);
+	}
+
+	private static net.minecraft.client.gui.components.AbstractWidget widget(ClientGameTestContext context, String label) {
+		return context.computeOnClient(mc -> mc.gui.screen().children().stream()
+				.filter(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w && w.getMessage().getString().equals(label))
+				.map(c -> (net.minecraft.client.gui.components.AbstractWidget) c).findFirst().orElse(null));
+	}
+
+	/** 2.0: a world of yours, open but not hosted: Members says it's just you, General has the world's settings. */
+	private static void worldPageNotHosting(ClientGameTestContext context) {
+		context.waitFor(mc -> com.javahost.client.rules.WorldOptions.available(), 200);
+		try {
+			for (int[] s : WORLD_SIZES) {
+				size(context, s[0], s[1], s[2]);
+				String at = s[0] + "x" + s[1] + " scale " + s[2];
+				openWorldPart(context, "members");
+				check(hasButton(context, "Start hosting"), "Start hosting is in view on Members at " + at);
+				check(widgetsFit(context), "World (not hosting, Members) fits at " + at);
+				context.takeScreenshot(worldShot(s) + "open-members");
+				openWorldPart(context, "general");
+				check(hasButton(context, "Start hosting") && segmented(context, 1) != null && segmented(context, 1).active,
+						"Start hosting and Difficulty are in view (and Difficulty can be changed) before hosting at " + at);
+				check(widgetsFit(context), "World (not hosting, General) fits at " + at);
+				context.takeScreenshot(worldShot(s) + "open-general");
+			}
+		} finally {
+			com.javahost.client.gui.pages.HostPage.showSection("general");
+			context.setScreen(() -> null);
+			size(context, 854, 480, 0);
+		}
+	}
+
+	/** 2.0: on the title screen the World page lists your worlds, with Settings · Backups underneath. */
+	private static void worldPageNoWorld(ClientGameTestContext context) {
+		try {
+			for (int[] s : WORLD_SIZES) {
+				size(context, s[0], s[1], s[2]);
+				String at = s[0] + "x" + s[1] + " scale " + s[2];
+				openWorldPart(context, "settings");
+				check(hasButton(context, "Host") && !hasButton(context, "More options"), "with no world open the World page lists your worlds at " + at);
+				check(hasButton(context, "Only friends can join"), "with no world open, the hosting settings are under your worlds at " + at);
+				check(widgetsFit(context), "World (no world open) fits at " + at);
+				context.takeScreenshot(worldShot(s) + "no-world");
+				context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -30));
+				context.waitTicks(10);
+				check(widgetsFit(context), "World (no world open, scrolled) fits at " + at);
+				context.takeScreenshot(worldShot(s) + "no-world-scrolled");
+			}
+		} finally {
+			com.javahost.client.gui.pages.HostPage.showSection("general");
+			context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+			size(context, 854, 480, 0);
+		}
+	}
+
+	/**
+	 * 2.0: the World page while hosting: Members · General · Rules · Sharing and the "more" menu switch; the Operator
+	 * control and General's controls change the real world and show what the server says; a guest sees it read-only;
+	 * everything fits at the laptop sizes.
+	 */
+	private static void worldPage(ClientGameTestContext context) {
+		java.util.UUID steve = java.util.UUID.nameUUIDFromBytes("Steve123".getBytes());
+		context.runOnClient(mc -> HostController.previewGuests(List.of(
+				new HostController.Guest(steve, "Steve123", 42, net.minecraft.world.level.GameType.SURVIVAL, false, false),
+				new HostController.Guest(java.util.UUID.nameUUIDFromBytes("AlexPlays".getBytes()), "AlexPlays", 180, net.minecraft.world.level.GameType.ADVENTURE, true, false),
+				new HostController.Guest(java.util.UUID.nameUUIDFromBytes("LunaBuilds".getBytes()), "LunaBuilds", 64, net.minecraft.world.level.GameType.CREATIVE, false, false),
+				new HostController.Guest(java.util.UUID.nameUUIDFromBytes("Builder".getBytes()), "Builder_With_A_Long_Name", 0,
+						net.minecraft.world.level.GameType.SURVIVAL, false, true))));
+		String difficultyBefore = context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.difficulty());
+		String modeBefore = context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.defaultGameMode());
+		boolean cheatsBefore = context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.cheats());
+		try {
+			size(context, 2000, 1250, 3);
+			// The four parts, clicked.
+			openWorldPart(context, "members");
+			check(hasButton(context, "More options") && hasButton(context, "Invite friends"), "the World page has its parts, the more button and Invite");
+			List<String> parts = List.of("members", "general", "rules", "sharing");
+			for (int i = parts.size() - 1; i >= 0; i--) {
+				clickSegment(context, 0, i, parts.size());
+				check(parts.get(i).equals(com.javahost.client.gui.pages.HostPage.currentSection()), "clicking " + parts.get(i) + " opens it");
+			}
+			clickSegment(context, 0, 1, parts.size());
+			check(hasButton(context, "Only friends can join") && hasButton(context, "Cheats"), "General has the world's settings and who can join");
+			clickSegment(context, 0, 0, parts.size());
+			// The more menu.
+			List<String> more = List.of("backups", "connection", "advanced");
+			for (int i = 0; i < more.size(); i++) {
+				int row = i;
+				clickMenu(context, "More options");
+				check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).popoverOpen()), "the more button opens its menu");
+				context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).clickPopover(30, 3 + row * 18 + 9));
+				context.waitTicks(4);
+				check(more.get(i).equals(com.javahost.client.gui.pages.HostPage.currentSection()), "more → " + more.get(i) + " opens it");
+			}
+			clickMenu(context, "Back");
+			check("members".equals(com.javahost.client.gui.pages.HostPage.currentSection()), "Back from Advanced returns to the part you were on");
+
+			// Operator: the host makes Steve123 one; the row follows the server.
+			openWorldPart(context, "members");
+			check(!context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.isOperator(steve)), "Steve123 starts as a plain guest");
+			clickMenu(context, "Operator: Steve123");
+			context.waitFor(mc -> com.javahost.client.rules.WorldOptions.isOperator(steve), 100);
+			context.waitTicks(4);
+			check(widget(context, "Operator: Steve123") instanceof com.javahost.client.gui.ui.IconToggle t && t.value(),
+					"the Operator control makes Steve123 an operator, and his row shows it once the server agrees");
+			check(com.javahost.rules.WorldRules.isOperator(steve), "the server has Steve123 as an operator");
+			// Once per world, the note about co-hosts being operators now.
+			context.runOnClient(mc -> com.javahost.client.gui.pages.HostPage.forgetOperatorNotice());
+			openWorldPart(context, "members");
+			check(hasButton(context, "Dismiss"), "a world that already has operators gets the one-time note");
+			context.takeScreenshot("world-2000-s3-operator-note");
+			clickMenu(context, "Dismiss");
+			check(!hasButton(context, "Dismiss"), "the note goes away when dismissed");
+			openWorldPart(context, "general");
+			check(!hasButton(context, "Dismiss"), "and doesn't come back");
+
+			// General: difficulty and default game mode change the real world.
+			List<String> difficulties = com.javahost.util.WorldOptionsData.DIFFICULTIES;
+			int target = (difficulties.indexOf(difficultyBefore) + 1) % difficulties.size();
+			clickSegment(context, 1, target, difficulties.size());
+			context.waitFor(mc -> mc.getSingleplayerServer().getWorldData().getDifficulty().getSerializedName().equals(difficulties.get(target))
+					&& difficulties.get(target).equals(com.javahost.client.rules.WorldOptions.difficulty()), 100);
+			check(true, "Difficulty on General changes the world (" + difficultyBefore + " -> " + difficulties.get(target) + ")");
+			List<String> modes = com.javahost.util.WorldOptionsData.GAME_MODES;
+			int modeTarget = modes.indexOf(modeBefore) == 2 ? 0 : 2;
+			clickSegment(context, 2, modeTarget, modes.size());
+			context.waitFor(mc -> mc.getSingleplayerServer().getDefaultGameType().getName().equals(modes.get(modeTarget))
+					&& modes.get(modeTarget).equals(com.javahost.client.rules.WorldOptions.defaultGameMode()), 100);
+			check(true, "Default game mode on General changes the world (" + modeBefore + " -> " + modes.get(modeTarget) + ")");
+			context.waitTicks(4);
+			check(segmented(context, 1).selected().equals(difficulties.get(target)) && segmented(context, 2).selected().equals(modes.get(modeTarget)),
+					"General shows the values the server sent back");
+			boolean locked = context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.cheatsLocked());
+			if (locked) {
+				check(!widget(context, "Cheats").active, "in a world made with cheats, the Cheats switch is on and can't be changed");
+			} else {
+				clickMenu(context, "Cheats");
+				context.waitFor(mc -> com.javahost.client.rules.WorldOptions.cheats() != cheatsBefore, 100);
+				context.waitTicks(4);
+				check(widget(context, "Cheats") instanceof com.javahost.client.gui.ui.ToggleSwitch t && t.value() == !cheatsBefore,
+						"the Cheats switch changes the world and shows the server's value");
+				clickMenu(context, "Cheats");
+				context.waitFor(mc -> com.javahost.client.rules.WorldOptions.cheats() == cheatsBefore, 100);
+				check(true, "and switches back");
+			}
+			// A change the server refuses ends up showing the real value.
+			context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setLocked(true));
+			context.waitFor(mc -> com.javahost.client.rules.WorldOptions.locked(), 100);
+			openWorldPart(context, "general");
+			check(!segmented(context, 1).active, "with the rules locked, Difficulty can't be changed");
+			context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setLocked(false));
+			context.waitFor(mc -> !com.javahost.client.rules.WorldOptions.locked(), 100);
+
+			// Every part at the laptop sizes.
+			for (int[] s : WORLD_SIZES) {
+				size(context, s[0], s[1], s[2]);
+				String at = s[0] + "x" + s[1] + " scale " + s[2];
+				for (String part : List.of("members", "general", "rules", "sharing", "backups", "connection", "advanced")) {
+					openWorldPart(context, part);
+					check(hasButton(context, "Invite friends") && hasButton(context, "Stop hosting"), "Invite and Stop stay on top (" + part + ") at " + at);
+					check(widgetsFit(context), "World " + part + " fits at " + at);
+					context.takeScreenshot(worldShot(s) + part);
+				}
+				openWorldPart(context, "general");
+				check(segmented(context, 1) != null && segmented(context, 1).getBottom() < context.computeOnClient(mc -> mc.getWindow().getGuiScaledHeight()),
+						"Difficulty is in view without scrolling at " + at);
+				context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -30));
+				context.waitTicks(10);
+				context.takeScreenshot(worldShot(s) + "general-scrolled");
+				openWorldPart(context, "sharing");
+				context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -30));
+				context.waitTicks(10);
+				check(widgetsFit(context), "World sharing (scrolled) fits at " + at);
+				context.takeScreenshot(worldShot(s) + "sharing-scrolled");
+				openWorldPart(context, "members");
+				clickMenu(context, "More options");
+				context.getInput().setCursorPos(0, 0);
+				context.waitTicks(4);
+				context.takeScreenshot(worldShot(s) + "more-menu");
+				context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).closePopover());
+
+				// Someone else's world, as a guest who isn't an operator: read-only.
+				context.runOnClient(mc -> {
+					com.javahost.client.gui.pages.HostPage.previewGuest(true);
+					check(com.javahost.client.rules.WorldOptions.receive(com.javahost.util.WorldOptionsData.toJson(new com.javahost.util.WorldOptionsData.State(
+							com.javahost.util.WorldOptionsData.Role.NONE, false, false, true, false, "", "normal", "survival", "nearby",
+							List.of(new com.javahost.util.WorldOptionsData.Operator(steve, "Steve123")), List.of()))), "a guest's World options are read");
+				});
+				openWorldPart(context, "general");
+				check(!hasButton(context, "More options") && !hasButton(context, "Only friends can join") && !segmented(context, 1).active
+						&& !widget(context, "Cheats").active, "a guest sees General read-only, without the host's settings, at " + at);
+				check(widgetsFit(context), "World (guest, General) fits at " + at);
+				context.takeScreenshot(worldShot(s) + "guest-general");
+				openWorldPart(context, "members");
+				check(!hasButton(context, "Survival") && context.computeOnClient(mc -> mc.gui.screen().children().stream()
+						.noneMatch(c -> c instanceof com.javahost.client.gui.ui.IconToggle)), "a guest's Members has no controls");
+				context.takeScreenshot(worldShot(s) + "guest-members");
+				context.runOnClient(mc -> {
+					com.javahost.client.gui.pages.HostPage.previewGuest(false);
+					com.javahost.client.rules.WorldOptions.requestUnchecked("rule:no_such_rule", "true"); // the server sends the real state back
+				});
+				context.waitFor(mc -> com.javahost.client.rules.WorldOptions.role() == com.javahost.client.rules.WorldOptions.Role.HOST, 100);
+			}
+		} finally {
+			context.runOnClient(mc -> {
+				com.javahost.client.gui.pages.HostPage.previewGuest(false);
+				com.javahost.client.rules.WorldOptions.setOperator(steve, false);
+				com.javahost.client.rules.WorldOptions.setDifficulty(difficultyBefore);
+				com.javahost.client.rules.WorldOptions.setDefaultGameMode(modeBefore);
+				if (!com.javahost.client.rules.WorldOptions.cheatsLocked()) {
+					com.javahost.client.rules.WorldOptions.setCheats(cheatsBefore);
+				}
+				HostController.previewGuests(null);
+			});
+			context.waitFor(mc -> !com.javahost.client.rules.WorldOptions.isOperator(steve)
+					&& difficultyBefore.equals(com.javahost.client.rules.WorldOptions.difficulty())
+					&& modeBefore.equals(com.javahost.client.rules.WorldOptions.defaultGameMode()), 100);
+			com.javahost.client.gui.pages.HostPage.showSection("general");
+			context.setScreen(() -> null);
+			size(context, 854, 480, 0);
 		}
 	}
 
@@ -2142,6 +2403,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		version14(context);
 		version15(context);
 		worldOptions(context);
+		worldPage(context);
 		// Sample notifications: a long JavaHost notice (wraps in full) and a friend's message.
 		context.runOnClient(mc -> {
 			com.javahost.client.Toasts.notify("Installed 4 mods", "Restart Minecraft to turn them on. Sodium, Lithium, FerriteCore and ImmediatelyFast are ready and will load next time.");
@@ -2293,11 +2555,12 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -10));
 		context.waitTicks(10);
 		context.takeScreenshot("review-1710-s4-host-setup-scrolled");
-		clickMenu(context, "Advanced settings");
+		com.javahost.client.gui.pages.HostPage.showSection("advanced");
+		context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
 		context.waitTicks(6);
 		context.takeScreenshot("review-1710-s4-host-advanced");
-		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, 30));
-		context.waitTicks(10);
+		check(hasButton(context, "Start hosting"), "Start hosting stays on top while Advanced is open");
+		com.javahost.client.gui.pages.HostPage.showSection("general");
 		clickMenu(context, "Start hosting");
 		context.waitFor(mc -> HostController.isHosting(), 200);
 		check(true, "Start hosting from the top of the Host tab works");

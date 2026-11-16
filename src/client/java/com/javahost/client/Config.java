@@ -46,6 +46,8 @@ public final class Config {
 	/** Public world hosts you've hidden from Discover. */
 	public java.util.Set<String> hiddenHosts = new java.util.HashSet<>();
 	public int voiceRange = 48;
+	/** Worlds (save folder names) whose World options the host has seen since 2.0: the "co-hosts are now operators" note shows once. */
+	public java.util.Set<String> operatorNoticeWorlds = new java.util.HashSet<>();
 
 	// Joining
 	public boolean autoAcceptHostPacks = false;

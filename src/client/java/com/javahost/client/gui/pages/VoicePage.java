@@ -52,7 +52,7 @@ public class VoicePage extends Page {
 					config.save();
 					screen.refresh();
 				}), 10, 80);
-		// Who hears whom is one setting for the whole world, chosen by the host and co-hosts (a world rule).
+		// Who hears whom is one setting for the whole world, chosen by the host and operators (a world rule).
 		String partyKey = JavaHostClient.PARTY_VOICE.getTranslatedKeyMessage().getString();
 		String rule = VoiceClient.worldRule();
 		var rules = com.javahost.client.rules.RulesClient.state();
@@ -73,7 +73,7 @@ public class VoicePage extends Page {
 						+ (VoiceClient.isAvailable() && !VoiceClient.partyAvailable() ? " This host needs JavaHost 1.4 for party voice." : "")
 				: rules.locked() ? "The world rules are locked."
 				: rules.canEdit() ? "Changes it for everyone in this world (" + partyKey + " in game)."
-				: "The host and co-hosts choose this for everyone in this world.")));
+				: "The host and operators choose this for everyone in this world.")));
 		rulesVersion = com.javahost.client.rules.RulesClient.version();
 
 		List<String> mics = new ArrayList<>();

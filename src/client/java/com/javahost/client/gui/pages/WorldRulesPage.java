@@ -21,7 +21,7 @@ import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
 
 /**
- * World rules for everyone to see; the host and co-hosts can change them (unless locked). Every change is
+ * World rules for everyone to see; the host and operators can change them (unless locked). Every change is
  * announced in chat and listed here, so nothing changes quietly.
  */
 public class WorldRulesPage extends Page {
@@ -90,7 +90,7 @@ public class WorldRulesPage extends Page {
 			y += ROW;
 		}
 
-		// Co-hosts (host only): players in the world who may change rules.
+		// Operators (host only): players in the world who may change rules (co-hosts before 2.0).
 		coHostsY = -1;
 		if (state.host()) {
 			UUID me = minecraft.player == null ? null : minecraft.player.getUUID();
@@ -133,9 +133,9 @@ public class WorldRulesPage extends Page {
 		// Status line: who can change, and the lock.
 		Icons icon = state.locked() ? Icons.LOCK : state.canEdit() ? Icons.SHIELD : Icons.EDIT;
 		int color = state.locked() ? Theme.WARNING : state.canEdit() ? Theme.ACCENT : Theme.MUTED;
-		String status = state.locked() ? "Locked for a challenge run" : state.host() ? "You're the host" : state.canEdit() ? "You're a co-host" : "Only the host can change these";
+		String status = state.locked() ? "Locked for a challenge run" : state.host() ? "You're the host" : state.canEdit() ? "You're an operator" : "Only the host can change these";
 		String detail = state.locked() ? "Nobody can change the rules until the host unlocks them."
-				: state.host() ? "Co-hosts can change them too." : "Ask the host if you'd like something changed.";
+				: state.host() ? "Operators can change them too." : "Ask the host if you'd like something changed.";
 		icon.draw(g, left, top + 4, color);
 		Draw.textFit(g, status, width - (state.host() ? lockW + 26 : 20), left + 16, top + 5, color);
 		Draw.textFit(g, detail, width - (state.host() ? lockW + 26 : 20), left + 16, top + 17, Theme.FAINT);
@@ -151,7 +151,7 @@ public class WorldRulesPage extends Page {
 		}
 
 		if (coHostsY >= 0) {
-			sectionLabel(g, "Co-hosts can change rules", left, top + coHostsY);
+			sectionLabel(g, "Operators can change rules", left, top + coHostsY);
 			card(g, left, top + coHostsY + 12, width, Math.max(1, others.size()) * ROW + 4);
 			int rowY = top + coHostsY + 12;
 			if (others.isEmpty()) {
