@@ -6,6 +6,7 @@
 		"ChatComponentMixin",
 		"ClientCommonListenerAccess",
 		"IntegratedServerAccess",
+		"IntegratedServerPermissionMixin",
 		"NameTagMixin",
 		"OptionsSubScreenAccess",
 		"ServerConnectionListenerAccess"

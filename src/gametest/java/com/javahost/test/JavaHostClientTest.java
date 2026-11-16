@@ -336,6 +336,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			TestCompat.waitForChunks(world);
 			context.runOnClient(mc -> HostController.start(mc.getSingleplayerServer()));
 			context.waitTicks(20);
+			worldOptions(context);
 			hubWithFriends(context);
 			shellInWorld(context);
 			reviewAtScale(context, 4, 1710, 1070);
@@ -355,6 +356,172 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.takeScreenshot("quick-title");
 		titleScreenModes(context);
 		hostFromTitle(context);
+	}
+
+	// ================================================================ 2.0: World options (server side)
+
+	private static String ruleValue(ClientGameTestContext context, String id) {
+		return context.computeOnClient(mc -> com.javahost.rules.RuleCatalog.value(mc.getSingleplayerServer(), id));
+	}
+
+	private static String firstRule(ClientGameTestContext context, String... ids) {
+		for (String id : ids) {
+			if (ruleValue(context, id) != null) {
+				return id;
+			}
+		}
+		throw new AssertionError("[JavaHost test] FAILED: none of " + java.util.Arrays.toString(ids) + " is a game rule here");
+	}
+
+	/**
+	 * 2.0: what the World options screen stands on, in a world being hosted: every game rule with the common ones
+	 * flagged, changing rules (and refusing bad changes), announcements off by default, Cheats, and operators getting
+	 * commands only while Cheats is on. Everything changed is put back.
+	 */
+	private static void worldOptions(ClientGameTestContext context) {
+		context.waitFor(mc -> com.javahost.client.rules.WorldOptions.available(), 200);
+		check(context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.role()) == com.javahost.client.rules.WorldOptions.Role.HOST,
+				"the host gets World options, as host");
+		List<com.javahost.client.rules.WorldOptions.Rule> all = context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.allRules());
+		List<String> common = context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.commonRules().stream()
+				.map(com.javahost.client.rules.WorldOptions.Rule::id).toList());
+		check(all.size() >= 30 && all.stream().allMatch(r -> !r.nameKey().isEmpty() && !r.category().isEmpty()),
+				"the rule catalogue lists the game's rules with names and categories (" + all.size() + ")");
+		String keep = firstRule(context, "keep_inventory", "keepInventory");
+		String sleep = firstRule(context, "players_sleeping_percentage", "playersSleepingPercentage");
+		check(common.size() >= 8 && common.contains(keep) && common.contains(sleep)
+				&& (common.contains("mob_griefing") || common.contains("mobGriefing"))
+				&& (common.contains("advance_time") || common.contains("doDaylightCycle")),
+				"the common rules come first: " + common);
+		check(all.subList(0, common.size()).stream().allMatch(com.javahost.client.rules.WorldOptions.Rule::common), "common rules are listed first");
+		com.javahost.client.rules.WorldOptions.Rule sleepRule = context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.rule(sleep));
+		// The game's own range: 0 and up from 1.21.11; before that this rule takes any number.
+		check(!sleepRule.bool() && sleepRule.min() <= 0 && sleepRule.max() >= 100, "integer rules carry their range (" + sleepRule.min() + ".." + sleepRule.max() + ")");
+		String belowRange = sleepRule.min() > Integer.MIN_VALUE ? String.valueOf(sleepRule.min() - 1L) : "-99999999999";
+		check(context.computeOnClient(mc -> com.javahost.client.rules.RulesClient.state() != null
+				&& com.javahost.client.rules.RulesClient.state().values().keySet().equals(java.util.Arrays.stream(com.javahost.rules.WorldRules.Rule.values())
+						.map(Enum::name).collect(java.util.stream.Collectors.toSet()))), "the old world rules state is still sent, with the same rules");
+
+		String keepBefore = ruleValue(context, keep);
+		String sleepBefore = ruleValue(context, sleep);
+		String keepOther = String.valueOf(!Boolean.parseBoolean(keepBefore));
+		String sleepOther = sleepBefore.equals("37") ? "38" : "37";
+		try {
+			// Rules, quietly: announcements are off unless the host turns them on.
+			check(!context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.announce()), "announcements start off");
+			int announced = com.javahost.rules.WorldRules.announcementsSent();
+			int oldRules = context.computeOnClient(mc -> com.javahost.client.rules.RulesClient.version());
+			check(context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.setRule(keep, Boolean.parseBoolean(keepOther))), "the helper sends a boolean rule");
+			context.waitFor(mc -> keepOther.equals(com.javahost.rules.RuleCatalog.value(mc.getSingleplayerServer(), keep)), 100);
+			context.waitFor(mc -> keepOther.equals(com.javahost.client.rules.WorldOptions.rule(keep).value()), 100);
+			check(true, "a boolean rule changed in the world and came back in the World options (" + keep + " = " + keepOther + ")");
+			check(context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.setRule(sleep, Integer.parseInt(sleepOther))), "the helper sends an integer rule");
+			context.waitFor(mc -> sleepOther.equals(com.javahost.rules.RuleCatalog.value(mc.getSingleplayerServer(), sleep)), 100);
+			context.waitFor(mc -> sleepOther.equals(com.javahost.client.rules.WorldOptions.rule(sleep).value()), 100);
+			check(true, "an integer rule changed in the world and came back (" + sleep + " = " + sleepOther + ")");
+			check(com.javahost.rules.WorldRules.announcementsSent() == announced, "with announcements off, changing rules adds no chat line");
+			check(context.computeOnClient(mc -> com.javahost.client.rules.RulesClient.version()) > oldRules, "the old world rules state is still sent after changes");
+
+			check(!context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.setRule(sleep, belowRange)), "the helper won't send a value out of range");
+			context.runOnClient(mc -> {
+				com.javahost.client.rules.WorldOptions.requestUnchecked("rule:" + sleep, belowRange);
+				com.javahost.client.rules.WorldOptions.requestUnchecked("rule:" + sleep, "99999999999");
+				com.javahost.client.rules.WorldOptions.requestUnchecked("rule:" + sleep, "true");
+				com.javahost.client.rules.WorldOptions.requestUnchecked("rule:" + keep, "maybe");
+				com.javahost.client.rules.WorldOptions.requestUnchecked("rule:no_such_rule", "true");
+				com.javahost.client.rules.WorldOptions.requestUnchecked("__op:not-a-uuid", "true");
+				com.javahost.client.rules.WorldOptions.requestUnchecked("__gamemode", "godmode");
+			});
+			context.waitTicks(20);
+			check(sleepOther.equals(ruleValue(context, sleep)) && keepOther.equals(ruleValue(context, keep)),
+					"out-of-range, wrongly typed and unknown rule changes are refused, and the server carries on");
+
+			context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setAnnounce(true));
+			context.waitFor(mc -> com.javahost.client.rules.WorldOptions.announce(), 100);
+			context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setRule(keep, keepBefore));
+			context.waitFor(mc -> keepBefore.equals(com.javahost.rules.RuleCatalog.value(mc.getSingleplayerServer(), keep)), 100);
+			context.waitTicks(2);
+			check(com.javahost.rules.WorldRules.announcementsSent() > announced, "with announcements on, a rule change is told in chat");
+			context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setAnnounce(false));
+			context.waitFor(mc -> !com.javahost.client.rules.WorldOptions.announce(), 100);
+
+			// The default game mode.
+			String modeBefore = context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.defaultGameMode());
+			String modeOther = modeBefore.equals("adventure") ? "survival" : "adventure";
+			context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setDefaultGameMode(modeOther));
+			context.waitFor(mc -> mc.getSingleplayerServer().getDefaultGameType().getName().equals(modeOther)
+					&& modeOther.equals(com.javahost.client.rules.WorldOptions.defaultGameMode()), 100);
+			check(true, "the default game mode changes (" + modeBefore + " -> " + modeOther + ")");
+			context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setDefaultGameMode(modeBefore));
+			context.waitFor(mc -> mc.getSingleplayerServer().getDefaultGameType().getName().equals(modeBefore), 100);
+
+			operatorsAndCheats(context);
+		} finally {
+			context.runOnClient(mc -> {
+				com.javahost.client.rules.WorldOptions.setRule(keep, keepBefore);
+				com.javahost.client.rules.WorldOptions.setRule(sleep, sleepBefore);
+				com.javahost.client.rules.WorldOptions.setAnnounce(false);
+			});
+			context.waitFor(mc -> keepBefore.equals(com.javahost.rules.RuleCatalog.value(mc.getSingleplayerServer(), keep))
+					&& sleepBefore.equals(com.javahost.rules.RuleCatalog.value(mc.getSingleplayerServer(), sleep)), 100);
+		}
+	}
+
+	/** Operators get commands only while Cheats is on; the game's own ops list and "allow commands" don't count. */
+	private static void operatorsAndCheats(ClientGameTestContext context) {
+		java.util.UUID steve = java.util.UUID.randomUUID();
+		java.util.function.IntSupplier level = () -> context.computeOnClient(mc -> TestCompat.permissionLevel(mc.getSingleplayerServer(), steve, "Steve123"));
+		boolean cheatsBefore = context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.cheats());
+		boolean locked = context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.cheatsLocked());
+		try {
+			check(level.getAsInt() == 0, "a guest who isn't an operator has no commands");
+			if (locked) {
+				check(cheatsBefore && !context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.cheatsLockedReason()).isEmpty(),
+						"this world was made with cheats on, and says so instead of pretending they can be turned off");
+				context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setCheats(false));
+				context.waitTicks(10);
+				check(context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.cheats()), "cheats stay on in a world made with them");
+			} else {
+				context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setCheats(false));
+				context.waitFor(mc -> !com.javahost.client.rules.WorldOptions.cheats(), 100);
+			}
+			context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setOperator(steve, true));
+			context.waitFor(mc -> com.javahost.client.rules.WorldOptions.isOperator(steve), 100);
+			check(com.javahost.rules.WorldRules.isOperator(steve), "the host made Steve123 an operator");
+			if (!locked) {
+				check(level.getAsInt() == 0, "an operator has no commands while cheats are off");
+				context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setCheats(true));
+				context.waitFor(mc -> com.javahost.client.rules.WorldOptions.cheats(), 100);
+				check(true, "the host turned cheats on");
+				//? if >=26.2 {
+				check(context.computeOnClient(mc -> mc.getSingleplayerServer().getWorldData().isAllowCommands()), "the world's own cheats flag is on");
+				//?}
+			}
+			check(level.getAsInt() == 2, "an operator gets the gamemasters level while cheats are on");
+			if (!locked) {
+				context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setCheats(false));
+				context.waitFor(mc -> !com.javahost.client.rules.WorldOptions.cheats(), 100);
+				check(level.getAsInt() == 0, "turning cheats off takes an operator's commands away");
+				//? if >=26.2 {
+				check(!context.computeOnClient(mc -> mc.getSingleplayerServer().getWorldData().isAllowCommands()), "the world's own cheats flag is off");
+				//?}
+				context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setCheats(true));
+				context.waitFor(mc -> com.javahost.client.rules.WorldOptions.cheats(), 100);
+			}
+			context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setOperator(steve, false));
+			context.waitFor(mc -> !com.javahost.client.rules.WorldOptions.isOperator(steve), 100);
+			check(level.getAsInt() == 0, "no commands again once no longer an operator, even with cheats on");
+		} finally {
+			context.runOnClient(mc -> {
+				com.javahost.client.rules.WorldOptions.setOperator(steve, false);
+				if (!locked) {
+					com.javahost.client.rules.WorldOptions.setCheats(cheatsBefore);
+				}
+			});
+			if (!locked) {
+				context.waitFor(mc -> com.javahost.client.rules.WorldOptions.cheats() == cheatsBefore, 100);
+			}
+		}
 	}
 
 	// ================================================================ 2.0: the slimmer shell
@@ -1973,6 +2140,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		navigation(context, file);
 		version14(context);
 		version15(context);
+		worldOptions(context);
 		// Sample notifications: a long JavaHost notice (wraps in full) and a friend's message.
 		context.runOnClient(mc -> {
 			com.javahost.client.Toasts.notify("Installed 4 mods", "Restart Minecraft to turn them on. Sodium, Lithium, FerriteCore and ImmediatelyFast are ready and will load next time.");

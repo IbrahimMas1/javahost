@@ -143,4 +143,20 @@ public final class ClientCompat {
 		/*server.getPlayerList().setAllowCommandsForAllPlayers(allowed);
 		*///?}
 	}
+
+	/**
+	 * Lets JavaHost's Cheats switch use the integrated server's own one (26.2+), which also tells the host's game and
+	 * updates everyone's commands. Before 26.2 a world's cheats can't change while it's open.
+	 */
+	public static void hookCheatsSwitch() {
+		//? if >=26.2 {
+		com.javahost.rules.WorldRules.setCheatsSwitch((server, on) -> {
+			if (server instanceof IntegratedServer integrated) {
+				integrated.setWorldAllowCommands(on);
+			} else {
+				server.getWorldData().setAllowCommands(on);
+			}
+		});
+		//?}
+	}
 }

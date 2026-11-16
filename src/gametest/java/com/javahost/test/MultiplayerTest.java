@@ -357,6 +357,7 @@ final class MultiplayerTest {
 				com.javahost.client.rules.RulesClient.request("__lock", "false");
 				com.javahost.client.rules.RulesClient.request("__cohost:" + guestPlayer, "false");
 			});
+			operatorCommands(context, guestPlayer);
 			sendWorlds(context, guestPlayer);
 			survivesAbuse(context);
 			writeShared("host-controls-done", "ok");
@@ -815,6 +816,82 @@ final class MultiplayerTest {
 	}
 
 	/** Runs a command on the host's server, as the server. */
+	// ---------------------------------------------------------------- 2.0: operators and commands
+
+	private static GameType gameModeOn(net.minecraft.client.Minecraft mc, UUID player) {
+		var serverPlayer = mc.getSingleplayerServer().getPlayerList().getPlayer(player);
+		return serverPlayer == null ? null : com.javahost.compat.Compat.gameMode(serverPlayer);
+	}
+
+	private static GameType gameModeOf(ClientGameTestContext context, UUID player) {
+		return context.computeOnClient(mc -> gameModeOn(mc, player));
+	}
+
+	/** Host side: a guest gets commands only as an operator with cheats on (JavaHost's operators, not the game's ops). */
+	private static void operatorCommands(ClientGameTestContext context, UUID guestPlayer) {
+		context.waitFor(mc -> !com.javahost.rules.WorldRules.isOperator(guestPlayer), ONE_MINUTE);
+		context.runOnClient(mc -> HostController.setGameMode(guestPlayer, GameType.SURVIVAL));
+		context.waitFor(mc -> gameModeOn(mc, guestPlayer) == GameType.SURVIVAL, ONE_MINUTE);
+		boolean cheatsWere = context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.cheats());
+		boolean cheatsFixed = context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.cheatsLocked());
+		try {
+			writeShared("host-ops-ready", "ok");
+			waitForShared(context, "guest-tried-gamemode", ONE_MINUTE);
+			context.waitTicks(20);
+			check(gameModeOf(context, guestPlayer) == GameType.SURVIVAL, "a guest who isn't an operator can't run /gamemode creative");
+			context.runOnClient(mc -> {
+				com.javahost.client.rules.WorldOptions.setOperator(guestPlayer, true);
+				com.javahost.client.rules.WorldOptions.setCheats(true);
+			});
+			context.waitFor(mc -> com.javahost.client.rules.WorldOptions.isOperator(guestPlayer) && com.javahost.client.rules.WorldOptions.cheats(), ONE_MINUTE);
+			writeShared("host-made-operator", "ok");
+			waitForShared(context, "guest-op-gamemode", ONE_MINUTE);
+			context.waitFor(mc -> gameModeOn(mc, guestPlayer) == GameType.CREATIVE, ONE_MINUTE);
+			check(true, "made an operator with cheats on, the guest can run /gamemode creative");
+			context.runOnClient(mc -> {
+				HostController.setGameMode(guestPlayer, GameType.SURVIVAL);
+				com.javahost.client.rules.WorldOptions.setOperator(guestPlayer, false);
+			});
+			context.waitFor(mc -> !com.javahost.client.rules.WorldOptions.isOperator(guestPlayer) && gameModeOn(mc, guestPlayer) == GameType.SURVIVAL, ONE_MINUTE);
+			writeShared("host-removed-operator", "ok");
+			waitForShared(context, "guest-tried-gamemode-again", ONE_MINUTE);
+			context.waitTicks(20);
+			check(gameModeOf(context, guestPlayer) == GameType.SURVIVAL, "no longer an operator, the guest can't run /gamemode again");
+		} finally {
+			context.runOnClient(mc -> {
+				com.javahost.client.rules.WorldOptions.setOperator(guestPlayer, false);
+				if (!cheatsFixed) {
+					com.javahost.client.rules.WorldOptions.setCheats(cheatsWere);
+				}
+			});
+		}
+	}
+
+	/** Guest side of {@link #operatorCommands}: tries /gamemode creative as a plain guest, as an operator, and after. */
+	private static void guestOperatorCommands(ClientGameTestContext context) {
+		waitForShared(context, "host-ops-ready", 2 * ONE_MINUTE);
+		context.waitFor(mc -> com.javahost.client.rules.WorldOptions.available()
+				&& com.javahost.client.rules.WorldOptions.role() == com.javahost.client.rules.WorldOptions.Role.NONE, ONE_MINUTE);
+		check(true, "the guest gets the World options, with no role");
+		context.runOnClient(mc -> mc.getConnection().sendCommand("gamemode creative"));
+		writeShared("guest-tried-gamemode", "ok");
+		waitForShared(context, "host-made-operator", ONE_MINUTE);
+		context.waitFor(mc -> com.javahost.client.rules.WorldOptions.role() == com.javahost.client.rules.WorldOptions.Role.OPERATOR
+				&& com.javahost.client.rules.WorldOptions.cheats(), ONE_MINUTE);
+		check(true, "the guest's World options say operator once the host made them one");
+		context.waitTicks(10);
+		context.runOnClient(mc -> mc.getConnection().sendCommand("gamemode creative"));
+		context.waitFor(mc -> mc.gameMode != null && mc.gameMode.getPlayerMode() == GameType.CREATIVE, ONE_MINUTE);
+		check(true, "as an operator with cheats on, /gamemode creative works");
+		writeShared("guest-op-gamemode", "ok");
+		waitForShared(context, "host-removed-operator", ONE_MINUTE);
+		context.waitFor(mc -> com.javahost.client.rules.WorldOptions.role() == com.javahost.client.rules.WorldOptions.Role.NONE
+				&& mc.gameMode.getPlayerMode() == GameType.SURVIVAL, ONE_MINUTE);
+		context.waitTicks(10);
+		context.runOnClient(mc -> mc.getConnection().sendCommand("gamemode creative"));
+		writeShared("guest-tried-gamemode-again", "ok");
+	}
+
 	private static void runCommand(ClientGameTestContext context, String command) {
 		context.runOnClient(mc -> {
 			var server = mc.getSingleplayerServer();
@@ -1007,6 +1084,7 @@ final class MultiplayerTest {
 		waitForShared(context, "host-locked", ONE_MINUTE);
 		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("DIFFICULTY", "easy"));
 		writeShared("guest-tried-locked", "ok");
+		guestOperatorCommands(context);
 		context.takeScreenshot("mp-guest-joined-from-invite");
 		receiveWorlds(context, host);
 		abuseHost(context, host);

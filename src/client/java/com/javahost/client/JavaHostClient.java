@@ -67,6 +67,8 @@ public class JavaHostClient implements ClientModInitializer {
 
 		VoiceClient.register();
 		com.javahost.client.rules.RulesClient.register();
+		com.javahost.client.rules.WorldOptions.register();
+		com.javahost.client.compat.ClientCompat.hookCheatsSwitch();
 		com.javahost.client.perf.VideoMenu.register();
 		// The version check, in world: the host tells us its JavaHost version when we join.
 		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(com.javahost.net.Payloads.ServerHello.TYPE,

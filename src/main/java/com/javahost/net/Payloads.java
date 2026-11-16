@@ -163,7 +163,11 @@ public final class Payloads {
 		}
 	}
 
-	/** Client -> server: please change a rule (or "__lock", or "__cohost:&lt;uuid&gt;"); the server checks permission. */
+	/**
+	 * Client -> server: please change a rule ({@code WorldRules.Rule} name, "__lock", "__op:&lt;uuid&gt;" (old name
+	 * "__cohost:&lt;uuid&gt;"), "__cheats", "__gamemode", "__announce" or "rule:&lt;game rule id&gt;"); the server checks
+	 * permission. Its size limits must not change: hosts on older versions read it the same way.
+	 */
 	public record RulesChange(String rule, String value) implements CustomPacketPayload {
 		public static final Type<RulesChange> TYPE = payloadType("rules_change");
 		public static final StreamCodec<FriendlyByteBuf, RulesChange> CODEC = CustomPacketPayload.codec(
@@ -172,6 +176,23 @@ public final class Payloads {
 
 		@Override
 		public Type<RulesChange> type() {
+			return TYPE;
+		}
+	}
+
+	/**
+	 * Server -> client (2.0+): everything the World options screen shows (cheats, operators, your role, difficulty,
+	 * default game mode, every game rule), as {@code util/WorldOptionsData} JSON. Only sent to games that registered
+	 * this channel; {@link RulesState} stays as it was for older games.
+	 */
+	public record WorldState(String json) implements CustomPacketPayload {
+		public static final Type<WorldState> TYPE = payloadType("world_state");
+		public static final StreamCodec<FriendlyByteBuf, WorldState> CODEC = CustomPacketPayload.codec(
+				(p, buf) -> buf.writeUtf(p.json, com.javahost.util.WorldOptionsData.MAX_JSON),
+				buf -> new WorldState(buf.readUtf(com.javahost.util.WorldOptionsData.MAX_JSON)));
+
+		@Override
+		public Type<WorldState> type() {
 			return TYPE;
 		}
 	}
@@ -390,5 +411,6 @@ public final class Payloads {
 		PayloadTypeRegistry.clientboundPlay().register(RulesState.TYPE, RulesState.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(ShareDown.TYPE, ShareDown.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(HostProof.TYPE, HostProof.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(WorldState.TYPE, WorldState.CODEC);
 	}
 }

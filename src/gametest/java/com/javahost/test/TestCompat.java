@@ -70,4 +70,14 @@ final class TestCompat {
 		//?} else
 		/*button.onPress();*/
 	}
+
+	/** The command permission level the server gives a player with this id and name (they needn't be online). */
+	static int permissionLevel(net.minecraft.server.MinecraftServer server, java.util.UUID id, String name) {
+		//? if >=1.21.11 {
+		return server.getProfilePermissions(new net.minecraft.server.players.NameAndId(id, name)).level().id();
+		//?} else if >=1.21.9 {
+		/*return server.getProfilePermissions(new net.minecraft.server.players.NameAndId(id, name));
+		*///?} else
+		/*return server.getProfilePermissions(new com.mojang.authlib.GameProfile(id, name));*/
+	}
 }

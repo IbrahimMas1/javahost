@@ -4,6 +4,7 @@
 	"compatibilityLevel": "JAVA_${java}",
 	"mixins": [
 		"ConnectionAccess",
+		"MinecraftServerMixin",
 		"PlayerListMixin",
 		"ServerCommonListenerAccess"
 	],
