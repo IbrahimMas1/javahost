@@ -55,7 +55,6 @@ public class JavaHostScreen extends BaseScreen {
 		SKINS("Skins", Icons.SHIRT, com.javahost.client.gui.pages.SkinsPage::new, null),
 		// Sub-pages, reached from other pages (they highlight their parent in the sidebar).
 		JOIN("Join", Icons.JOIN, JoinPage::new, FRIENDS),
-		RULES("World rules", Icons.SHIELD, com.javahost.client.gui.pages.WorldRulesPage::new, HOST),
 		PROFILE("Profile", Icons.USER, ProfilePage::new, FRIENDS),
 		CHAT("Chat", Icons.CHAT, ChatPage::new, FRIENDS),
 		NOTIFICATIONS("Notifications", Icons.BELL, NotificationsPage::new, null);

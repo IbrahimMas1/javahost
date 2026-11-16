@@ -344,6 +344,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.waitTicks(20);
 			worldOptions(context);
 			worldPage(context);
+			rulesPart(context);
 			hubWithFriends(context);
 			shellInWorld(context);
 			reviewAtScale(context, 4, 1710, 1070);
@@ -1229,7 +1230,8 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		modSiteCopy(context);
 
 		// World rules: the host changes a rule; locking stops changes, even by command.
-		context.setScreen(() -> new JavaHostScreen(null, Tab.RULES));
+		com.javahost.client.gui.pages.HostPage.showSection("rules");
+		context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
 		context.waitFor(mc -> com.javahost.client.rules.RulesClient.state() != null, 200);
 		check(context.computeOnClient(mc -> com.javahost.client.rules.RulesClient.state().host()), "the host sees world rules and can change them");
 		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("DIFFICULTY", "easy"));
@@ -1246,7 +1248,8 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.waitTicks(50);
 		check(context.computeOnClient(mc -> mc.getSingleplayerServer().getWorldData().getDifficulty() == net.minecraft.world.Difficulty.EASY),
 				"while locked, neither the page nor /difficulty can change the rules");
-		context.setScreen(() -> new JavaHostScreen(null, Tab.RULES));
+		com.javahost.client.gui.pages.HostPage.showSection("rules");
+		context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
 		context.waitTicks(8);
 		context.takeScreenshot("ui-world-rules-locked");
 		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("__lock", "false"));
@@ -1271,7 +1274,8 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.runOnClient(mc -> com.javahost.client.rules.RulesClient.request("VOICE", "nearby"));
 		context.waitFor(mc -> "nearby".equals(com.javahost.client.voice.VoiceClient.worldRule()), 100);
 		check(!context.computeOnClient(mc -> com.javahost.rules.WorldRules.partyVoice()), "back to nearby voice for everyone");
-		context.setScreen(() -> new JavaHostScreen(null, Tab.RULES));
+		com.javahost.client.gui.pages.HostPage.showSection("rules");
+		context.setScreen(() -> new JavaHostScreen(null, Tab.HOST));
 		context.waitTicks(8);
 		context.takeScreenshot("ui-world-rules");
 
@@ -2041,7 +2045,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			check(hasButton(context, "Only friends can join") && hasButton(context, "Cheats"), "General has the world's settings and who can join");
 			clickSegment(context, 0, 0, parts.size());
 			// The more menu.
-			List<String> more = List.of("backups", "connection", "advanced");
+			List<String> more = List.of("recent", "backups", "connection", "advanced");
 			for (int i = 0; i < more.size(); i++) {
 				int row = i;
 				clickMenu(context, "More options");
@@ -2145,8 +2149,13 @@ public class JavaHostClientTest implements FabricClientGameTest {
 							List.of(new com.javahost.util.WorldOptionsData.Operator(steve, "Steve123")), List.of()))), "a guest's World options are read");
 				});
 				openWorldPart(context, "general");
-				check(!hasButton(context, "More options") && !hasButton(context, "Only friends can join") && !segmented(context, 1).active
+				check(!hasButton(context, "Only friends can join") && !segmented(context, 1).active
 						&& !widget(context, "Cheats").active, "a guest sees General read-only, without the host's settings, at " + at);
+				clickMenu(context, "More options");
+				check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).popoverOpen()), "a guest's more menu opens (Recent changes only)");
+				context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).clickPopover(30, 3 + 9));
+				context.waitTicks(4);
+				check("recent".equals(com.javahost.client.gui.pages.HostPage.currentSection()), "a guest can open Recent changes");
 				check(widgetsFit(context), "World (guest, General) fits at " + at);
 				context.takeScreenshot(worldShot(s) + "guest-general");
 				openWorldPart(context, "members");
@@ -2173,6 +2182,263 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.waitFor(mc -> !com.javahost.client.rules.WorldOptions.isOperator(steve)
 					&& difficultyBefore.equals(com.javahost.client.rules.WorldOptions.difficulty())
 					&& modeBefore.equals(com.javahost.client.rules.WorldOptions.defaultGameMode()), 100);
+			com.javahost.client.gui.pages.HostPage.showSection("general");
+			context.setScreen(() -> null);
+			size(context, 854, 480, 0);
+		}
+	}
+
+	// ================================================================ 2.0: the World page's Rules part
+
+	/** A widget by its label; on the client thread. */
+	private static net.minecraft.client.gui.components.AbstractWidget labelled(net.minecraft.client.Minecraft mc, String label) {
+		return mc.gui.screen().children().stream()
+				.filter(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w && w.getMessage().getString().equals(label))
+				.map(c -> (net.minecraft.client.gui.components.AbstractWidget) c).findFirst().orElse(null);
+	}
+
+	private static String rulesShot(int[] s, String what) {
+		return "rules-" + s[0] + "-s" + s[2] + "-" + what;
+	}
+
+	/** Clicks the middle of a widget with the real mouse (looked up on the client thread, after any rebuild). */
+	private static void clickOn(ClientGameTestContext context, java.util.function.Supplier<net.minecraft.client.gui.components.AbstractWidget> find, String what) {
+		double[] at = context.computeOnClient(mc -> {
+			var w = find.get();
+			if (w == null || !w.visible) {
+				throw new AssertionError("[JavaHost test] FAILED: no visible " + what);
+			}
+			double scale = mc.getWindow().getGuiScale();
+			return new double[] {(w.getX() + w.getWidth() / 2.0) * scale, (w.getY() + w.getHeight() / 2.0) * scale};
+		});
+		context.getInput().setCursorPos(at[0], at[1]);
+		context.waitTicks(2);
+		context.getInput().pressMouse(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);
+		context.waitTicks(4);
+	}
+
+	private static com.javahost.client.gui.pages.world.RulesSection.Controls ruleControls(ClientGameTestContext context, String id) {
+		return context.computeOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.controls(id));
+	}
+
+	private static void searchRules(ClientGameTestContext context, String text) {
+		context.runOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.showSearch(text));
+		context.waitTicks(4);
+	}
+
+	/** Every row drawn right now keeps its text clear of its control. */
+	private static boolean rowTextClear(ClientGameTestContext context) {
+		return context.computeOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.shownIds().stream()
+				.map(com.javahost.client.gui.pages.world.RulesSection::textAndControl)
+				.filter(java.util.Objects::nonNull).allMatch(g -> g[0] <= g[1] - 4));
+	}
+
+	private static List<com.javahost.util.WorldOptionsData.Rule> rulesAsSent(ClientGameTestContext context) {
+		return context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.allRules().stream()
+				.map(r -> new com.javahost.util.WorldOptionsData.Rule(r.id(), r.nameKey(), r.descriptionKey(), r.category(), r.categoryKey(),
+						r.bool(), r.min(), r.max(), r.defaultValue(), r.value(), r.common())).toList());
+	}
+
+	/** Gets the real World options back from the server after a test replaced them. */
+	private static void realWorldOptions(ClientGameTestContext context) {
+		context.runOnClient(mc -> {
+			com.javahost.client.gui.pages.HostPage.previewGuest(false);
+			com.javahost.client.rules.WorldOptions.requestUnchecked("rule:no_such_rule", "true");
+		});
+		context.waitFor(mc -> com.javahost.client.rules.WorldOptions.role() == com.javahost.client.rules.WorldOptions.Role.HOST, 100);
+	}
+
+	/**
+	 * 2.0: the Rules part: common rules first, a switch and a number field that change the real game rules (and refuse
+	 * what the rule doesn't take), search by name and id, the lock, a guest's read-only list, an older host's short
+	 * list, Recent changes and the announce switch; everything fits at the laptop sizes, and no row's text runs into its
+	 * control.
+	 */
+	private static void rulesPart(ClientGameTestContext context) {
+		context.waitFor(mc -> com.javahost.client.rules.WorldOptions.available(), 200);
+		String keep = firstRule(context, "keep_inventory", "keepInventory");
+		String sleep = firstRule(context, "players_sleeping_percentage", "playersSleepingPercentage");
+		String keepBefore = ruleValue(context, keep);
+		String sleepBefore = ruleValue(context, sleep);
+		String keepName = context.computeOnClient(mc -> net.minecraft.locale.Language.getInstance().getOrDefault(
+				com.javahost.client.rules.WorldOptions.rule(keep).nameKey()));
+		try {
+			size(context, 1710, 1070, 4);
+			openWorldPart(context, "rules");
+			List<String> shown = context.computeOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.shownIds());
+			List<String> common = context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.commonRules().stream()
+					.map(com.javahost.client.rules.WorldOptions.Rule::id).toList());
+			check(shown.stream().filter(id -> !id.equals("PVP")).limit(common.size()).toList().equals(common), "the common rules are listed first: " + common);
+			check(shown.size() >= context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.allRules().size()), "every game rule is listed (" + shown.size() + ")");
+			int height = context.computeOnClient(mc -> mc.getWindow().getGuiScaledHeight());
+			check(context.computeOnClient(mc -> {
+				var c = com.javahost.client.gui.pages.world.RulesSection.controls(shown.getFirst());
+				var w = c.toggle() != null ? (net.minecraft.client.gui.components.AbstractWidget) c.toggle() : c.field();
+				return w.visible && w.getBottom() < height - 8;
+			}), "the first rule is in view without scrolling");
+			boolean hasPvp = context.computeOnClient(mc -> com.javahost.client.rules.WorldOptions.allRules().stream().anyMatch(r -> r.id().equalsIgnoreCase("pvp")));
+			check(hasPvp || shown.contains("PVP"), "PvP can be changed here (" + (hasPvp ? "a game rule" : "through the old world rules") + ")");
+
+			// A boolean rule, from its switch.
+			String keepOther = String.valueOf(!Boolean.parseBoolean(keepBefore));
+			clickOn(context, () -> com.javahost.client.gui.pages.world.RulesSection.controls(keep).toggle(), keep + " switch");
+			context.waitFor(mc -> keepOther.equals(com.javahost.rules.RuleCatalog.value(mc.getSingleplayerServer(), keep)), 100);
+			context.waitTicks(4);
+			check(ruleControls(context, keep).toggle().value() == Boolean.parseBoolean(keepOther), "the switch changes " + keep + " in the world, and the row follows");
+
+			// An integer rule: stepper, typed value, a value it doesn't take.
+			searchRules(context, sleep);
+			check(context.computeOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.shownIds()).contains(sleep), "search finds a rule by its id");
+			int sleepNow = Integer.parseInt(ruleValue(context, sleep));
+			boolean up = sleepNow < 100;
+			String stepped = String.valueOf(sleepNow + (up ? 1 : -1));
+			clickOn(context, () -> up ? com.javahost.client.gui.pages.world.RulesSection.controls(sleep).plus()
+					: com.javahost.client.gui.pages.world.RulesSection.controls(sleep).minus(), "stepper");
+			context.waitFor(mc -> stepped.equals(com.javahost.rules.RuleCatalog.value(mc.getSingleplayerServer(), sleep)), 100);
+			context.waitTicks(4);
+			check(stepped.equals(ruleControls(context, sleep).field().getValue()), "the stepper changes " + sleep + " to " + stepped + " and the field shows it");
+			clickOn(context, () -> com.javahost.client.gui.pages.world.RulesSection.controls(sleep).field(), "number field");
+			context.runOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.controls(sleep).field().setValue(""));
+			context.getInput().typeChars("42");
+			context.waitTicks(2);
+			check(context.computeOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.controls(sleep).field().isFocused()), "typing goes into the number field");
+			context.getInput().pressKey(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN);
+			context.waitFor(mc -> "42".equals(com.javahost.rules.RuleCatalog.value(mc.getSingleplayerServer(), sleep)), 100);
+			context.waitTicks(4);
+			check("42".equals(ruleControls(context, sleep).field().getValue()), "a typed value and Enter change " + sleep + " to 42");
+			clickOn(context, () -> com.javahost.client.gui.pages.world.RulesSection.controls(sleep).field(), "number field");
+			context.runOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.controls(sleep).field().setValue(""));
+			context.getInput().typeChars("99999999999");
+			context.getInput().pressKey(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN);
+			context.waitTicks(30);
+			check("42".equals(ruleValue(context, sleep)) && "42".equals(ruleControls(context, sleep).field().getValue()),
+					"a typed value out of range is refused and the field shows the real value again");
+
+			// Search by translated name; nothing found.
+			searchRules(context, "");
+			clickOn(context, () -> labelled(net.minecraft.client.Minecraft.getInstance(), "Search rules"), "search field");
+			String part = keepName.length() > 4 ? keepName.substring(0, keepName.length() - 2) : keepName;
+			context.getInput().typeChars(part.toLowerCase(java.util.Locale.ROOT));
+			context.waitTicks(10);
+			check(context.computeOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.shownIds()).contains(keep)
+					&& context.computeOnClient(mc -> labelled(mc, "Search rules").isFocused()), "typing \"" + part + "\" finds " + keep + " by its name, and the field keeps focus");
+			searchRules(context, "zzqx nothing");
+			check(context.computeOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.emptyShown()), "a search with no results says so");
+			searchRules(context, "");
+
+			// The lock.
+			clickMenu(context, "Lock");
+			context.waitFor(mc -> com.javahost.client.rules.WorldOptions.locked(), 100);
+			context.waitTicks(4);
+			check(!ruleControls(context, keep).toggle().active && !ruleControls(context, sleep).field().active
+					&& context.computeOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.note()).startsWith("Locked"),
+					"locking disables every control and says why");
+			clickMenu(context, "Unlock");
+			clickMenu(context, "Confirm");
+			context.waitFor(mc -> !com.javahost.client.rules.WorldOptions.locked(), 100);
+			context.waitTicks(4);
+			check(ruleControls(context, keep).toggle().active && ruleControls(context, sleep).field().active, "unlocking (with a second click) brings the controls back");
+
+			// Recent changes and the announce switch.
+			openWorldPart(context, "recent");
+			List<String> recent = context.computeOnClient(mc -> com.javahost.client.gui.pages.world.RecentSection.shown());
+			check(recent.stream().anyMatch(line -> line.startsWith(keepName + ":") && line.contains("→")), "Recent changes lists the change just made: " + recent.stream().limit(3).toList());
+			check(recent.stream().anyMatch(line -> line.toLowerCase(java.util.Locale.ROOT).contains("locked the rules")), "and the lock");
+			clickMenu(context, "Announce changes in chat");
+			context.waitFor(mc -> com.javahost.client.rules.WorldOptions.announce(), 100);
+			context.waitTicks(4);
+			check(widget(context, "Announce changes in chat") instanceof com.javahost.client.gui.ui.ToggleSwitch t && t.value(), "the announce switch turns announcements on");
+			clickMenu(context, "Announce changes in chat");
+			context.waitFor(mc -> !com.javahost.client.rules.WorldOptions.announce(), 100);
+			check(true, "and off again");
+
+			// Every state, at both laptop sizes.
+			for (int[] s : WORLD_SIZES) {
+				size(context, s[0], s[1], s[2]);
+				String at = s[0] + "x" + s[1] + " scale " + s[2];
+				openWorldPart(context, "rules");
+				context.getInput().setCursorPos(0, 0);
+				context.waitTicks(2);
+				check(widgetsFit(context) && rowTextClear(context), "Rules fits, text clear of controls, at " + at);
+				context.takeScreenshot(rulesShot(s, "top"));
+				for (int step = 0; step < 30; step++) {
+					context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -4));
+					context.waitTicks(3);
+					if (!rowTextClear(context) || !widgetsFit(context)) {
+						check(false, "Rules row text stays clear of its control all the way down at " + at + " (step " + step + ")");
+					}
+					if (step == 3) {
+						context.takeScreenshot(rulesShot(s, "category"));
+					}
+				}
+				check(true, "every rule row, scrolled through, keeps its text clear of its control at " + at);
+				openWorldPart(context, "rules");
+				searchRules(context, "spawn");
+				check(widgetsFit(context) && rowTextClear(context), "a search fits at " + at);
+				context.takeScreenshot(rulesShot(s, "search"));
+				searchRules(context, "zzqx nothing");
+				context.takeScreenshot(rulesShot(s, "search-none"));
+				searchRules(context, sleep);
+				clickOn(context, () -> com.javahost.client.gui.pages.world.RulesSection.controls(sleep).field(), "number field");
+				context.runOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.controls(sleep).field().setValue("64"));
+				context.getInput().setCursorPos(0, 0);
+				context.waitTicks(2);
+				context.takeScreenshot(rulesShot(s, "integer"));
+				context.runOnClient(mc -> {
+					com.javahost.client.gui.pages.world.RulesSection.controls(sleep).field().setValue(com.javahost.client.rules.WorldOptions.rule(sleep).value());
+					mc.gui.screen().setFocused(null);
+				});
+				searchRules(context, "");
+
+				context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setLocked(true));
+				context.waitFor(mc -> com.javahost.client.rules.WorldOptions.locked(), 100);
+				openWorldPart(context, "rules");
+				context.takeScreenshot(rulesShot(s, "locked"));
+				context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.setLocked(false));
+				context.waitFor(mc -> !com.javahost.client.rules.WorldOptions.locked(), 100);
+
+				openWorldPart(context, "recent");
+				check(widgetsFit(context), "Recent changes fits at " + at);
+				context.takeScreenshot(rulesShot(s, "recent"));
+
+				// A guest who isn't an operator: the same list, read-only.
+				List<com.javahost.util.WorldOptionsData.Rule> rules = rulesAsSent(context);
+				context.runOnClient(mc -> {
+					com.javahost.client.gui.pages.HostPage.previewGuest(true);
+					com.javahost.client.rules.WorldOptions.receive(com.javahost.util.WorldOptionsData.toJson(new com.javahost.util.WorldOptionsData.State(
+							com.javahost.util.WorldOptionsData.Role.NONE, false, false, true, false, "", "normal", "survival", "nearby", List.of(), rules)));
+				});
+				openWorldPart(context, "rules");
+				check(!hasButton(context, "Lock") && !ruleControls(context, keep).toggle().active
+						&& "Set by the host and operators".equals(context.computeOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.note())),
+						"a guest sees the rules read-only, without the lock, at " + at);
+				check(widgetsFit(context), "Rules (guest) fits at " + at);
+				context.takeScreenshot(rulesShot(s, "guest"));
+				realWorldOptions(context);
+
+				// An older host: no World options, only the old world rules.
+				context.runOnClient(mc -> com.javahost.client.rules.WorldOptions.clear());
+				openWorldPart(context, "rules");
+				check(context.computeOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.shownIds()).containsAll(List.of("KEEP_INVENTORY", "PVP", "SLEEPING"))
+						&& "The host has an older JavaHost".equals(context.computeOnClient(mc -> com.javahost.client.gui.pages.world.RulesSection.note())),
+						"with an older host, its old world rules are listed and it says so, at " + at);
+				check(widgetsFit(context) && rowTextClear(context), "Rules (older host) fits at " + at);
+				context.takeScreenshot(rulesShot(s, "older-host"));
+				realWorldOptions(context);
+			}
+		} finally {
+			context.runOnClient(mc -> {
+				com.javahost.client.gui.pages.HostPage.previewGuest(false);
+				com.javahost.client.rules.WorldOptions.setLocked(false);
+				com.javahost.client.rules.WorldOptions.setAnnounce(false);
+			});
+			context.waitFor(mc -> com.javahost.client.rules.WorldOptions.available() && !com.javahost.client.rules.WorldOptions.locked(), 100);
+			context.runOnClient(mc -> {
+				com.javahost.client.rules.WorldOptions.setRule(keep, keepBefore);
+				com.javahost.client.rules.WorldOptions.setRule(sleep, sleepBefore);
+			});
+			context.waitFor(mc -> keepBefore.equals(com.javahost.rules.RuleCatalog.value(mc.getSingleplayerServer(), keep))
+					&& sleepBefore.equals(com.javahost.rules.RuleCatalog.value(mc.getSingleplayerServer(), sleep)), 100);
 			com.javahost.client.gui.pages.HostPage.showSection("general");
 			context.setScreen(() -> null);
 			size(context, 854, 480, 0);
@@ -2410,6 +2676,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		version15(context);
 		worldOptions(context);
 		worldPage(context);
+		rulesPart(context);
 		// Sample notifications: a long JavaHost notice (wraps in full) and a friend's message.
 		context.runOnClient(mc -> {
 			com.javahost.client.Toasts.notify("Installed 4 mods", "Restart Minecraft to turn them on. Sodium, Lithium, FerriteCore and ImmediatelyFast are ready and will load next time.");

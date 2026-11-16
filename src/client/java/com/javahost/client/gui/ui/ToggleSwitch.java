@@ -16,6 +16,8 @@ public class ToggleSwitch extends AbstractButton {
 	private boolean value;
 	private float knob;
 	private float hover;
+	/** Just the switch: the row around it draws its own text. */
+	private boolean bare;
 
 	public ToggleSwitch(int width, Component label, String hint, boolean value, Consumer<Boolean> onChange) {
 		super(0, 0, width, hint == null ? 16 : 24, label);
@@ -23,6 +25,12 @@ public class ToggleSwitch extends AbstractButton {
 		this.value = value;
 		this.knob = value ? 1 : 0;
 		this.onChange = onChange;
+	}
+
+	/** Draws only the switch (at the right end); the label stays its name for narration and tests. */
+	public ToggleSwitch bare() {
+		bare = true;
+		return this;
 	}
 
 	public boolean value() {
@@ -60,10 +68,12 @@ public class ToggleSwitch extends AbstractButton {
 		int sx = x + w - switchW;
 		int sy = y + 2;
 
-		int labelColor = active ? Theme.mix(Theme.TEXT, 0xFFFFFFFF, hover) : Theme.FAINT;
-		Draw.textFit(g, getMessage().getString(), w - switchW - 8, x, y + 4, labelColor);
-		if (hint != null) {
-			Draw.textFit(g, hint, w - switchW - 8, x, y + 15, active ? Theme.MUTED : Theme.FAINT);
+		if (!bare) {
+			int labelColor = active ? Theme.mix(Theme.TEXT, 0xFFFFFFFF, hover) : Theme.FAINT;
+			Draw.textFit(g, getMessage().getString(), w - switchW - 8, x, y + 4, labelColor);
+			if (hint != null) {
+				Draw.textFit(g, hint, w - switchW - 8, x, y + 15, active ? Theme.MUTED : Theme.FAINT);
+			}
 		}
 
 		int track = active ? Theme.mix(Theme.FIELD, Theme.ACCENT_DARK, knob) : Theme.CARD;

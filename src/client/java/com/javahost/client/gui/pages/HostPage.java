@@ -14,6 +14,7 @@ import com.javahost.client.gui.pages.world.ConnectionSection;
 import com.javahost.client.gui.pages.world.GeneralSection;
 import com.javahost.client.gui.pages.world.HeroSection;
 import com.javahost.client.gui.pages.world.MembersSection;
+import com.javahost.client.gui.pages.world.RecentSection;
 import com.javahost.client.gui.pages.world.RulesSection;
 import com.javahost.client.gui.pages.world.SharingSection;
 import com.javahost.client.gui.pages.world.WorldSection;
@@ -36,10 +37,11 @@ import net.minecraft.world.level.storage.LevelResource;
 /**
  * The World place. The hero stays on top (your worlds, Start hosting, or the invite code with Invite / Stop); under
  * it, with a world open, World options in four parts (Members · General · Rules · Sharing) and a "more" menu for the
- * rest (Backups, Connection details, Advanced). With no world open: Settings · Backups, as before.
+ * rest (Recent changes, Backups, Connection details, Advanced; a guest's has only Recent changes). With no world open:
+ * Settings · Backups, as before.
  */
 public class HostPage extends Page {
-	private enum Section { MEMBERS, GENERAL, RULES, SHARING, BACKUPS, CONNECTION, ADVANCED, SETTINGS }
+	private enum Section { MEMBERS, GENERAL, RULES, SHARING, RECENT, BACKUPS, CONNECTION, ADVANCED, SETTINGS }
 
 	private static final List<Section> MAIN = List.of(Section.MEMBERS, Section.GENERAL, Section.RULES, Section.SHARING);
 	private static final List<Section> GUEST_MAIN = List.of(Section.MEMBERS, Section.GENERAL, Section.RULES);
@@ -87,6 +89,7 @@ public class HostPage extends Page {
 	private final BannedSection banned = new BannedSection(host);
 	private final GeneralSection general = new GeneralSection(host);
 	private final RulesSection rules = new RulesSection(host);
+	private final RecentSection recent = new RecentSection(host);
 	private final SharingSection sharing = new SharingSection(host);
 	private final BackupsSection backups = new BackupsSection(host);
 	private final ConnectionSection connection = new ConnectionSection(host, hero);
@@ -126,8 +129,8 @@ public class HostPage extends Page {
 	}
 
 	/**
-	 * For tests: open a part ("members", "general", "rules", "sharing", "backups", "connection", "advanced", or with no
-	 * world open "settings"; the old "players" means members).
+	 * Opens a part next time the page builds ("members", "general", "rules", "sharing", "recent", "backups",
+	 * "connection", "advanced", or with no world open "settings"; the old "players" means members). Also for tests.
 	 */
 	public static void showSection(String name) {
 		String key = name.toUpperCase(Locale.ROOT);
@@ -135,6 +138,12 @@ public class HostPage extends Page {
 		if (MAIN.contains(section)) {
 			lastMain = section;
 		}
+	}
+
+	/** Opens the World page on its Rules part (what the old World rules page was). */
+	public static void openRules(JavaHostScreen screen) {
+		showSection("rules");
+		screen.switchTo(JavaHostScreen.Tab.HOST);
 	}
 
 	/** For tests: the part that's open ("members", "general"...). */
@@ -171,13 +180,14 @@ public class HostPage extends Page {
 	private static Section resolve(HeroSection.Kind kind) {
 		return switch (kind) {
 			case WORLDS -> section == Section.BACKUPS ? Section.BACKUPS : Section.SETTINGS;
-			case GUEST -> GUEST_MAIN.contains(section) ? section : section == Section.SETTINGS ? Section.GENERAL : Section.MEMBERS;
+			case GUEST -> GUEST_MAIN.contains(section) || section == Section.RECENT ? section
+					: section == Section.SETTINGS ? Section.GENERAL : Section.MEMBERS;
 			default -> section == Section.SETTINGS ? Section.GENERAL : section;
 		};
 	}
 
 	private static boolean overflow(Section s) {
-		return s == Section.BACKUPS || s == Section.CONNECTION || s == Section.ADVANCED;
+		return s == Section.RECENT || s == Section.BACKUPS || s == Section.CONNECTION || s == Section.ADVANCED;
 	}
 
 	private static String sectionName(Section s) {
@@ -186,6 +196,7 @@ public class HostPage extends Page {
 			case GENERAL -> "General";
 			case RULES -> "Rules";
 			case SHARING -> "Sharing";
+			case RECENT -> "Recent changes";
 			case BACKUPS -> "Backups";
 			case CONNECTION -> "Connection details";
 			case ADVANCED -> "Advanced";
@@ -204,9 +215,10 @@ public class HostPage extends Page {
 		active.add(hero);
 		int y = hero.build(0) + 10;
 
-		// The parts, and (in your own world) "more" for the rest.
-		List<Section> options = builtKind == HeroSection.Kind.WORLDS ? NO_WORLD : ownWorld ? MAIN : GUEST_MAIN;
-		int segW = ownWorld ? width - MORE_W - 6 : width;
+		// The parts, and (in a world) "more" for the rest.
+		boolean inWorld = builtKind != HeroSection.Kind.WORLDS;
+		List<Section> options = !inWorld ? NO_WORLD : ownWorld ? MAIN : GUEST_MAIN;
+		int segW = inWorld ? width - MORE_W - 6 : width;
 		int people = HostController.guests().size() + 1;
 		Segmented<Section> parts = add(new Segmented<>(segW, options, shown,
 				s -> s == Section.MEMBERS && hosting && people > 1 ? "Members (" + people + ")" : sectionName(s), s -> {
@@ -219,18 +231,22 @@ public class HostPage extends Page {
 		if (!options.contains(shown)) {
 			parts.clearSelection();
 		}
-		if (ownWorld) {
+		if (inWorld) {
 			boolean more = overflow(shown);
+			List<Popover.Item> items = new ArrayList<>();
+			items.add(Popover.Item.of("Recent changes", Icons.EDIT, () -> open(Section.RECENT)).selected(shown == Section.RECENT));
+			if (ownWorld) {
+				items.add(Popover.Item.of("Backups", Icons.PACKAGE, () -> open(Section.BACKUPS)).selected(shown == Section.BACKUPS));
+				items.add(Popover.Item.of("Connection details", Icons.GLOBE, () -> open(Section.CONNECTION)).selected(shown == Section.CONNECTION));
+				items.add(Popover.Item.of("Advanced", Icons.GEAR, () -> open(Section.ADVANCED)).selected(shown == Section.ADVANCED));
+			}
 			FlatButton moreButton = add(new FlatButton(MORE_W, 18, Component.literal("More options"), FlatButton.Style.SECONDARY,
-					Icons.MORE, b -> screen.openPopover(Popover.menu(List.of(
-							Popover.Item.of("Backups", Icons.PACKAGE, () -> open(Section.BACKUPS)).selected(shown == Section.BACKUPS),
-							Popover.Item.of("Connection details", Icons.GLOBE, () -> open(Section.CONNECTION)).selected(shown == Section.CONNECTION),
-							Popover.Item.of("Advanced", Icons.GEAR, () -> open(Section.ADVANCED)).selected(shown == Section.ADVANCED))), b))
-					.iconOnly(), width - MORE_W, y);
+					Icons.MORE, b -> screen.openPopover(Popover.menu(items), b)).iconOnly(), width - MORE_W, y);
 			if (more) {
 				moreButton.iconColor(Theme.ACCENT);
 			}
-			moreButton.setTooltip(Tooltip.create(Draw.styled("Backups, connection details and advanced settings")));
+			moreButton.setTooltip(Tooltip.create(Draw.styled(ownWorld ? "Recent changes, backups, connection details and advanced settings"
+					: "Recent changes")));
 		}
 		y += 18 + 8;
 
@@ -258,6 +274,7 @@ public class HostPage extends Page {
 				y = place(general, y);
 			}
 			case RULES -> y = place(rules, y);
+			case RECENT -> y = place(recent, y);
 			case SHARING -> {
 				sharing.configure(true, hosting);
 				y = place(sharing, y);
@@ -362,6 +379,9 @@ public class HostPage extends Page {
 				return;
 			}
 		}
+		if (shown == Section.RULES) {
+			rules.tick(); // typing in the search, before the signature is checked
+		}
 		HeroSection.Kind now = kind();
 		if (now != builtKind) {
 			if (now == HeroSection.Kind.HOSTING) {
@@ -381,6 +401,11 @@ public class HostPage extends Page {
 		if (shown == Section.MEMBERS) {
 			members.tick(); // pings change without a rebuild
 		}
+	}
+
+	@Override
+	protected boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+		return shown == Section.RULES && rules.keyPressed(event);
 	}
 
 	// ---------------------------------------------------------------- drawing

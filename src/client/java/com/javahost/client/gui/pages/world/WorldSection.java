@@ -60,6 +60,15 @@ public abstract class WorldSection {
 		return "";
 	}
 
+	/** Called every tick while the section is shown (before the page checks whether to rebuild). */
+	public void tick() {
+	}
+
+	/** Lets the section handle keys first (e.g. Enter in a text field). */
+	public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+		return false;
+	}
+
 	protected <T extends AbstractWidget> T add(T widget, int x, int y) {
 		return host.add(widget, x, y);
 	}

@@ -1075,7 +1075,8 @@ final class MultiplayerTest {
 		waitForShared(context, "host-made-cohost", ONE_MINUTE);
 		context.waitFor(mc -> com.javahost.client.rules.RulesClient.state().canEdit(), ONE_MINUTE);
 		check(true, "guest became a co-host");
-		context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.RULES));
+		com.javahost.client.gui.pages.HostPage.showSection("rules");
+		context.setScreen(() -> new JavaHostScreen(null, JavaHostScreen.Tab.HOST));
 		context.waitTicks(10);
 		context.takeScreenshot("mp-guest-world-rules-cohost");
 		context.setScreen(() -> null);
