@@ -8,9 +8,14 @@ Thanks for helping! Bug reports, ideas and pull requests are all welcome.
 
 ## Project layout
 
-- `src/main`: shared and server code (hosting, voice relay, world rules, mod checks, `util/` helpers with unit tests).
-- `src/client`: the game client (menus, friends, invites, voice, mods, updates).
-- `src/test`: JUnit tests for `util/`. `src/gametest`: in-game tests that drive the real client and take screenshots of every screen.
+- `src/main`: shared and server code (hosting, voice relay, mod checks, `util/` helpers with unit tests).
+  - `rules/`: world options on the host's server. `WorldRules` (operators, Cheats, lock, history), `RuleCatalog` (every game rule of the running version) and `mixin/MinecraftServerMixin` (command permissions through `util/OperatorPolicy`). The `world_state` packet is in `net/Payloads`.
+  - `util/`: among others `ModJar`, `ModToggle`, `ModSwap`, `AfterExit`, `ModChanges`, `ModStates` and `VanillaPlan` (mods on and off, run after the game closes; JDK-only where they run outside the game), and `SkinImage`, `SkinFolder`, `SkinApi` (the skin changer).
+- `src/client`: the game client (menus, friends, invites, voice, mods, skins, updates).
+  - `rules/WorldOptions`: the client side of `world_state`. The World page is `gui/pages/HostPage` plus the sections in `gui/pages/world/`.
+  - `mods/`: `ModLibrary` (My mods), `VanillaMode`, and `AfterExitHelper`, the one helper started as the game closes.
+  - `skins/`: `SkinLibrary` and `SkinService`; the page is `gui/pages/SkinsPage`, and `mixin/OwnSkinMixin` shows your new skin on your own player.
+- `src/test`: JUnit tests for `util/`. `src/gametest`: in-game tests that drive the real client and take screenshots of every screen (`JavaHostClientTest`, which also runs `SkinsTest`; `ModsToggleTest`, `VanillaTest`, `MultiplayerTest`, `ModdedTest`).
 - `installer/`: the Swing installer (`.jar`, `.exe`, `.dmg`).
 - `directory/`: the public world list, a Cloudflare Worker with a D1 database (`npm test` runs it on Node's SQLite).
 
@@ -27,9 +32,19 @@ The mod is built once per Minecraft version from one source tree with [Stonecutt
 ./gradlew :1.21.1:runSmoke           # quick in-game check on 1.21.1 (no Fabric test API there)
 scripts/multiplayer-test.sh          # two real clients: host + guest over LAN, IPv6 and the relay
 scripts/modded-test.sh               # two real clients: the host has Naturalist, the guest gets it when joining
+scripts/mods-toggle-test.sh          # My mods: a mod is switched off, the game closes, then on again; mods/ must end as it began
+scripts/vanilla-test.sh              # Vanilla mode on, the game closes, then the mods come back; mods/ must end as it began
 ./gradlew :installer:test            # installer: real install/update/uninstall into a fake .minecraft
 ./gradlew :installer:jpackageMac     # macOS .dmg
 ```
+
+`JAVAHOST_TEST_ONLY` runs one part of the in-game test while you work on it, for example `JAVAHOST_TEST_ONLY=hub ./gradlew :26.3:runClientGameTest`:
+
+- `hub`: the menu (Home with sample friends, every tab, the title screen). It prints no "ALL CHECKS PASSED" line: check the log for `FAIL`.
+- `skins`: the skin changer, against a stand-in profile service inside the test game (no real account is touched).
+- `mods`: My mods. `vanilla`: Vanilla mode.
+
+`runClientGameTest` empties its run folder every time it starts, so the two tests that need the game to really close and start again (`mods-toggle-test.sh`, `vanilla-test.sh`) drive the `runModGuest` game instead, with `JAVAHOST_TEST_ONLY=toggle1`/`toggle2` and `vanilla1`/`vanilla2`. Run one test game at a time.
 
 The GitHub workflow in `.github/workflows/build.yml` builds the Windows `.exe` and the macOS `.dmg`.
 

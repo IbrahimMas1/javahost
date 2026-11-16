@@ -39,13 +39,16 @@ The installer puts Fabric, Fabric API and JavaHost in a separate profile and fol
 
 - **Hosting from your PC.** Friends connect straight to your game through both routers when they can, for the lowest ping. If not, it falls back to your router's open port (UPnP), IPv6, the free e4mc relay or LAN, so it works on most networks without port forwarding. From the title screen, Host opens a world and starts hosting in one click.
 - **Friends and invites.** Add friends by their Minecraft name and see who's online or hosting. Invite sends a Join button straight to their game, no codes needed. Star your favourites, see when friends were last on, and invite everyone online at once.
+- **World options.** The World page has the players in your world (game mode, kick, ban, send a world), difficulty, default game mode, Cheats, who can join, and every game rule in one searchable list. Make a friend an operator and they can change rules, and use commands while Cheats is on. Other guests get no commands. Lock the rules for a challenge run. Friends-only by default.
 - **Quick menu.** Hold Z while playing for a ring of shortcuts: invite, mute, party voice, screenshot, copy the invite code.
 - **Encrypted chat and screenshots.** Messages, invites and screenshots (F6) are end-to-end encrypted. There's no JavaHost server in the middle.
-- **Proximity voice.** Push to talk (V) or voice activation, with voices that fade with distance. The host can switch the world to party voice so everyone hears everyone.
+- **Proximity voice.** Push to talk (V) or voice activation, with voices that fade with distance. The host and operators can switch the world to party voice so everyone hears everyone. The microphone only opens while someone else is in the world.
+- **Skins.** Click your skin on Home or the title screen to change it: keep a collection of skins, pick classic or slim arms and a cape you own, and press Wear. Add a skin by dropping a PNG on the game window, by a player's name, or through the skins folder.
 - **Mod store.** Search Modrinth mods and modpacks by category and install them from the menu, with download progress and a notification when they're done.
+- **My mods and Vanilla mode.** Switch any mod on or off from Mods → My mods; the change is made when the game closes and nothing is deleted. Vanilla mode puts every mod aside except JavaHost, Fabric API and e4mc, and Bring my mods back restores them.
 - **Modded worlds.** When a friend joins a modded world, JavaHost downloads the exact mods it needs for them. Their own mods are put aside and come back with one click.
-- **Public worlds (beta).** List your world in Discover or join someone else's. Visitors play in Adventure mode until you trust them, and your address stays behind the relay.
-- **Host controls.** Change game modes, kick or ban, and lock world rules like difficulty or keep inventory. Friends-only by default.
+- **Public worlds (beta).** List your world from the World page or join someone else's from Public worlds. Visitors play in Adventure mode until you trust them, and your address stays behind the relay.
+- **Quiet while playing.** Routine notices wait under the bell. Pop-ups are kept for invites, messages and problems, and an invite's Join window waits until you open a menu.
 - **Extras.** Guests get your resource packs and shader settings (they're asked first), one-click performance mods, automatic backups, sending a world copy to a friend, and updates that install themselves.
 
 ## Demo
@@ -56,7 +59,7 @@ The installer puts Fabric, Fabric API and JavaHost in a separate profile and fol
 
 <table>
 <tr>
-<td width="50%"><img src="docs/media/host.jpg" alt="Host tab while hosting"><p align="center"><sub>Host: one invite code for every route</sub></p></td>
+<td width="50%"><img src="docs/media/host.jpg" alt="World page while hosting"><p align="center"><sub>World: one invite code for every route</sub></p></td>
 <td width="50%"><img src="docs/media/friends.jpg" alt="Friends tab"><p align="center"><sub>Friends: see who's online and invite them</sub></p></td>
 </tr>
 <tr>
@@ -65,7 +68,7 @@ The installer puts Fabric, Fabric API and JavaHost in a separate profile and fol
 </tr>
 <tr>
 <td><img src="docs/media/voice.jpg" alt="Friends talking in game"><p align="center"><sub>Proximity voice in game</sub></p></td>
-<td><img src="docs/media/discover.jpg" alt="Discover tab"><p align="center"><sub>Discover: public worlds to join</sub></p></td>
+<td><img src="docs/media/discover.jpg" alt="Public worlds page"><p align="center"><sub>Public worlds to join</sub></p></td>
 </tr>
 </table>
 
