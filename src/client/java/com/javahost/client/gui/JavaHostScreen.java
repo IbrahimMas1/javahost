@@ -79,9 +79,9 @@ public class JavaHostScreen extends BaseScreen {
 	private static Tab lastTab = Tab.HOME;
 	private static final int HEADER = 36;
 	/** The sidebar's places; More, Settings and the account sit at the bottom. */
-	private static final List<Tab> PLACES = List.of(Tab.HOME, Tab.FRIENDS, Tab.HOST, Tab.MODS);
+	private static final List<Tab> PLACES = List.of(Tab.HOME, Tab.FRIENDS, Tab.HOST, Tab.DISCOVER, Tab.MODS);
 	/** The pages behind the sidebar's More (also linked from related pages); More is highlighted while one is open. */
-	public static final List<Tab> MORE = List.of(Tab.DISCOVER, Tab.SCREENSHOTS, Tab.VOICE, Tab.PERFORMANCE);
+	public static final List<Tab> MORE = List.of(Tab.SCREENSHOTS, Tab.VOICE, Tab.PERFORMANCE);
 	/** Pages never get wider than this: on big screens they sit centred beside the sidebar. */
 	private static final int MAX_CONTENT = 440;
 

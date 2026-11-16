@@ -52,7 +52,7 @@ public final class MenuDock {
 	private MenuDock() {
 	}
 
-	/** Title screen: the four places and Settings. Pause screen: just Home, Friends and World. */
+	/** Title screen: the five places and Settings. Pause screen: just Home, Friends and World. */
 	private static List<Item> items(boolean titleScreen) {
 		List<Item> items = new ArrayList<>(List.of(
 				new Item("Home", () -> Icons.HOME, () -> Tab.HOME, () -> 0, () -> false, false),
@@ -61,6 +61,7 @@ public final class MenuDock {
 						() -> Notifications.unread() + Friends.incoming().size() + Chats.unreadTotal(), MenuDock::joinable, false),
 				new Item("World", () -> Icons.HOST, () -> Tab.HOST, () -> 0, HostController::isHosting, false)));
 		if (titleScreen) {
+			items.add(new Item("Public worlds", () -> Icons.GLOBE, () -> Tab.DISCOVER, () -> 0, () -> false, false));
 			items.add(new Item("Mods", () -> Icons.PACKAGE, () -> Tab.MODS, () -> 0, () -> false, false));
 			items.add(new Item("Settings", () -> Icons.GEAR, () -> Tab.SETTINGS, () -> 0, () -> false, true));
 		}

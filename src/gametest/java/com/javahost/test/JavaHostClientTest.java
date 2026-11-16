@@ -554,8 +554,8 @@ public class JavaHostClientTest implements FabricClientGameTest {
 				context.waitTicks(8);
 				context.takeScreenshot(name + "-home");
 				List<String> labels = context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).sidebarLabels());
-				check(labels.equals(List.of("Home", "Friends", "World", "Mods", "More", "Settings", "Account")),
-						"the sidebar is Home, Friends, World, Mods, then More, Settings and the account at " + at + " (" + labels + ")");
+				check(labels.equals(List.of("Home", "Friends", "World", "Public worlds", "Mods", "More", "Settings", "Account")),
+						"the sidebar is Home, Friends, World, Public worlds, Mods, then More, Settings and the account at " + at + " (" + labels + ")");
 				check("Home".equals(highlighted(context)), "Home is highlighted on Home");
 
 				clickSidebar(context, "More");
@@ -563,8 +563,8 @@ public class JavaHostClientTest implements FabricClientGameTest {
 				context.getInput().setCursorPos(0, 0);
 				context.waitTicks(4);
 				context.takeScreenshot(name + "-more");
-				List<Tab> more = List.of(Tab.DISCOVER, Tab.SCREENSHOTS, Tab.VOICE, Tab.PERFORMANCE);
-				check(JavaHostScreen.MORE.equals(more), "More lists Public worlds, Screenshots, Voice and Performance");
+				List<Tab> more = List.of(Tab.SCREENSHOTS, Tab.VOICE, Tab.PERFORMANCE);
+				check(JavaHostScreen.MORE.equals(more), "More lists Screenshots, Voice and Performance");
 				for (int i = 0; i < more.size(); i++) {
 					Tab expected = more.get(i);
 					int row = i;
@@ -586,7 +586,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 				context.setScreen(() -> new JavaHostScreen(null, Tab.FRIENDS));
 				context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -30));
 				context.waitTicks(10);
-				check(widgetsFit(context), "Friends (with its Public worlds link) fits at " + at);
+				check(widgetsFit(context), "Friends fits at " + at);
 				context.takeScreenshot(name + "-friends-bottom");
 
 				// The pause menu: Home, Friends, World.
@@ -609,14 +609,15 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.takeScreenshot("shell-1020-s3-compact-more");
 			context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).clickPopover(30, 3 + 9));
 			context.waitTicks(4);
-			check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == Tab.DISCOVER, "More → Public worlds in the icon-only sidebar");
+			check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == Tab.SCREENSHOTS, "More → Screenshots in the icon-only sidebar");
 
 			// Shortcuts from related pages.
 			size(context, 1710, 1070, 4);
 			context.setScreen(() -> new JavaHostScreen(null, Tab.FRIENDS));
 			context.waitTicks(6);
-			clickMenu(context, "Public worlds");
-			check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == Tab.DISCOVER, "Friends links to Public worlds");
+			clickSidebar(context, "Public worlds");
+			check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == Tab.DISCOVER
+					&& "Public worlds".equals(highlighted(context)), "Public worlds has its own place in the sidebar");
 			com.javahost.client.gui.pages.ModsPage.showMine(true);
 			context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
 			context.waitTicks(6);
@@ -672,8 +673,8 @@ public class JavaHostClientTest implements FabricClientGameTest {
 					boolean skin = context.computeOnClient(mc -> mc.gui.screen().children().stream()
 							.anyMatch(c -> c instanceof net.minecraft.client.gui.components.PlayerSkinWidget));
 					switch (m) {
-						case "FULL" -> check(dock == 5 && skin, "the title screen (full) has 5 dock buttons and the 3D model at " + at + " (" + dock + ")");
-						case "DOCK" -> check(dock == 5 && !skin, "the title screen (dock) has the 5 buttons and no model at " + at);
+						case "FULL" -> check(dock == 6 && skin, "the title screen (full) has 6 dock buttons and the 3D model at " + at + " (" + dock + ")");
+						case "DOCK" -> check(dock == 6 && !skin, "the title screen (dock) has the 6 buttons and no model at " + at);
 						default -> {
 							check(dock == 0 && !skin, "the title screen (off) has no dock and no model at " + at);
 							boolean clear = context.computeOnClient(mc -> {

@@ -41,11 +41,7 @@ public class FriendsPage extends Page {
 	private int friendsY;
 	private int footerY;
 	private int activityY = -1;
-	private boolean statusBelow;
-	private static final int PUBLIC_W = 92;
 	private static final int JOIN_W = 112;
-	/** Room the connection status needs ("Connecting..." and its dot). */
-	private static final int STATUS_W = 76;
 	private List<FriendLog.Entry> activity = List.of();
 	private static final int ACTIVITY_ROW = 14;
 	/** The gold of a favourite's star. */
@@ -182,12 +178,7 @@ public class FriendsPage extends Page {
 		footerY = y;
 		add(new FlatButton(JOIN_W, 16, Component.literal("Join with a code"), FlatButton.Style.GHOST, Icons.JOIN,
 				b -> screen.switchTo(JavaHostScreen.Tab.JOIN)), width - JOIN_W, footerY);
-		add(new FlatButton(PUBLIC_W, 16, Component.literal("Public worlds"), FlatButton.Style.GHOST, Icons.GLOBE,
-				b -> screen.switchTo(JavaHostScreen.Tab.DISCOVER)), width - JOIN_W - 4 - PUBLIC_W, footerY)
-				.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Draw.styled("Worlds anyone can join, and opening yours")));
-		// The connection status sits left of the buttons, or under them when there's no room.
-		statusBelow = width - JOIN_W - 4 - PUBLIC_W - 8 < STATUS_W;
-		reserve(footerY + (statusBelow ? 40 : 24));
+		reserve(footerY + 24);
 		if (nameField != null) {
 			screen.focusOn(nameField);
 		}
@@ -435,6 +426,6 @@ public class FriendsPage extends Page {
 		Mailbox.Status status = Friends.status();
 		int dot = status == Mailbox.Status.ONLINE ? Theme.ACCENT : status == Mailbox.Status.CONNECTING ? Theme.INFO : Theme.DANGER;
 		String text = status == Mailbox.Status.ONLINE ? "Connected" : status == Mailbox.Status.CONNECTING ? "Connecting..." : "Offline";
-		status(g, left, top + footerY + (statusBelow ? 24 : 5), dot, text, Theme.FAINT);
+		status(g, left, top + footerY + 5, dot, text, Theme.FAINT);
 	}
 }
