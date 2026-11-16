@@ -695,7 +695,7 @@ public final class WorldShare {
 		int step = (int) (transfer.progress() * 4);
 		if (step != transfer.toastStep && step < 4) {
 			transfer.toastStep = step;
-			if (com.javahost.client.Config.get().quiet) {
+			if (Toasts.isQuiet()) {
 				return; // progress is on the transfers card under the bell; no toast every quarter
 			}
 			Toasts.show("world-share-" + transfer.id, transfer.headline(), transfer.status());

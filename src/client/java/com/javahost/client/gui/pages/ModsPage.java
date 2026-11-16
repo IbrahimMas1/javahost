@@ -17,6 +17,7 @@ import com.javahost.client.gui.ui.ToggleSwitch;
 import com.javahost.client.gui.ui.WebIcons;
 import com.javahost.client.mods.Downloads;
 import com.javahost.client.mods.ModLibrary;
+import com.javahost.client.mods.VanillaMode;
 import com.javahost.client.mods.ModSets;
 import com.javahost.client.mods.Modpacks;
 import com.javahost.client.perf.BoostMods;
@@ -52,7 +53,7 @@ public class ModsPage extends Page {
 	private enum View { DISCOVER, INSTALLED }
 
 	/** Where a project stands here: what its Install button says. */
-	private enum State { INSTALL, QUEUED, DOWNLOADING, FAILED, RESTART, INSTALLED, READY, UNAVAILABLE }
+	private enum State { INSTALL, QUEUED, DOWNLOADING, FAILED, RESTART, INSTALLED, OFF, READY, UNAVAILABLE }
 
 	private record Category(String label, String id) {
 	}
@@ -168,6 +169,10 @@ public class ModsPage extends Page {
 
 	@Override
 	protected void build() {
+		if (!openedMine) {
+			openedMine = true;
+			ModLibrary.refresh(); // a fresh look each time the page opens (Discover also shows which mods are off)
+		}
 		installed = BoostMods.installedByJavaHost();
 		jobs = Downloads.jobs();
 		lastSignature = signature();
@@ -194,7 +199,7 @@ public class ModsPage extends Page {
 		// Not the search text: typing searches after a pause, and the new results bump searchVersion.
 		return view + "|" + kind + "|" + category + "|" + runsHere + "|" + searchVersion + "|" + searching + "|" + Downloads.version() + "|" + (detail == null ? "" : detail.id())
 				+ "|" + ModSets.changes() + "|" + (ModSets.mine() != null) // no disk access here: this runs every tick
-				+ (view == View.INSTALLED && detail == null ? "|" + mineSignature() : "");
+				+ (view == View.INSTALLED && detail == null ? "|" + mineSignature() : "|" + ModLibrary.version());
 	}
 
 	@Override
@@ -248,6 +253,9 @@ public class ModsPage extends Page {
 			return State.DOWNLOADING;
 		}
 		boolean mod = project.kind() == Modrinth.Kind.MOD;
+		if (mod && ModLibrary.installedButOff(project.slug())) {
+			return State.OFF; // switched off, or put aside by Vanilla mode: never a second copy
+		}
 		if (mod && BoostMods.waitingForRestart(project.slug())) {
 			return State.RESTART;
 		}
@@ -266,6 +274,15 @@ public class ModsPage extends Page {
 		} else {
 			Downloads.installMod(project.id(), project.slug(), project.title(), project.iconUrl());
 		}
+		screen.refresh();
+	}
+
+	/** My mods, showing this project (searched by its name when the list is long). */
+	private void showInMine(Modrinth.Project project) {
+		detail = null;
+		view = View.INSTALLED;
+		mineQuery = mineApplied = project.title();
+		mineTypedAt = 0;
 		screen.refresh();
 	}
 
@@ -356,6 +373,7 @@ public class ModsPage extends Page {
 				});
 				case INSTALLED -> new FlatButton(COLUMN - 8, 16, Component.literal("Installed"), FlatButton.Style.SECONDARY, Icons.CHECK, b -> {
 				});
+				case OFF -> new FlatButton(COLUMN - 8, 16, Component.literal("Off"), FlatButton.Style.SECONDARY, null, b -> showInMine(project));
 				case READY -> new FlatButton(COLUMN - 8, 16, Component.literal("Use"), FlatButton.Style.SECONDARY, null, b -> {
 					view = View.INSTALLED;
 					screen.refresh();
@@ -366,6 +384,9 @@ public class ModsPage extends Page {
 				add(button, width - COLUMN, rowY + 11);
 				if (state == State.RESTART || state == State.INSTALLED) {
 					button.active = false;
+				}
+				if (state == State.OFF) {
+					button.setTooltip(Tooltip.create(Draw.styled("Installed, but switched off. Switch it on in My mods.")));
 				}
 				if (state == State.RESTART) {
 					button.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Downloaded. Minecraft loads mods when it starts, so close it and press Play to use this.")));
@@ -500,6 +521,8 @@ public class ModsPage extends Page {
 			case RESTART -> new FlatButton(mainW, 20, Component.literal("Close Minecraft"), FlatButton.Style.PRIMARY, null, b -> minecraft.stop());
 			case INSTALLED -> new FlatButton(mainW, 20, Component.literal("Installed"), FlatButton.Style.SECONDARY, Icons.CHECK, b -> {
 			});
+			case OFF -> new FlatButton(mainW, 20, Component.literal("Switch it on in My mods"), FlatButton.Style.SECONDARY, Icons.PACKAGE,
+					b -> showInMine(project));
 			case READY -> new FlatButton(mainW, 20, Component.literal("Use it from My mods"), FlatButton.Style.SECONDARY, Icons.PACKAGE, b -> {
 				detail = null;
 				view = View.INSTALLED;
@@ -564,6 +587,7 @@ public class ModsPage extends Page {
 			case INSTALL -> project.kind() == Modrinth.Kind.MODPACK ? "Saved as a mod set you can switch to." : "Restart Minecraft after installing to use it.";
 			case RESTART -> "Installed. Minecraft loads mods when it starts.";
 			case INSTALLED -> "It's running in this game.";
+			case OFF -> "Installed, but switched off (or put aside by Vanilla mode).";
 			case FAILED -> {
 				Downloads.Job job = Downloads.job(project.id());
 				yield job == null ? "Couldn't install it." : job.statusText();
@@ -657,6 +681,12 @@ public class ModsPage extends Page {
 		return page == null || page.pendingY < 0 ? null : pendingTitle(page.pendingCount);
 	}
 
+	/** For tests: how many put-aside mods the Vanilla mode card lists (-1 when it isn't shown). */
+	public static int asideShown() {
+		ModsPage page = lastMine;
+		return page == null || page.bannerTop < 0 ? -1 : page.aside.size();
+	}
+
 	/** For tests: the read-only line, or null. */
 	public static String readOnlyNote() {
 		ModsPage page = lastMine;
@@ -688,6 +718,15 @@ public class ModsPage extends Page {
 	private static final int SWITCH_W = 22;
 	private static final int MORE_W = 16;
 	private static final int KEEP_W = 44;
+	/** Space inside the list card above the first row and below the last (as World → Rules has). */
+	private static final int LIST_PAD = 4;
+	private static final int VANILLA_CARD = 32;
+	private static final int BANNER_H = 36;
+	private static final int ASIDE_ROW = 22;
+	private int vanillaCardY = -1;
+	private int bannerTop = -1;
+	private int asideY;
+	private List<com.javahost.util.ModJar> aside = List.of();
 
 	private static String pendingTitle(int count) {
 		return count == 1 ? "1 change waiting" : count + " changes waiting";
@@ -716,15 +755,13 @@ public class ModsPage extends Page {
 
 	private String mineSignature() {
 		return ModLibrary.version() + "|" + ModLibrary.ready() + "|" + mineApplied + "|" + ModLibrary.readOnlyReason() + "|" + ModSets.changes()
-				+ "|" + ModLibrary.changeCount();
+				+ "|" + ModLibrary.changeCount() + "|" + VanillaMode.version() + "|" + VanillaMode.blockedReason();
 	}
 
 	private void buildInstalled() {
 		lastMine = this;
-		if (!openedMine) {
-			openedMine = true;
-			ModLibrary.refresh(); // a fresh look each time the page opens
-		}
+		bannerTop = -1;
+		vanillaCardY = -1;
 		int y = TOP;
 		// Downloads this session, with their progress.
 		downloadsY = -1;
@@ -758,22 +795,43 @@ public class ModsPage extends Page {
 
 		// One bar for everything that waits for the game to close: switches, removals, new mods, a mod set switch.
 		pendingY = -1;
-		pendingCount = (int) allMods.stream().filter(ModStates.Entry::pending).count() + (ModSets.staged() ? 1 : 0);
+		boolean vanillaActive = VanillaMode.active();
+		VanillaMode.Staged vanillaStaged = VanillaMode.staged();
+		pendingCount = (int) allMods.stream().filter(ModStates.Entry::pending).count() + (ModSets.staged() ? 1 : 0)
+				+ (vanillaStaged != VanillaMode.Staged.NONE ? 1 : 0);
 		if (pendingCount > 0) {
 			pendingY = y;
 			int buttonY = y + (PENDING_H - 16) / 2;
 			int closeW = Draw.width("Close game") + 16;
 			add(new FlatButton(closeW, 16, Component.literal("Close game"), FlatButton.Style.PRIMARY, null, b -> minecraft.stop()),
 					width - PAD - closeW, buttonY).setTooltip(tip("Your changes are made as Minecraft closes. Press Play to start again."));
-			boolean undoable = ModLibrary.changeCount() > 0 || allMods.stream().anyMatch(e -> e.state() == ModStates.State.REMOVING)
-					|| ModSets.staged();
-			if (undoable) {
+			if (undoable()) {
 				int undoW = Draw.width("Undo") + 16;
 				add(new FlatButton(undoW, 16, Component.literal("Undo"), FlatButton.Style.SECONDARY, null, b -> undoEverything()),
-						width - PAD - closeW - 6 - undoW, buttonY).setTooltip(tip("Keep everything as it is now"));
+						width - PAD - closeW - 6 - undoW, buttonY).setTooltip(tip(vanillaStaged == VanillaMode.Staged.ENTER
+								? "Stay with your mods. Switches changed before Vanilla mode was chosen stay cancelled."
+								: "Keep everything as it is now"));
 			}
 			y += PENDING_H + 8;
 		}
+
+		if (vanillaActive) {
+			buildVanillaOn(y, vanillaStaged);
+			return;
+		}
+
+		// Vanilla mode: play without your mods for a while. On top, so it is easy to find however long the list is.
+		vanillaCardY = y;
+		String blocked = VanillaMode.blockedReason();
+		if (vanillaStaged != VanillaMode.Staged.ENTER) {
+			int buttonW = Draw.width("Vanilla mode") + 16;
+			FlatButton vanilla = add(new FlatButton(buttonW, 16, Component.literal("Vanilla mode"), FlatButton.Style.SECONDARY, null,
+					b -> screen.openPopover(new com.javahost.client.gui.VanillaConfirm(width, screen::refresh), b)),
+					width - PAD - buttonW, y + (VANILLA_CARD - 16) / 2);
+			vanilla.active = blocked == null;
+			vanilla.setTooltip(tip(blocked != null ? blocked : "Every mod but JavaHost is put aside when you close the game. One click brings them back."));
+		}
+		y += VANILLA_CARD + 8;
 
 		// A count, and a search once the list is long.
 		headerY = y;
@@ -806,7 +864,7 @@ public class ModsPage extends Page {
 		// Why the switches can't be used, when they can't.
 		readOnlyY = -1;
 		readOnlyText = readOnly;
-		if (readOnly != null) {
+		if (readOnly != null && vanillaStaged != VanillaMode.Staged.ENTER) { // the bar above already says Vanilla mode is coming
 			readOnlyY = y;
 			y += wrappedHeight(readOnly, width - 14) + 8;
 		}
@@ -819,15 +877,52 @@ public class ModsPage extends Page {
 			emptyListY = y;
 			y += 44;
 		}
-		int rowY = y;
+		int rowY = y + LIST_PAD;
 		for (ModStates.Entry entry : shownMods) {
 			buildModRow(entry, rowY, readOnly);
 			rowY += MOD_ROW;
 		}
-		y = rowY + 16;
+		y = shownMods.isEmpty() ? y + 16 : rowY + LIST_PAD + 16;
+
 
 		mineY = y;
 		buildMine();
+	}
+
+	private boolean undoable() {
+		return ModLibrary.changeCount() > 0 || allMods.stream().anyMatch(e -> e.state() == ModStates.State.REMOVING) || ModSets.staged()
+				|| VanillaMode.staged() != VanillaMode.Staged.NONE;
+	}
+
+	/** Vanilla mode is on: one calm card with "Bring my mods back", and the mods put aside, read-only, under it. */
+	private void buildVanillaOn(int y, VanillaMode.Staged staged) {
+		headerY = -1;
+		readOnlyY = -1;
+		emptyListY = -1;
+		shownMods = List.of();
+		mineField = null;
+		vanillaCardY = -1;
+		bannerTop = y;
+		if (staged != VanillaMode.Staged.LEAVE) {
+			int buttonW = Draw.width("Bring my mods back") + 16;
+			add(new FlatButton(buttonW, 18, Component.literal("Bring my mods back"), FlatButton.Style.PRIMARY, null, b -> bringBack()),
+					width - PAD - buttonW, y + (BANNER_H - 18) / 2);
+		}
+		y += BANNER_H + 16;
+		asideY = y;
+		aside = VanillaMode.putAside();
+		y += 12 + (aside.isEmpty() ? 44 : aside.size() * ASIDE_ROW + 2 * LIST_PAD) + 16;
+		mineY = y;
+		buildMine();
+	}
+
+	private void bringBack() {
+		try {
+			VanillaMode.stageLeave();
+		} catch (java.io.IOException e) {
+			JavaHost.LOGGER.warn("[Mods] couldn't stage bringing the mods back", e);
+		}
+		screen.refresh();
 	}
 
 	private void buildModRow(ModStates.Entry entry, int rowY, String readOnly) {
@@ -920,6 +1015,7 @@ public class ModsPage extends Page {
 
 	private void undoEverything() {
 		ModLibrary.undoAll();
+		VanillaMode.cancelStaged();
 		for (ModStates.Entry entry : allMods) {
 			if (entry.state() == ModStates.State.REMOVING) {
 				try {
@@ -1032,6 +1128,9 @@ public class ModsPage extends Page {
 	}
 
 	private void drawInstalled(GuiGraphicsExtractor g, int left, int top) {
+		if (com.javahost.client.gui.VanillaConfirm.openForTests() != null && !screen.popoverOpen()) {
+			com.javahost.client.gui.VanillaConfirm.forget(); // closed by a click outside, Esc or scrolling
+		}
 		if (confirming != null && !screen.popoverOpen()) {
 			confirming = null; // closed by a click outside, Esc or scrolling
 		}
@@ -1071,11 +1170,20 @@ public class ModsPage extends Page {
 		if (pendingY >= 0) {
 			int y = top + pendingY;
 			Draw.panel(g, left, y, width, PENDING_H, 6, Theme.withAlpha(Theme.ACCENT, 0.12f));
-			int buttons = (Draw.width("Close game") + 16) + (ModLibrary.changeCount() > 0 || ModSets.staged()
-					|| allMods.stream().anyMatch(e -> e.state() == ModStates.State.REMOVING) ? Draw.width("Undo") + 16 + 6 : 0);
+			int buttons = (Draw.width("Close game") + 16) + (undoable() ? Draw.width("Undo") + 16 + 6 : 0);
 			int textW = width - 2 * PAD - buttons - 8;
-			Draw.textFit(g, pendingTitle(pendingCount), textW, left + PAD, y + 7, Theme.TEXT);
-			Draw.textFit(g, "When you close the game", textW, left + PAD, y + 18, Theme.MUTED);
+			VanillaMode.Staged staged = VanillaMode.staged();
+			String title = staged == VanillaMode.Staged.ENTER ? "Vanilla mode" : staged == VanillaMode.Staged.LEAVE ? "Your mods come back"
+					: pendingTitle(pendingCount);
+			String detail = "When you close the game";
+			Draw.textFit(g, title, textW, left + PAD, y + 7, Theme.TEXT);
+			Draw.textFit(g, detail, textW, left + PAD, y + 18, Theme.MUTED);
+		}
+
+		if (bannerTop >= 0) {
+			drawVanillaOn(g, left, top);
+			drawMine(g, left, top);
+			return;
 		}
 
 		// The count (and the search beside it).
@@ -1102,7 +1210,7 @@ public class ModsPage extends Page {
 			}
 		} else {
 			int y = top + listY;
-			int h = shownMods.size() * MOD_ROW;
+			int h = shownMods.size() * MOD_ROW + 2 * LIST_PAD;
 			// Only the part of the card that's on screen (a long list is mostly off it).
 			int visibleTop = Math.max(y, -MOD_ROW);
 			int visibleBottom = Math.min(y + h, screenH + MOD_ROW);
@@ -1111,7 +1219,7 @@ public class ModsPage extends Page {
 			}
 			long now = System.currentTimeMillis();
 			for (int i = 0; i < shownMods.size(); i++) {
-				int rowY = y + i * MOD_ROW;
+				int rowY = y + LIST_PAD + i * MOD_ROW;
 				if (rowY > screenH || rowY + MOD_ROW < 0) {
 					continue; // off screen: nothing to draw
 				}
@@ -1121,7 +1229,56 @@ public class ModsPage extends Page {
 				drawModRow(g, shownMods.get(i), left, rowY, now);
 			}
 		}
+		if (vanillaCardY >= 0) {
+			int y = top + vanillaCardY;
+			card(g, left, y, width, VANILLA_CARD);
+			String blocked = VanillaMode.blockedReason();
+			boolean staged = VanillaMode.staged() == VanillaMode.Staged.ENTER;
+			int textW = width - 2 * PAD - (staged ? 0 : Draw.width("Vanilla mode") + 16 + 8);
+			Draw.textFit(g, "Play without your mods", textW, left + PAD, y + 7, Theme.TEXT);
+			Draw.textFit(g, staged ? "Starts when you close the game" : blocked != null ? blocked : "Put aside until you want them back",
+					textW, left + PAD, y + 18, staged ? Theme.WARNING : Theme.FAINT);
+		}
 		drawMine(g, left, top);
+	}
+
+	private void drawVanillaOn(GuiGraphicsExtractor g, int left, int top) {
+		int y = top + bannerTop;
+		boolean leaving = VanillaMode.staged() == VanillaMode.Staged.LEAVE;
+		Draw.panel(g, left, y, width, BANNER_H, 6, Theme.withAlpha(Theme.INFO, 0.12f));
+		int textW = width - 2 * PAD - (leaving ? 0 : Draw.width("Bring my mods back") + 16 + 8);
+		Draw.textFit(g, "Vanilla mode is on", textW, left + PAD, y + 8, Theme.TEXT);
+		int count = aside.size();
+		Draw.textFit(g, leaving ? "Your mods come back when you close the game" : Draw.count(count, "mod") + (count == 1 ? " is" : " are") + " put aside",
+				textW, left + PAD, y + 20, leaving ? Theme.WARNING : Theme.MUTED);
+
+		y = top + asideY;
+		sectionLabel(g, "Put aside", left, y);
+		y += 12;
+		if (aside.isEmpty()) {
+			card(g, left, y, width, 44);
+			centredFit(g, "Nothing to bring back", left, y + 12, Theme.MUTED);
+			centredFit(g, "The folder was emptied by hand", left, y + 24, Theme.FAINT);
+			return;
+		}
+		card(g, left, y, width, aside.size() * ASIDE_ROW + 2 * LIST_PAD);
+		int screenH = minecraft.getWindow().getGuiScaledHeight();
+		int rowY = y + LIST_PAD;
+		for (int i = 0; i < aside.size(); i++) {
+			if (rowY < screenH && rowY + ASIDE_ROW > 0) {
+				if (i > 0) {
+					g.fill(left + 8, rowY, left + width - 8, rowY + 1, Theme.withAlpha(Theme.BORDER, 0.6f));
+				}
+				com.javahost.util.ModJar jar = aside.get(i);
+				String version = jar.version().isEmpty() ? "" : jar.version();
+				int nameW = Draw.width(Draw.fit(jar.name(), width - 2 * PAD - 60));
+				Draw.textFit(g, jar.name(), width - 2 * PAD - 60, left + PAD, rowY + 7, Theme.MUTED);
+				if (!version.isEmpty()) {
+					Draw.textFit(g, version, width - 2 * PAD - nameW - 8, left + PAD + nameW + 8, rowY + 7, Theme.FAINT);
+				}
+			}
+			rowY += ASIDE_ROW;
+		}
 	}
 
 	private void drawModRow(GuiGraphicsExtractor g, ModStates.Entry entry, int left, int y, long now) {
@@ -1180,7 +1337,10 @@ public class ModsPage extends Page {
 				}
 				screen.refresh();
 			}), width - 80, y + 4);
-			use.active = !inUse && !ModSets.staged();
+			use.active = !inUse && !ModSets.staged() && ModSets.vanillaReason() == null;
+			if (ModSets.vanillaReason() != null && !inUse) {
+				use.setTooltip(tip(ModSets.vanillaReason()));
+			}
 			FlatButton delete = add(new FlatButton(22, 16, Component.literal("Delete"), FlatButton.Style.GHOST, Icons.TRASH, b -> {
 				try {
 					ModSets.delete(set);

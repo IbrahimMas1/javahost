@@ -298,7 +298,7 @@ public final class Presence {
 			boolean startedHosting = status.hosting() && (previous == null || !previous.hosting());
 			if (fresh && startedHosting) {
 				Notifications.add(Notifications.Kind.HOSTING, from, friend.get().name(),
-						friend.get().name() + " is hosting " + status.world(), status, !Config.get().quiet); // routine: no chime when quiet
+						friend.get().name() + " is hosting " + status.world(), status, !com.javahost.client.Toasts.isQuiet()); // routine: no chime when quiet
 			}
 			Friends.changed();
 		} catch (Exception e) {

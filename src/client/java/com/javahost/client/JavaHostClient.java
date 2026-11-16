@@ -150,6 +150,7 @@ public class JavaHostClient implements ClientModInitializer {
 			// time something needs it (hosting, a join, a direct link, the Mods tab).
 			com.javahost.client.mods.ModSets.reportLastResult();
 			com.javahost.client.mods.ModLibrary.reportLastResult();
+			com.javahost.client.mods.VanillaMode.reportLastResult();
 			// Our game vouches for worlds we host (guests check this before trusting the world is ours).
 			com.javahost.HostState.setProver(new com.javahost.HostState.Prover() {
 				@Override
@@ -196,7 +197,7 @@ public class JavaHostClient implements ClientModInitializer {
 				} else {
 					MenuDock.attachPause(minecraft, screen, width, height);
 				}
-			} else if (screen instanceof JoinMultiplayerScreen) {
+			} else if (screen instanceof JoinMultiplayerScreen && !com.javahost.client.mods.VanillaMode.active()) {
 				Screens.getWidgets(screen).add(new FlatButton(width - 88, 4, 84, 20, Component.literal("Friends"),
 						FlatButton.Style.PRIMARY, Icons.USERS, b -> minecraft.gui.setScreen(new JavaHostScreen(screen, JavaHostScreen.Tab.FRIENDS))));
 			}
@@ -250,8 +251,9 @@ public class JavaHostClient implements ClientModInitializer {
 
 	private static void drawHud(GuiGraphicsExtractor g) {
 		Minecraft minecraft = Minecraft.getInstance();
-		if (com.javahost.client.compat.ClientCompat.hudHidden()) {
-			return;
+		if (com.javahost.client.compat.ClientCompat.hudHidden() || com.javahost.client.mods.VanillaMode.active()) {
+			hudStatusPills = 0;
+			return; // Vanilla mode: nothing of JavaHost on screen (voice still works)
 		}
 		int pills = 0;
 		Config config = Config.get();

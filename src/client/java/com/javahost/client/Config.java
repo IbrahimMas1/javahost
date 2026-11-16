@@ -70,6 +70,8 @@ public final class Config {
 	/** Accent colour name, see Theme.ACCENTS. */
 	public String accent = "Green";
 	public boolean fpsOverlay = false;
+	/** Vanilla mode keeps the performance mods too (the choice in its confirm, remembered). */
+	public boolean vanillaKeepPerformance = false;
 	/** Friends see you as offline (you still see them). */
 	public boolean appearOffline = false;
 	/** Let friends connect straight to this PC through both routers (no relay) when it's possible. */

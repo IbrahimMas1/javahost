@@ -50,7 +50,7 @@ public final class ModLibrary {
 	private static final int MAX_NESTED_IDS = 64;
 
 	/** What was read from disk. */
-	private record Disk(List<ModJar> on, List<ModJar> off, Set<String> removing, Map<String, String> slugs) {
+	private record Disk(List<ModJar> on, List<ModJar> off, Set<String> removing, Map<String, String> slugs, List<ModJar> aside) {
 	}
 
 	/** What the game loaded: files in mods/, ids from elsewhere, and the ids bundled inside each loaded jar. */
@@ -243,7 +243,7 @@ public final class ModLibrary {
 			on.add(jar);
 		}
 		List<ModJar> off = readJars(storeMods());
-		return new Disk(List.copyOf(on), off, Set.copyOf(Removals.pendingJars()), markers());
+		return new Disk(List.copyOf(on), off, Set.copyOf(Removals.pendingJars()), markers(), readJars(VanillaMode.storeMods()));
 	}
 
 	/** {@code *.jar} files directly in a folder (not links: nothing outside the folder is read), read once each. */
@@ -384,6 +384,9 @@ public final class ModLibrary {
 		List<ModStates.Entry> derived = ModStates.derive(new ModStates.Inputs(read.on(), read.off(), game.files(), loadedIds(), atStart(), wanted,
 				read.removing(), read.slugs(), PROTECTED, setFiles()));
 		StringBuilder key = new StringBuilder();
+		for (ModJar jar : read.aside()) {
+			key.append("aside|").append(jar.file()).append('\n');
+		}
 		for (ModStates.Entry entry : derived) {
 			key.append(entry.file()).append('|').append(entry.inMods()).append('|').append(entry.state()).append('|').append(entry.slug())
 					.append('|').append(entry.jar().name()).append('|').append(entry.jar().version()).append('\n');
@@ -397,8 +400,20 @@ public final class ModLibrary {
 
 	// ================================================================ read-only
 
+	/** The mod set in use ("AlexPlays's world"), or null for the player's own mods (tests can pretend). */
+	public static String setInUse() {
+		String set = pretendSet != null ? pretendSet : ModSets.activeLabel();
+		return set == null || set.isEmpty() ? null : set;
+	}
+
 	/** Why the switches can't be used right now, or null. */
 	public static String readOnlyReason() {
+		if (VanillaMode.active()) {
+			return "Vanilla mode is on. Bring your mods back to switch them on and off.";
+		}
+		if (VanillaMode.staged() == VanillaMode.Staged.ENTER) {
+			return "Vanilla mode starts when you close the game. Undo that to switch mods on and off.";
+		}
 		String set = pretendSet != null ? pretendSet : ModSets.activeLabel();
 		if (set != null && !set.isEmpty()) {
 			return "You're using " + set + ". Go back to your own mods to switch them on and off.";
@@ -519,6 +534,43 @@ public final class ModLibrary {
 	public static void keep(ModStates.Entry entry) throws IOException {
 		Removals.keep(entry.file(), entry.slug());
 		refresh();
+	}
+
+	/** The jars in mods/, as last read (with the ids bundled inside them). */
+	public static List<ModJar> jarsInMods() {
+		Disk read = disk;
+		return read == null ? List.of() : read.on();
+	}
+
+	/** The jars Vanilla mode put aside, as last read. */
+	public static List<ModJar> jarsPutAside() {
+		Disk read = disk;
+		return read == null ? List.of() : read.aside();
+	}
+
+	/**
+	 * Whether a Modrinth project is installed but not in mods/ now: switched off, or put aside by Vanilla mode (its
+	 * JavaHost marker names a jar in a store, or a stored jar's mod id is the project's name). Discover then says so
+	 * instead of offering a second copy.
+	 */
+	public static boolean installedButOff(String slug) {
+		Disk read = disk;
+		if (read == null || slug == null) {
+			return false;
+		}
+		Set<String> inMods = new HashSet<>();
+		read.on().forEach(jar -> inMods.add(jar.file()));
+		for (List<ModJar> stored : List.of(read.off(), read.aside())) {
+			for (ModJar jar : stored) {
+				if (inMods.contains(jar.file())) {
+					continue;
+				}
+				if (slug.equals(read.slugs().get(jar.file())) || slug.equals(jar.id())) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	/** Where a mod's jar is. */

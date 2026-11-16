@@ -13,8 +13,9 @@ import net.fabricmc.loader.api.FabricLoader;
 /**
  * Everything about the player's mods that has to wait for the game to close, started once as it closes: one small
  * Java process ({@code util/AfterExit}) deletes the mods marked for removal ({@link Removals}) and then does at most one
- * swap. A mod set switch ({@link ModSets}) wins over on/off changes ({@link ModLibrary}): those are then dropped, and
- * the next start says so.
+ * swap: a mod set switch ({@link ModSets}), else Vanilla mode going in or out ({@link VanillaMode}), else the on/off
+ * changes ({@link ModLibrary}). A set switch drops wanted on/off changes (the next start says so); staging Vanilla mode
+ * clears them, and the two can't be staged together with a set switch.
  */
 public final class AfterExitHelper {
 	private AfterExitHelper() {
@@ -28,13 +29,19 @@ public final class AfterExitHelper {
 	public static void launch() {
 		Path removals = Removals.listIfAny();
 		long pid = ProcessHandle.current().pid();
+		// One swap per exit: a mod set switch, else Vanilla mode going in or out, else the per-mod changes.
 		Path plan = ModSets.takeStaged();
 		boolean toggles = false;
+		boolean vanilla = false;
 		if (plan != null) {
 			ModLibrary.dropForSetSwitch(ModSets.lastTakenLabel());
 		} else {
-			plan = ModLibrary.writePlan(pid);
-			toggles = plan != null;
+			plan = VanillaMode.writePlan(pid);
+			vanilla = plan != null;
+			if (plan == null) {
+				plan = ModLibrary.writePlan(pid);
+				toggles = plan != null;
+			}
 		}
 		if (removals == null && plan == null) {
 			return;
@@ -49,6 +56,9 @@ public final class AfterExitHelper {
 					.redirectErrorStream(true).redirectOutput(javahostDir().resolve("after-exit.log").toFile()).start();
 			if (toggles) {
 				ModLibrary.handedOver(); // the helper has the plan now: the wanted changes are done with
+			}
+			if (vanilla) {
+				VanillaMode.handedOver();
 			}
 			JavaHost.LOGGER.info("[Mods] after exit: {}{}", removals == null ? "" : "removing mods, ", plan == null ? "no swap" : plan.getFileName());
 		} catch (IOException | RuntimeException e) {

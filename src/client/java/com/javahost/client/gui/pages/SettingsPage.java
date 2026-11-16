@@ -120,8 +120,12 @@ public class SettingsPage extends Page {
 				toggle(inner, "Buttons on the pause menu", "Home, Friends and World beside it",
 						config.pauseDock, v -> config.pauseDock = v)));
 
+		// Vanilla mode: play without your mods (and JavaHost out of sight) for a while.
+		vanillaY = playingY + 12 + playingH + SECTION_GAP;
+		buildVanilla();
+
 		// Friends & voice
-		friendsY = playingY + 12 + playingH + SECTION_GAP;
+		friendsY = vanillaY + 12 + VANILLA_H + SECTION_GAP;
 		int packsH = switches(friendsY, List.of(
 				toggle(inner, "Always use the host's packs", "Don't ask when a host shares packs",
 						config.autoAcceptHostPacks, v -> config.autoAcceptHostPacks = v)));
@@ -217,6 +221,63 @@ public class SettingsPage extends Page {
 	}
 
 	private static final int VOICE_BUTTON = 104;
+	private static final int VANILLA_H = 32;
+	private int vanillaY;
+
+	private void buildVanilla() {
+		com.javahost.client.mods.ModLibrary.refreshIfStale();
+		var staged = com.javahost.client.mods.VanillaMode.staged();
+		boolean on = com.javahost.client.mods.VanillaMode.active();
+		String label;
+		Runnable action;
+		if (staged != com.javahost.client.mods.VanillaMode.Staged.NONE) {
+			label = "Undo";
+			action = com.javahost.client.mods.VanillaMode::cancelStaged;
+		} else if (on) {
+			label = "Bring my mods back";
+			action = () -> {
+				try {
+					com.javahost.client.mods.VanillaMode.stageLeave();
+				} catch (java.io.IOException e) {
+					com.javahost.JavaHost.LOGGER.warn("[Mods] couldn't stage bringing the mods back", e);
+				}
+			};
+		} else {
+			label = "Turn on";
+			action = null;
+		}
+		int buttonW = Draw.width(label) + 16;
+		FlatButton button = add(new FlatButton(buttonW, 16, Component.literal(label), on && staged == com.javahost.client.mods.VanillaMode.Staged.NONE
+				? FlatButton.Style.PRIMARY : FlatButton.Style.SECONDARY, null, b -> {
+					if (action != null) {
+						action.run();
+						screen.refresh();
+					} else {
+						screen.openPopover(new com.javahost.client.gui.VanillaConfirm(width, screen::refresh), b);
+					}
+				}), width - 10 - buttonW, vanillaY + 12 + (VANILLA_H - 16) / 2);
+		String blocked = com.javahost.client.mods.VanillaMode.blockedReason();
+		if (action == null && blocked != null) {
+			button.active = false;
+			button.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Draw.styled(blocked)));
+		}
+	}
+
+	private String vanillaLine() {
+		var staged = com.javahost.client.mods.VanillaMode.staged();
+		if (staged == com.javahost.client.mods.VanillaMode.Staged.ENTER) {
+			return "Starts when you close the game";
+		}
+		if (staged == com.javahost.client.mods.VanillaMode.Staged.LEAVE) {
+			return "Your mods come back when you close the game";
+		}
+		if (com.javahost.client.mods.VanillaMode.active()) {
+			int count = com.javahost.client.mods.VanillaMode.putAside().size();
+			return "On · " + Draw.count(count, "mod") + " put aside";
+		}
+		String blocked = com.javahost.client.mods.VanillaMode.blockedReason();
+		return blocked != null ? blocked : "Play without your mods for a while";
+	}
 
 	private int blockedY;
 	private List<Map.Entry<String, String>> blocked = List.of();
@@ -229,7 +290,8 @@ public class SettingsPage extends Page {
 
 	private String updateState() {
 		var update = com.javahost.client.update.UpdateChecker.available();
-		return com.javahost.client.update.UpdateChecker.checking() + "|" + (update == null ? "" : update.version()) + "|"
+		return com.javahost.client.mods.VanillaMode.version() + "|" + com.javahost.client.mods.VanillaMode.blockedReason() + "|"
+				+ com.javahost.client.update.UpdateChecker.checking() + "|" + (update == null ? "" : update.version()) + "|"
 				+ com.javahost.client.update.Updater.staged() + "|" + com.javahost.client.update.Updater.stagedKind();
 	}
 
@@ -252,6 +314,16 @@ public class SettingsPage extends Page {
 
 		sectionLabel(g, "While playing", left, top + playingY);
 		card(g, left, top + playingY + 12, width, playingH);
+
+		sectionLabel(g, "Mods", left, top + vanillaY);
+		card(g, left, top + vanillaY + 12, width, VANILLA_H);
+		var vanillaStaged = com.javahost.client.mods.VanillaMode.staged();
+		String vanillaLabel = vanillaStaged != com.javahost.client.mods.VanillaMode.Staged.NONE ? "Undo"
+				: com.javahost.client.mods.VanillaMode.active() ? "Bring my mods back" : "Turn on";
+		int vanillaTextW = width - 20 - Draw.width(vanillaLabel) - 16 - 8;
+		Draw.textFit(g, "Vanilla mode", vanillaTextW, left + 10, top + vanillaY + 12 + 7, Theme.TEXT);
+		Draw.textFit(g, vanillaLine(), vanillaTextW, left + 10, top + vanillaY + 12 + 18,
+				vanillaStaged != com.javahost.client.mods.VanillaMode.Staged.NONE ? Theme.WARNING : Theme.MUTED);
 
 		sectionLabel(g, "Friends & voice", left, top + friendsY);
 		card(g, left, top + friendsY + 12, width, friendsH);

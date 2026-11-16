@@ -142,6 +142,7 @@ public final class ModSets {
 	 * call on a background thread. Returns the folder name.
 	 */
 	public static String download(Needed what, Consumer<String> progress) throws IOException, InterruptedException {
+		refuseInVanillaMode();
 		String folder = "host-" + what.manifest().id();
 		Path set = setDir(folder);
 		Path jars = set.resolve("jars");
@@ -176,6 +177,7 @@ public final class ModSets {
 
 	/** Stages a switch to a downloaded set; it happens when Minecraft closes. */
 	public static void stageSwitch(String folder) throws IOException {
+		refuseInVanillaMode();
 		Path set = setDir(folder);
 		Properties info = read(set.resolve("set.properties"));
 		boolean pack = "pack".equals(info.getProperty("kind"));
@@ -235,6 +237,27 @@ public final class ModSets {
 		}
 		stage(plan);
 		JavaHost.LOGGER.info("[Mods] switching to {} when the game closes: {} in, {} put aside, {} back", folder, setJars.size(), out.size(), back.size());
+	}
+
+	/**
+	 * A mod set is switched in on top of the player's own mods, so it waits until they're back from Vanilla mode (the
+	 * two swaps would otherwise mix up whose jars are whose).
+	 */
+	public static String vanillaReason() {
+		if (VanillaMode.active()) {
+			return "Bring your mods back from Vanilla mode first (Mods, My mods).";
+		}
+		if (VanillaMode.staged() == VanillaMode.Staged.ENTER) {
+			return "Vanilla mode starts when you close the game. Undo that first (Mods, My mods).";
+		}
+		return null;
+	}
+
+	private static void refuseInVanillaMode() throws IOException {
+		String reason = vanillaReason();
+		if (reason != null) {
+			throw new IOException(reason);
+		}
 	}
 
 	/** Stages going back to the player's own mods. */

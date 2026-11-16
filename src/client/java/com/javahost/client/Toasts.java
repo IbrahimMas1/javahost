@@ -57,7 +57,7 @@ public final class Toasts {
 
 	/** As {@link #quiet(String, String)}, with a button on the notice in the notification center. */
 	public static void quiet(String title, String message, com.javahost.client.friends.Notifications.Action action) {
-		if (!Config.get().quiet) {
+		if (!isQuiet()) {
 			notify(title, message, action);
 			return;
 		}
@@ -67,7 +67,7 @@ public final class Toasts {
 
 	/** As {@link #quiet(String, String)} for a keyed toast ({@link #show(String, String, String)} when quiet is off). */
 	public static void quiet(String key, String title, String message) {
-		if (!Config.get().quiet) {
+		if (!isQuiet()) {
 			show(key, title, message);
 			return;
 		}
@@ -76,12 +76,20 @@ public final class Toasts {
 
 	/** As {@link #quiet(String, String)} for a notice about a player (with quiet off, a toast with their face). */
 	public static void quiet(UUID player, String title, String message) {
-		if (!Config.get().quiet) {
+		if (!isQuiet()) {
 			player(player, title, message);
 			return;
 		}
 		Minecraft.getInstance().execute(() -> com.javahost.client.friends.Notifications.add(
 				com.javahost.client.friends.Notifications.Kind.INFO, player, title, message, null, false));
+	}
+
+	/**
+	 * Whether routine notices wait under the bell: "Quiet notifications" (the player's setting), or always while
+	 * Vanilla mode is on (the setting itself is left as it is).
+	 */
+	public static boolean isQuiet() {
+		return Config.get().quiet || com.javahost.client.mods.VanillaMode.active();
 	}
 
 	/** A toast with a player's face, e.g. "Alex joined your world". */

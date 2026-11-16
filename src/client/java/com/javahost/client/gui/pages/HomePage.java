@@ -34,6 +34,9 @@ public class HomePage extends Page {
 	private static final int PLATE_H = 30;
 	private static final int FRIEND_ROW = 24;
 
+	private static final int BANNER_H = 36;
+	/** Room taken by the Vanilla mode card at the top (0 when it's off). */
+	private int banner;
 	private int heroW;
 	private int heroH;
 	private int skinH;
@@ -75,7 +78,7 @@ public class HomePage extends Page {
 	}
 
 	private String state() {
-		StringBuilder s = new StringBuilder().append(com.javahost.client.host.QuickHost.version()).append(HostController.isHosting()).append(HostController.guests().size())
+		StringBuilder s = new StringBuilder().append(com.javahost.client.mods.VanillaMode.active()).append(com.javahost.client.mods.VanillaMode.version()).append(com.javahost.client.host.QuickHost.version()).append(HostController.isHosting()).append(HostController.guests().size())
 				.append(Friends.incoming().size()).append(canHost()).append(InviteFlow.canInvite()).append(Friends.friends().size());
 		for (Friend f : Presence.onlineFriends()) {
 			s.append(f.id()).append(InviteFlow.status(f.id())).append(InviteFlow.joinable(f.id())).append(InviteFlow.playingTogether(f.id()))
@@ -96,7 +99,24 @@ public class HomePage extends Page {
 		lastState = state();
 		int height = Math.max(150, screen.contentHeight() - 4);
 		chipsY = height - CHIP_H;
-		heroH = chipsY - 8;
+		// Vanilla mode: one calm card on top, with the way back.
+		boolean vanilla = com.javahost.client.mods.VanillaMode.active();
+		banner = vanilla ? BANNER_H + 8 : 0;
+		if (vanilla) {
+			com.javahost.client.mods.ModLibrary.refreshIfStale();
+			if (com.javahost.client.mods.VanillaMode.staged() != com.javahost.client.mods.VanillaMode.Staged.LEAVE) {
+				int buttonW = Draw.width("Bring my mods back") + 16;
+				add(new FlatButton(buttonW, 18, Component.literal("Bring my mods back"), FlatButton.Style.PRIMARY, null, b -> {
+					try {
+						com.javahost.client.mods.VanillaMode.stageLeave();
+					} catch (java.io.IOException e) {
+						com.javahost.JavaHost.LOGGER.warn("[Mods] couldn't stage bringing the mods back", e);
+					}
+					screen.refresh();
+				}), width - 10 - buttonW, (BANNER_H - 18) / 2);
+			}
+		}
+		heroH = chipsY - 8 - banner;
 		heroW = Math.max(104, Math.min(176, Math.round(width * 0.38f)));
 		rightX = heroW + 10;
 		rightW = width - rightX;
@@ -105,11 +125,12 @@ public class HomePage extends Page {
 		skinH = heroH - PLATE_H - 6;
 		int skinW = Math.min(heroW - 8, Math.round(skinH * 0.62f));
 		// Click yourself to change your skin (dragging still turns the model).
-		add(IdleSkin.clickable(skinW, skinH, Identity.id(), true, "Change skin", () -> screen.switchTo(JavaHostScreen.Tab.SKINS)), (heroW - skinW) / 2, 2);
+		add(IdleSkin.clickable(skinW, skinH, Identity.id(), true, "Change skin", () -> screen.switchTo(JavaHostScreen.Tab.SKINS)), (heroW - skinW) / 2,
+				banner + 2);
 
 		// The one thing to do next, then a quieter second choice.
 		boolean hosting = HostController.isHosting();
-		int y = 0;
+		int y = banner;
 		if (hosting) {
 			add(new FlatButton(rightW, 26, Component.literal("Invite friends"), FlatButton.Style.PRIMARY, Icons.USERS,
 					b -> screen.switchTo(JavaHostScreen.Tab.FRIENDS)), rightX, y);
@@ -157,7 +178,7 @@ public class HomePage extends Page {
 		online.sort(java.util.Comparator.comparing((Friend f) -> !com.javahost.client.friends.FriendLog.isFavourite(f.id()))
 				.thenComparingInt(f -> InviteFlow.joinable(f.id()) ? 0 : InviteFlow.playingTogether(f.id()) ? 1 : 2)
 				.thenComparing(f -> f.name().toLowerCase(java.util.Locale.ROOT)));
-		int room = Math.max(1, (heroH - y - 3) / FRIEND_ROW);
+		int room = Math.max(1, (banner + heroH - y - 3) / FRIEND_ROW);
 		boolean overflow = online.size() > room;
 		int rows = overflow ? Math.max(1, room - 1) : online.size();
 		shown = List.copyOf(online.subList(0, Math.min(rows, online.size())));
@@ -167,13 +188,13 @@ public class HomePage extends Page {
 			add(FriendsPage.action(screen, friend, 56), rightX + rightW - 62, y + 2);
 			y += FRIEND_ROW;
 		}
-		emptyButton = online.isEmpty() && heroH - friendsY >= 76;
+		emptyButton = online.isEmpty() && banner + heroH - friendsY >= 76;
 		if (moreFriends > 0 || emptyButton) {
 			boolean none = Friends.friends().isEmpty();
 			String label = moreFriends > 0 ? "See all " + online.size() + " online" : none ? "Add a friend" : "See your friends";
 			add(new FlatButton(rightW - 16, 18, Component.literal(label), moreFriends > 0 ? FlatButton.Style.GHOST : FlatButton.Style.SECONDARY,
 					moreFriends > 0 ? null : Icons.USERS, b -> screen.switchTo(JavaHostScreen.Tab.FRIENDS)), rightX + 8,
-					moreFriends > 0 ? y + 2 : heroH - 26);
+					moreFriends > 0 ? y + 2 : banner + heroH - 26);
 		}
 
 		// At a glance, along the bottom: each chip opens its page.
@@ -187,6 +208,19 @@ public class HomePage extends Page {
 
 	@Override
 	protected void draw(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY) {
+		int origin = top;
+		int fy = friendsY - banner;
+		if (banner > 0) {
+			boolean leaving = com.javahost.client.mods.VanillaMode.staged() == com.javahost.client.mods.VanillaMode.Staged.LEAVE;
+			Draw.panel(g, left, top, width, BANNER_H, 6, Theme.withAlpha(Theme.INFO, 0.12f));
+			int textW = width - 20 - (leaving ? 0 : Draw.width("Bring my mods back") + 16 + 8);
+			int count = com.javahost.client.mods.VanillaMode.putAside().size();
+			Draw.textFit(g, "Vanilla mode is on", textW, left + 10, top + 8, Theme.TEXT);
+			Draw.textFit(g, leaving ? "Your mods come back when you close the game"
+					: Draw.count(count, "mod") + (count == 1 ? " is" : " are") + " put aside", textW, left + 10, top + 20,
+					leaving ? Theme.WARNING : Theme.MUTED);
+			top += banner; // everything else sits under the card
+		}
 		// The stage: no box, just light. A glow of the accent colour behind you, a lit floor and your shadow on it.
 		int cx = left + heroW / 2;
 		Draw.stage(g, cx, top + 2, skinH, Math.round(heroW * 0.80f));
@@ -210,15 +244,15 @@ public class HomePage extends Page {
 		// Friends online.
 		int x = left + rightX;
 		int online = shown.size() + moreFriends;
-		Draw.glassCard(g, x, top + friendsY, rightW, heroH - friendsY, 6);
-		sectionLabel(g, online > 0 ? "Online now" : "Friends", x + 8, top + friendsY + 7);
+		Draw.glassCard(g, x, top + fy, rightW, heroH - fy, 6);
+		sectionLabel(g, online > 0 ? "Online now" : "Friends", x + 8, top + fy + 7);
 		if (online > 0) {
 			String count = String.valueOf(online);
 			int countW = Draw.width(count) + 9;
-			Draw.roundRect(g, x + rightW - 8 - countW, top + friendsY + 5, countW, 11, 5, Theme.withAlpha(Theme.ACCENT, 0.18f));
-			Draw.text(g, count, x + rightW - 8 - countW + 5, top + friendsY + 7, Theme.ACCENT);
+			Draw.roundRect(g, x + rightW - 8 - countW, top + fy + 5, countW, 11, 5, Theme.withAlpha(Theme.ACCENT, 0.18f));
+			Draw.text(g, count, x + rightW - 8 - countW + 5, top + fy + 7, Theme.ACCENT);
 		}
-		int y = top + friendsY + 19;
+		int y = top + fy + 19;
 		for (Friend friend : shown) {
 			FriendsPage.faceWithDot(g, friend.id(), x + 8, y + 3, 16);
 			Draw.textFit(g, friend.name(), rightW - 98, x + 30, y + 2, Theme.TEXT);
@@ -240,7 +274,7 @@ public class HomePage extends Page {
 		long installed = BoostMods.MODS.stream().filter(BoostMods.BoostMod::recommended).filter(BoostMods::isInstalled).count();
 		long total = BoostMods.MODS.stream().filter(BoostMods.BoostMod::recommended).count();
 		int chipW = (width - 12) / 3;
-		int cy = top + chipsY;
+		int cy = origin + chipsY;
 		chip(g, left, cy, chipW, Icons.MIC, "Voice", voice, VoiceClient.isAvailable() && config.voiceEnabled ? Theme.ACCENT : Theme.MUTED);
 		chip(g, left + chipW + 6, cy, chipW, Icons.BOLT, "Boost", installed + "/" + total, installed == total ? Theme.ACCENT : Theme.WARNING);
 		chip(g, left + (chipW + 6) * 2, cy, width - (chipW + 6) * 2, Icons.GAUGE, "FPS", String.valueOf(minecraft.getFps()), Theme.INFO);

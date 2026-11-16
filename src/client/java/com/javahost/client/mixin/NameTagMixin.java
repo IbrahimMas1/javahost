@@ -43,6 +43,9 @@ public abstract class NameTagMixin {
 	*///?}
 
 	private static Component talking(Component name) {
+		if (com.javahost.client.mods.VanillaMode.active()) {
+			return name; // Vanilla mode: nothing of JavaHost on screen
+		}
 		return Component.literal("♪ ").withStyle(ChatFormatting.GREEN).append(name);
 	}
 }

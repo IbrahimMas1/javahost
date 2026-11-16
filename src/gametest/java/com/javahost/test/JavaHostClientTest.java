@@ -55,6 +55,14 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			ModsToggleTest.secondRun(context);
 			return;
 		}
+		if ("vanilla1".equals(System.getenv("JAVAHOST_TEST_ONLY"))) {
+			VanillaTest.firstRun(context); // scripts/vanilla-test.sh
+			return;
+		}
+		if ("vanilla2".equals(System.getenv("JAVAHOST_TEST_ONLY"))) {
+			VanillaTest.secondRun(context);
+			return;
+		}
 		if ("host".equals(role)) {
 			MultiplayerTest.host(context);
 			return;
@@ -98,6 +106,10 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			ModsToggleTest.run(context, true); // just My mods, while working on it
 			return;
 		}
+		if ("vanilla".equals(only)) {
+			VanillaTest.run(context); // just Vanilla mode, while working on it
+			return;
+		}
 		if ("hub".equals(System.getenv("JAVAHOST_TEST_ONLY"))) {
 			quickHub(context); // a one-minute look at the menu while working on it
 			return;
@@ -107,6 +119,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		titleScreenModes(context);
 		SkinsTest.run(context, false);
 		hostFromTitle(context);
+		VanillaTest.run(context);
 		JavaHost.LOGGER.info("[JavaHost test] ALL CHECKS PASSED");
 	}
 
@@ -383,6 +396,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		hostFromTitle(context);
 		worldPageNoWorld(context);
 		ModsToggleTest.run(context, true);
+		VanillaTest.run(context);
 	}
 
 	// ================================================================ 2.0: World options (server side)
@@ -2038,7 +2052,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 					"a mod downloaded this session shows in My mods as new: " + downloaded);
 			context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
 			context.waitTicks(8);
-			clickMenu(context, "More for " + downloaded);
+			ModsToggleTest.click(context, "More for " + downloaded); // scrolls the row into view first
 			context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).clickPopover(30, 3 + 9)); // Remove, the first item
 			context.runOnClient(mc -> com.javahost.client.mods.ModLibrary.refreshNow());
 			context.waitTicks(8);

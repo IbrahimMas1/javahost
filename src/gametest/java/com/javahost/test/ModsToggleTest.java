@@ -204,7 +204,7 @@ final class ModsToggleTest {
 	}
 
 	/** Clicks a widget with the real mouse, scrolling it into view first. */
-	private static void click(ClientGameTestContext context, String label) {
+	static void click(ClientGameTestContext context, String label) {
 		for (int i = 0; i < 20; i++) {
 			boolean shown = context.computeOnClient(mc -> mc.gui.screen().children().stream()
 					.anyMatch(c -> c instanceof AbstractWidget w && w.visible && w.getMessage().getString().equals(label)
@@ -472,6 +472,9 @@ final class ModsToggleTest {
 		check(context.computeOnClient(mc -> state(COZYLIB) == ModStates.State.OFF && state(GLOWBERRY) == ModStates.State.OFF),
 				"the list shows them off afterwards");
 		check(JavaHostClientTest.bellHas(context, "3 mods turned off, 1 on"), "a quiet notice says what changed");
+		check(context.computeOnClient(mc -> ModLibrary.installedButOff("jhtest-glowberry") && ModLibrary.installedButOff("cozylib")
+				&& !ModLibrary.installedButOff("lanterns_plus")),
+				"Discover knows a switched-off mod is installed (by its JavaHost marker or its mod id), so it never offers a second copy");
 		check(JavaHostClientTest.toastCount(context, "3 mods turned off, 1 on") == 0, "and it's quiet (no toast)");
 		check(!Files.exists(ModLibrary.resultFile()), "the result is read once");
 		for (int[] size : SIZES) {

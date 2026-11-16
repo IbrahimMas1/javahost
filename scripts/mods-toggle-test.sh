@@ -48,6 +48,10 @@ if [ -f "$RUN/javahost/modsets/active.properties" ] || [ -f "$RUN/javahost/modse
 	echo "The modded test's guest is in the middle of a mod set switch; run scripts/modded-test.sh to the end (or delete $RUN) first."
 	exit 1
 fi
+if [ -f "$RUN/javahost/vanilla/state.properties" ]; then
+	echo "The guest game is in Vanilla mode (left by scripts/vanilla-test.sh); run that to the end (or delete $RUN) first."
+	exit 1
+fi
 mkdir -p "$MODS" "$LOGS"
 clean
 rm -f "$RESULTS"

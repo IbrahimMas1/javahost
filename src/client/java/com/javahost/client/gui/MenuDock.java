@@ -73,7 +73,8 @@ public final class MenuDock {
 	 * (full), just the rail, or (off) one small button in the top-left corner so the menu is always reachable.
 	 */
 	public static void attachTitle(Minecraft minecraft, Screen screen, int width, int height) {
-		switch (com.javahost.client.Config.get().titleScreen) {
+		// Vanilla mode: just the small button, whatever the setting says (the setting itself stays as it is).
+		switch (com.javahost.client.mods.VanillaMode.active() ? "OFF" : com.javahost.client.Config.get().titleScreen) {
 			case "OFF" -> Screens.getWidgets(screen).add(Button.builder(Component.literal("JavaHost"),
 					b -> minecraft.gui.setScreen(new JavaHostScreen(screen, Tab.HOME))).bounds(4, 4, 64, 20).build());
 			case "DOCK" -> attach(minecraft, screen, width, height, true, false);
@@ -86,7 +87,7 @@ public final class MenuDock {
 
 	/** Adds the rail to the pause menu, unless the player turned it off in Settings. */
 	public static void attachPause(Minecraft minecraft, Screen screen, int width, int height) {
-		if (com.javahost.client.Config.get().pauseDock) {
+		if (com.javahost.client.Config.get().pauseDock && !com.javahost.client.mods.VanillaMode.active()) {
 			attach(minecraft, screen, width, height, false, false);
 		}
 	}
