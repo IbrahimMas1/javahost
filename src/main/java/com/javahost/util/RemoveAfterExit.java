@@ -2,6 +2,7 @@ package com.javahost.util;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +17,9 @@ import java.util.concurrent.TimeUnit;
  * nothing outside the mods folder can be touched. Names that couldn't be deleted stay in the list for next time.
  */
 public final class RemoveAfterExit {
+	/** A list bigger than this wasn't written by JavaHost. */
+	static final long MAX_LIST_BYTES = 1 << 20;
+
 	private RemoveAfterExit() {
 	}
 
@@ -51,13 +55,20 @@ public final class RemoveAfterExit {
 		if (!Files.exists(list)) {
 			return List.of();
 		}
+		if (Files.size(list) > MAX_LIST_BYTES) {
+			return List.of(); // not a list we wrote; leave everything alone
+		}
 		List<String> left = new ArrayList<>();
 		for (String line : Files.readAllLines(list)) {
 			String name = line.strip();
 			if (!safeName(name)) {
 				continue;
 			}
-			if (!delete(mods.resolve(name))) {
+			Path file = mods.resolve(name);
+			if (Files.isDirectory(file, LinkOption.NOFOLLOW_LINKS)) {
+				continue; // only files are ever listed
+			}
+			if (!delete(file)) {
 				left.add(name);
 			}
 		}
