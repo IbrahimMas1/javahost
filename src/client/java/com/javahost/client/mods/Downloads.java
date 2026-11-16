@@ -120,7 +120,7 @@ public final class Downloads {
 		}));
 	}
 
-	/** A modpack, saved as a mod set to switch to from Mods, Installed. */
+	/** A modpack, saved as a mod set to switch to from Mods, My mods. */
 	public static Job installPack(Modrinth.Project project) {
 		return enqueue(new Job(project.id(), project.title(), project.iconUrl(), Kind.PACK, job -> {
 			Modpacks.install(new Modrinth.Pack(project.id(), project.slug(), project.title(), project.description(), project.downloads(),
@@ -165,10 +165,10 @@ public final class Downloads {
 			finish(job, Stage.CANCELLED);
 		} else if (worked) {
 			job.fraction(1);
-			job.status(job.kind == Kind.PACK ? "Ready: use it from Mods, Installed" : "Restart Minecraft to use it");
+			job.status(job.kind == Kind.PACK ? "Ready: use it from Mods, My mods" : "Restart Minecraft to use it");
 			finish(job, Stage.DONE);
 			if (job.kind == Kind.PACK) {
-				Toasts.quiet(job.title + " is ready", "Use it from Mods, Installed.");
+				Toasts.quiet(job.title + " is ready", "Use it from Mods, My mods.");
 			} else {
 				Toasts.quiet(job.title + " is ready", "Restart Minecraft to use it.",
 						new Notifications.Action("Close game", () -> Minecraft.getInstance().stop()));

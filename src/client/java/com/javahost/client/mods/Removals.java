@@ -3,9 +3,7 @@ package com.javahost.client.mods;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 
 import com.javahost.JavaHost;
@@ -13,16 +11,12 @@ import com.javahost.client.perf.BoostMods;
 import net.fabricmc.loader.api.FabricLoader;
 
 /**
- * Mods the player removed from Mods, Installed. A running game holds its jars open (Windows won't delete them), so
+ * Mods the player removed from Mods, My mods. A running game holds its jars open (Windows won't delete them), so
  * they're deleted by {@code util/RemoveAfterExit} once Minecraft has closed; until then they keep working, and Keep
- * takes them off the list again.
+ * takes them off the list again. The deleting is done by the one helper that runs after exit ({@link AfterExitHelper}).
  */
 public final class Removals {
 	private Removals() {
-	}
-
-	private static Path modsDir() {
-		return FabricLoader.getInstance().getGameDir().resolve("mods");
 	}
 
 	private static Path listFile() {
@@ -60,18 +54,12 @@ public final class Removals {
 
 	/** Marks a mod to be deleted (jar and marker) when the game closes. */
 	public static void remove(BoostMods.Installed mod) throws IOException {
-		Set<String> names = names();
-		names.add(mod.jarName());
-		names.add(".javahost-" + mod.slug());
-		save(names);
+		remove(mod.jarName(), mod.slug());
 	}
 
 	/** Changed your mind: the mod stays. */
 	public static void keep(BoostMods.Installed mod) throws IOException {
-		Set<String> names = names();
-		names.remove(mod.jarName());
-		names.remove(".javahost-" + mod.slug());
-		save(names);
+		keep(mod.jarName(), mod.slug());
 	}
 
 	/** Takes files off the list, e.g. a mod installed again after it was removed. */
@@ -86,26 +74,28 @@ public final class Removals {
 		}
 	}
 
-	/** Called as the game closes: starts the helper that deletes the removed mods once the game has exited. */
-	public static void launchIfAny() {
-		if (names().isEmpty()) {
-			return;
+	/** The list for {@code util/AfterExit}, or null when nothing is waiting to be removed. */
+	public static Path listIfAny() {
+		return names().isEmpty() ? null : listFile();
+	}
+
+	/** Marks a jar (and its JavaHost marker, if any) to be deleted when the game closes. */
+	public static void remove(String jarName, String slug) throws IOException {
+		Set<String> names = names();
+		names.add(jarName);
+		if (slug != null) {
+			names.add(".javahost-" + slug);
 		}
-		try {
-			// Run from a copy of JavaHost, so an update swapping our jar at the same time can't pull it away.
-			List<Path> classpath = new ArrayList<>(FabricLoader.getInstance().getModContainer(JavaHost.MOD_ID).orElseThrow().getOrigin().getPaths());
-			if (classpath.size() == 1 && classpath.getFirst().toString().endsWith(".jar")) {
-				Path helper = listFile().resolveSibling("remove-helper.jar");
-				Files.copy(classpath.getFirst(), helper, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-				classpath = List.of(helper);
-			}
-			String javaCommand = ProcessHandle.current().info().command().orElse("java");
-			new ProcessBuilder(javaCommand, "-cp", String.join(java.io.File.pathSeparator, classpath.stream().map(Path::toString).toList()),
-					"com.javahost.util.RemoveAfterExit", String.valueOf(ProcessHandle.current().pid()), modsDir().toString(), listFile().toString())
-					.redirectErrorStream(true).redirectOutput(listFile().resolveSibling("remove.log").toFile()).start();
-			JavaHost.LOGGER.info("[Mods] removing {} file(s) as the game closes", names().size());
-		} catch (IOException | RuntimeException e) {
-			JavaHost.LOGGER.warn("[Mods] couldn't start removing mods", e);
+		save(names);
+	}
+
+	/** Takes a jar (and its marker) off the list again. */
+	public static void keep(String jarName, String slug) throws IOException {
+		Set<String> names = names();
+		names.remove(jarName);
+		if (slug != null) {
+			names.remove(".javahost-" + slug);
 		}
+		save(names);
 	}
 }

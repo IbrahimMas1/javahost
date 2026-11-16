@@ -16,12 +16,14 @@ import com.javahost.client.gui.ui.Theme;
 import com.javahost.client.gui.ui.ToggleSwitch;
 import com.javahost.client.gui.ui.WebIcons;
 import com.javahost.client.mods.Downloads;
+import com.javahost.client.mods.ModLibrary;
 import com.javahost.client.mods.ModSets;
 import com.javahost.client.mods.Modpacks;
 import com.javahost.client.perf.BoostMods;
 import com.javahost.util.Availability;
 import com.javahost.util.IoExecutor;
 import com.javahost.util.ModManifest;
+import com.javahost.util.ModStates;
 import com.javahost.util.Modrinth;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Tooltip;
@@ -31,15 +33,15 @@ import net.minecraft.network.chat.Component;
 /**
  * Mods, laid out like a store. <b>Discover</b>: search Modrinth for mods and modpacks for every Minecraft version, by
  * category; ones that can't run here say what they run on. A card opens the project's page in the menu, with Install.
- * <b>Installed</b>: downloads, mods JavaHost installed, which mods are in use, what friends need, and saved mod sets.
+ * <b>My mods</b>: every mod with a switch to turn it on or off (made when the game closes), downloads, which mod set is
+ * in use, what friends need, and saved mod sets.
  */
 public class ModsPage extends Page {
 	private static final int ROW = 24;
 	private static final int CARD = 40;
 	private static final int JOB_ROW = 32;
-	private static final int INSTALLED_ROW = 22;
 	private static final int MAX_SAVED = 4;
-	private static final int TOP = 26; // below the Discover / Installed switch
+	private static final int TOP = 26; // below the Discover / My mods switch
 	private static final int BANNER = 30;
 	/** Width of the right-hand column of a card (Install, or where it runs). */
 	private static final int COLUMN = 72;
@@ -82,11 +84,10 @@ public class ModsPage extends Page {
 	private List<ModSets.Saved> saved = List.of();
 	private List<BoostMods.Installed> installed = List.of();
 	private List<Downloads.Job> jobs = List.of();
-	/** Jar names marked to be removed when the game closes (read when the page is built, not every frame). */
-	private java.util.Set<String> removing = java.util.Set.of();
+	/** My mods has been read afresh since this page opened. */
+	private boolean openedMine;
 	private int bannerY = -1;
 	private int resultsY;
-	private int installedY;
 	private int mineY;
 	private int savedY;
 	private int aboutY;
@@ -129,7 +130,7 @@ public class ModsPage extends Page {
 		searchedFor = null;
 	}
 
-	/** For tests and links from elsewhere: open on Installed instead of Discover. */
+	/** For tests and links from elsewhere: open on My mods instead of Discover. */
 	public static void showMine(boolean mine) {
 		view = mine ? View.INSTALLED : View.DISCOVER;
 		detail = null;
@@ -174,9 +175,7 @@ public class ModsPage extends Page {
 			buildDetail();
 			return;
 		}
-		int count = installed.size() + (int) jobs.stream().filter(Downloads.Job::active).count();
-		add(new Segmented<>(width, List.of(View.DISCOVER, View.INSTALLED), view,
-				v -> v == View.DISCOVER ? "Discover" : count > 0 ? "Installed (" + count + ")" : "Installed", v -> {
+		add(new Segmented<>(width, List.of(View.DISCOVER, View.INSTALLED), view, v -> v == View.DISCOVER ? "Discover" : "My mods", v -> {
 					view = v;
 					screen.refresh();
 				}), 0, 0);
@@ -194,7 +193,8 @@ public class ModsPage extends Page {
 	private String signature() {
 		// Not the search text: typing searches after a pause, and the new results bump searchVersion.
 		return view + "|" + kind + "|" + category + "|" + runsHere + "|" + searchVersion + "|" + searching + "|" + Downloads.version() + "|" + (detail == null ? "" : detail.id())
-				+ "|" + ModSets.changes() + "|" + (ModSets.mine() != null); // no disk access here: this runs every tick
+				+ "|" + ModSets.changes() + "|" + (ModSets.mine() != null) // no disk access here: this runs every tick
+				+ (view == View.INSTALLED && detail == null ? "|" + mineSignature() : "");
 	}
 
 	@Override
@@ -206,8 +206,16 @@ public class ModsPage extends Page {
 				search(false);
 			}
 		}
+		if (view == View.INSTALLED && detail == null) {
+			ModLibrary.refreshIfStale(); // mods dropped in or deleted by hand show up
+			if (mineTypedAt > 0 && System.currentTimeMillis() - mineTypedAt > MINE_TYPING_PAUSE) {
+				mineTypedAt = 0;
+				mineApplied = mineQuery;
+			}
+		}
 		if (!signature().equals(lastSignature)) {
 			refocus = searchField != null && searchField.isFocused(); // keep typing after the results update
+			refocusMine = mineField != null && mineField.isFocused();
 			screen.refresh();
 		}
 	}
@@ -217,6 +225,11 @@ public class ModsPage extends Page {
 		if (searchField != null && searchField.isFocused() && isEnter(event)) {
 			typedAt = 0;
 			search(false);
+			return true;
+		}
+		if (mineField != null && mineField.isFocused() && isEnter(event)) {
+			mineTypedAt = 0;
+			mineApplied = mineQuery;
 			return true;
 		}
 		return false;
@@ -487,7 +500,7 @@ public class ModsPage extends Page {
 			case RESTART -> new FlatButton(mainW, 20, Component.literal("Close Minecraft"), FlatButton.Style.PRIMARY, null, b -> minecraft.stop());
 			case INSTALLED -> new FlatButton(mainW, 20, Component.literal("Installed"), FlatButton.Style.SECONDARY, Icons.CHECK, b -> {
 			});
-			case READY -> new FlatButton(mainW, 20, Component.literal("Use it from Installed"), FlatButton.Style.SECONDARY, Icons.PACKAGE, b -> {
+			case READY -> new FlatButton(mainW, 20, Component.literal("Use it from My mods"), FlatButton.Style.SECONDARY, Icons.PACKAGE, b -> {
 				detail = null;
 				view = View.INSTALLED;
 				screen.refresh();
@@ -556,7 +569,7 @@ public class ModsPage extends Page {
 				yield job == null ? "Couldn't install it." : job.statusText();
 			}
 			case UNAVAILABLE -> "Pick that version in the JavaHost installer to play it.";
-			case READY -> "Switch to it from Installed, then restart.";
+			case READY -> "Switch to it from My mods, then restart.";
 			default -> "";
 		};
 		Draw.textFit(g, note, width, left, y + 26, state == State.FAILED ? Theme.WARNING : Theme.FAINT);
@@ -586,11 +599,132 @@ public class ModsPage extends Page {
 		}
 	}
 
-	// ================================================================ Installed
+	// ================================================================ My mods
 
 	private int downloadsY = -1;
+	/** The pending bar (changes made when the game closes), or -1. */
+	private int pendingY = -1;
+	private int pendingCount;
+	private int headerY;
+	private boolean headerSearch;
+	private int readOnlyY = -1;
+	private String readOnlyText;
+	private int listY;
+	private int emptyListY = -1;
+	private List<ModStates.Entry> shownMods = List.of();
+	private List<ModStates.Entry> allMods = List.of();
+	private TextField mineField;
+	private boolean refocusMine;
+	/** A refused switch: which row, why, and when (shown in the row for a few seconds). */
+	private static String refusedFile;
+	private static String refusedReason;
+	private static long refusedAt;
+	private static final long REFUSED_SHOWN = 4000;
+	/** The open confirm (for tests), or null. */
+	private static ConfirmPopover confirming;
+
+	/** For tests and links from elsewhere: My mods with this search ("" for every mod). */
+	public static void showMineSearch(String text) {
+		view = View.INSTALLED;
+		detail = null;
+		mineQuery = mineApplied = text;
+		mineTypedAt = 0;
+	}
+
+	/** For tests: the mods listed, by file name, in order. */
+	public static List<String> shownFiles() {
+		ModsPage page = lastMine;
+		return page == null ? List.of() : page.shownMods.stream().map(ModStates.Entry::file).toList();
+	}
+
+	/** For tests: the caption under a mod's name, or null if it isn't listed. */
+	public static String captionOf(String file) {
+		ModsPage page = lastMine;
+		if (page == null) {
+			return null;
+		}
+		for (ModStates.Entry entry : page.shownMods) {
+			if (entry.file().equals(file)) {
+				return caption(entry);
+			}
+		}
+		return null;
+	}
+
+	/** For tests: the pending bar's text, or null when it isn't shown. */
+	public static String pendingText() {
+		ModsPage page = lastMine;
+		return page == null || page.pendingY < 0 ? null : pendingTitle(page.pendingCount);
+	}
+
+	/** For tests: the read-only line, or null. */
+	public static String readOnlyNote() {
+		ModsPage page = lastMine;
+		return page == null || page.readOnlyY < 0 ? null : page.readOnlyText;
+	}
+
+	/** For tests: what the open confirm says ("Also turns off: ..."), or null when none is open. */
+	public static String confirmText() {
+		ConfirmPopover open = confirming;
+		return open == null ? null : open.detail;
+	}
+
+	/** For tests: where the confirm's Confirm button is, from the popover's top-left. */
+	public static int[] confirmButtonOffset() {
+		ConfirmPopover open = confirming;
+		return open == null ? null : new int[] {open.width() - ConfirmPopover.PAD - ConfirmPopover.BUTTON_W / 2, open.height() - ConfirmPopover.PAD - 8};
+	}
+
+	private static ModsPage lastMine;
+	private static String mineQuery = "";
+	private static String mineApplied = "";
+	private static long mineTypedAt;
+	private static final long MINE_TYPING_PAUSE = 150;
+	/** More mods than this get a search field. */
+	private static final int SEARCH_FROM = 12;
+	private static final int MOD_ROW = 28;
+	private static final int PAD = 10;
+	private static final int PENDING_H = 32;
+	private static final int SWITCH_W = 22;
+	private static final int MORE_W = 16;
+	private static final int KEEP_W = 44;
+
+	private static String pendingTitle(int count) {
+		return count == 1 ? "1 change waiting" : count + " changes waiting";
+	}
+
+	/** The faint line under a mod's name: its version and what it's doing, in words. */
+	private static String caption(ModStates.Entry entry) {
+		String version = entry.jar().version().isEmpty() ? "" : entry.jar().version();
+		String words = switch (entry.state()) {
+			case OFF -> "Off";
+			case TURNING_OFF -> "Turns off when you close the game";
+			case TURNING_ON -> "Turns on when you close the game";
+			case NEW -> "New: loads next start";
+			case REMOVING -> "Removed when you close the game";
+			case ON -> entry.isProtected() ? "Always on" : !entry.jar().parsed() ? "Not a Fabric mod" : "";
+		};
+		if (version.isEmpty() && words.isEmpty()) {
+			return entry.file();
+		}
+		return version.isEmpty() ? words : words.isEmpty() ? version : version + " · " + words;
+	}
+
+	private static int captionColor(ModStates.Entry entry) {
+		return entry.pending() ? Theme.WARNING : Theme.FAINT;
+	}
+
+	private String mineSignature() {
+		return ModLibrary.version() + "|" + ModLibrary.ready() + "|" + mineApplied + "|" + ModLibrary.readOnlyReason() + "|" + ModSets.changes()
+				+ "|" + ModLibrary.changeCount();
+	}
 
 	private void buildInstalled() {
+		lastMine = this;
+		if (!openedMine) {
+			openedMine = true;
+			ModLibrary.refresh(); // a fresh look each time the page opens
+		}
 		int y = TOP;
 		// Downloads this session, with their progress.
 		downloadsY = -1;
@@ -613,59 +747,294 @@ public class ModsPage extends Page {
 							}
 							screen.refresh();
 						}).iconOnly(), width - 26, rowY + 8);
-				cross.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled(job.active() ? "Cancel" : "Dismiss")));
+				cross.setTooltip(Tooltip.create(Draw.styled(job.active() ? "Cancel" : "Dismiss")));
 				rowY += JOB_ROW;
 			}
-			y = rowY + 6;
-		}
-		bannerY = -1;
-		if (restartPending()) {
-			bannerY = y;
-			add(new FlatButton(98, 16, Component.literal("Close Minecraft"), FlatButton.Style.PRIMARY, null, b -> minecraft.stop()), width - 106, y + 4);
-			y += BANNER;
+			y = rowY + 6 + 8;
 		}
 
-		// Mods JavaHost installed, each with Remove (or Keep, once it's marked to go). Performance mods have their own page.
-		installedY = y;
-		add(new FlatButton(96, 14, Component.literal("Performance"), FlatButton.Style.GHOST, Icons.BOLT,
-				b -> screen.switchTo(com.javahost.client.gui.JavaHostScreen.Tab.PERFORMANCE)), width - 96, y - 5)
-				.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Mods and settings for a higher frame rate")));
-		removing = com.javahost.client.mods.Removals.pendingJars();
-		int rowY = y + 12;
-		for (BoostMods.Installed mod : installed) {
-			if (removing.contains(mod.jarName())) {
-				FlatButton keep = add(new FlatButton(46, 16, Component.literal("Keep"), FlatButton.Style.SECONDARY, null, b -> {
-					try {
-						com.javahost.client.mods.Removals.keep(mod);
-					} catch (java.io.IOException e) {
-						JavaHost.LOGGER.warn("[Mods] couldn't keep {}", mod.name(), e);
-					}
-					screen.refresh();
-				}), width - 52, rowY + 3);
-				keep.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Don't remove " + mod.name())));
-			} else {
-				String why = ModSets.staged() ? "Wait until your mod set switch is done" : BoostMods.cannotRemove(mod, installed, removing);
-				FlatButton remove = add(new FlatButton(20, 16, Component.literal("Remove"), FlatButton.Style.GHOST, Icons.TRASH, b -> {
-					try {
-						com.javahost.client.mods.Removals.remove(mod);
-						com.javahost.client.Toasts.show("remove-" + mod.slug(), mod.name() + " will be removed", "When you close Minecraft.");
-					} catch (java.io.IOException e) {
-						JavaHost.LOGGER.warn("[Mods] couldn't remove {}", mod.name(), e);
-					}
-					screen.refresh();
-				}).iconOnly(), width - 26, rowY + 3);
-				remove.active = why == null;
-				remove.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled(why != null ? "Can't remove: " + why : "Remove " + mod.name())));
+		allMods = ModLibrary.entries();
+		String readOnly = ModLibrary.readOnlyReason();
+
+		// One bar for everything that waits for the game to close: switches, removals, new mods, a mod set switch.
+		pendingY = -1;
+		pendingCount = (int) allMods.stream().filter(ModStates.Entry::pending).count() + (ModSets.staged() ? 1 : 0);
+		if (pendingCount > 0) {
+			pendingY = y;
+			int buttonY = y + (PENDING_H - 16) / 2;
+			int closeW = Draw.width("Close game") + 16;
+			add(new FlatButton(closeW, 16, Component.literal("Close game"), FlatButton.Style.PRIMARY, null, b -> minecraft.stop()),
+					width - PAD - closeW, buttonY).setTooltip(tip("Your changes are made as Minecraft closes. Press Play to start again."));
+			boolean undoable = ModLibrary.changeCount() > 0 || allMods.stream().anyMatch(e -> e.state() == ModStates.State.REMOVING)
+					|| ModSets.staged();
+			if (undoable) {
+				int undoW = Draw.width("Undo") + 16;
+				add(new FlatButton(undoW, 16, Component.literal("Undo"), FlatButton.Style.SECONDARY, null, b -> undoEverything()),
+						width - PAD - closeW - 6 - undoW, buttonY).setTooltip(tip("Keep everything as it is now"));
 			}
-			rowY += INSTALLED_ROW;
+			y += PENDING_H + 8;
 		}
-		y += 12 + Math.max(1, installed.size()) * INSTALLED_ROW + 4 + 10;
+
+		// A count, and a search once the list is long.
+		headerY = y;
+		headerSearch = allMods.size() > SEARCH_FROM;
+		mineField = null;
+		if (headerSearch) {
+			int fieldW = Math.min(150, width / 2);
+			mineField = add(new TextField(fieldW, Component.literal("Search my mods")), width - fieldW, y);
+			mineField.setMaxLength(48);
+			mineField.setValue(mineQuery);
+			mineField.setHint(Component.literal(Draw.fit("Search", fieldW - 14)).withStyle(s -> s.withColor(Theme.FAINT)));
+			mineField.setResponder(value -> {
+				if (!value.equals(mineQuery)) {
+					mineQuery = value;
+					mineTypedAt = System.currentTimeMillis();
+				}
+			});
+			if (refocusMine) {
+				refocusMine = false;
+				screen.focusOn(mineField);
+			}
+			y += TextField.HEIGHT + 8;
+		} else {
+			mineQuery = mineApplied = "";
+			if (!allMods.isEmpty() || !ModLibrary.ready()) {
+				y += 10 + 6;
+			}
+		}
+
+		// Why the switches can't be used, when they can't.
+		readOnlyY = -1;
+		readOnlyText = readOnly;
+		if (readOnly != null) {
+			readOnlyY = y;
+			y += wrappedHeight(readOnly, width - 14) + 8;
+		}
+
+		// The list.
+		listY = y;
+		emptyListY = -1;
+		shownMods = ModStates.search(allMods, headerSearch ? mineApplied : "");
+		if (shownMods.isEmpty()) {
+			emptyListY = y;
+			y += 44;
+		}
+		int rowY = y;
+		for (ModStates.Entry entry : shownMods) {
+			buildModRow(entry, rowY, readOnly);
+			rowY += MOD_ROW;
+		}
+		y = rowY + 16;
 
 		mineY = y;
 		buildMine();
 	}
 
+	private void buildModRow(ModStates.Entry entry, int rowY, String readOnly) {
+		int right = width - PAD;
+		if (entry.state() == ModStates.State.REMOVING) {
+			FlatButton keep = add(new FlatButton(KEEP_W, 16, Component.literal("Keep"), FlatButton.Style.SECONDARY, null, b -> {
+				try {
+					ModLibrary.keep(entry);
+				} catch (java.io.IOException e) {
+					JavaHost.LOGGER.warn("[Mods] couldn't keep {}", entry.name(), e);
+				}
+			}), right - KEEP_W, rowY + (MOD_ROW - 16) / 2);
+			keep.setTooltip(tip("Don't remove " + entry.name()));
+			return;
+		}
+		// A little wider than the switch so it's easy to hit; it draws only the switch, at its right end.
+		ToggleSwitch[] holder = new ToggleSwitch[1];
+		ToggleSwitch toggle = add(new ToggleSwitch(SWITCH_W + 6, Component.literal(entry.name()), null, entry.wantedOn(),
+				on -> flip(entry, on, holder[0])).bare(), right - SWITCH_W - 6, rowY + (MOD_ROW - 16) / 2);
+		holder[0] = toggle;
+		toggle.active = readOnly == null && !entry.isProtected();
+		if (entry.isProtected()) {
+			toggle.setTooltip(tip("Always on: " + entry.protectedReason()));
+		} else if (readOnly != null) {
+			toggle.setTooltip(tip(readOnly));
+		}
+		FlatButton more = add(new FlatButton(MORE_W, 16, Component.literal("More for " + entry.name()), FlatButton.Style.GHOST, Icons.MORE,
+				b -> openMore(b, entry, readOnly)).iconOnly(), right - SWITCH_W - 6 - MORE_W, rowY + (MOD_ROW - 16) / 2);
+		more.setTooltip(tip("More"));
+	}
+
+	/** A row's menu: Remove (mods JavaHost installed) and Show in folder. */
+	private void openMore(FlatButton b, ModStates.Entry entry, String readOnly) {
+		List<com.javahost.client.gui.ui.Popover.Item> items = new ArrayList<>();
+		if (entry.installedByJavaHost()) {
+			com.javahost.client.gui.ui.Popover.Item remove = com.javahost.client.gui.ui.Popover.Item.danger("Remove", Icons.TRASH, () -> {
+				try {
+					ModLibrary.remove(entry);
+					com.javahost.client.Toasts.show("remove-" + entry.file(), entry.name() + " will be removed", "When you close Minecraft.");
+				} catch (java.io.IOException e) {
+					JavaHost.LOGGER.warn("[Mods] couldn't remove {}", entry.name(), e);
+				}
+			});
+			String why = whyNotRemove(entry, readOnly);
+			items.add(why == null ? remove : remove.disabled(why));
+		}
+		items.add(com.javahost.client.gui.ui.Popover.Item.of("Show in folder", Icons.FOLDER,
+				() -> com.javahost.client.friends.Screenshots.reveal(ModLibrary.pathOf(entry))));
+		screen.openPopover(com.javahost.client.gui.ui.Popover.menu(items), b);
+	}
+
+	/** Why a mod JavaHost installed can't be removed now (a short note for its menu), or null. */
+	private static String whyNotRemove(ModStates.Entry entry, String readOnly) {
+		if (readOnly != null) {
+			return "Not now";
+		}
+		if (entry.isProtected()) {
+			return "Always on";
+		}
+		if (!entry.inMods()) {
+			return "Switch it on first";
+		}
+		ModLibrary.Ask ask = ModLibrary.ask(entry.file(), false);
+		if (entry.wantedOn() && ask.ok() && !ask.others().isEmpty()) {
+			return ask.others().getFirst() + " needs it";
+		}
+		return null;
+	}
+
+	/** A switch was flipped: make the change, ask first if it takes other mods with it, or say why not. */
+	private void flip(ModStates.Entry entry, boolean on, ToggleSwitch toggle) {
+		ModLibrary.Ask ask = ModLibrary.ask(entry.file(), on);
+		if (!ask.ok()) {
+			toggle.setValue(!on);
+			refusedFile = entry.file();
+			refusedReason = ask.refusal();
+			refusedAt = System.currentTimeMillis();
+			return;
+		}
+		if (ask.needsConfirm()) {
+			toggle.setValue(!on); // not yet: only once confirmed
+			ConfirmPopover popover = new ConfirmPopover(entry.name(), ask);
+			confirming = popover;
+			screen.openPopover(popover, toggle);
+			return;
+		}
+		ModLibrary.apply(ask);
+		screen.refresh();
+	}
+
+	private void undoEverything() {
+		ModLibrary.undoAll();
+		for (ModStates.Entry entry : allMods) {
+			if (entry.state() == ModStates.State.REMOVING) {
+				try {
+					com.javahost.client.mods.Removals.keep(entry.file(), entry.slug());
+				} catch (java.io.IOException e) {
+					JavaHost.LOGGER.warn("[Mods] couldn't keep {}", entry.name(), e);
+				}
+			}
+		}
+		if (ModSets.staged()) {
+			ModSets.cancelStaged();
+		}
+		ModLibrary.refresh();
+		screen.refresh();
+	}
+
+	/**
+	 * Asks before switching more than the clicked mod: "Turn off Cozylib?" with what goes with it, Cancel and the
+	 * action. Drawn by hand (popovers take clicks before the page's widgets).
+	 */
+	private final class ConfirmPopover extends com.javahost.client.gui.ui.Popover {
+		static final int PAD = 8;
+		static final int BUTTON_W = 64;
+		private final ModLibrary.Ask ask;
+		private final String title;
+		private final String detail;
+		private final String action;
+		private final int w;
+		private final List<net.minecraft.util.FormattedCharSequence> lines;
+
+		ConfirmPopover(String name, ModLibrary.Ask ask) {
+			this.ask = ask;
+			this.title = (ask.on() ? "Turn on " : "Turn off ") + name + "?";
+			List<String> others = ask.others();
+			StringBuilder text = new StringBuilder();
+			if (!others.isEmpty()) {
+				text.append(ask.on() ? "Also turns on: " : "Also turns off: ").append(list(others));
+			}
+			if (!ask.missing().isEmpty()) {
+				text.append(text.length() == 0 ? "" : " ").append("It needs ").append(list(ask.missing()))
+						.append(ask.missing().size() == 1 ? ", which isn't installed." : ", which aren't installed.");
+			}
+			this.detail = text.toString();
+			this.action = ask.on() ? "Turn on" : "Turn off";
+			this.w = Math.min(Math.max(160, ModsPage.this.width - 40), 220);
+			List<net.minecraft.util.FormattedCharSequence> split = Draw.split(detail, w - 2 * PAD);
+			this.lines = split.size() > 4 ? split.subList(0, 4) : split;
+		}
+
+		private static String list(List<String> names) {
+			if (names.size() <= 4) {
+				return String.join(", ", names);
+			}
+			return String.join(", ", names.subList(0, 3)) + " and " + (names.size() - 3) + " more";
+		}
+
+		@Override
+		public int width() {
+			return w;
+		}
+
+		@Override
+		public int height() {
+			return PAD + 10 + 4 + lines.size() * 10 + 8 + 16 + PAD;
+		}
+
+		private boolean over(double mouseX, double mouseY, int bx, int by) {
+			return mouseX >= bx && mouseX < bx + BUTTON_W && mouseY >= by && mouseY < by + 16;
+		}
+
+		@Override
+		protected void drawContents(GuiGraphicsExtractor g, int mouseX, int mouseY) {
+			Draw.textFit(g, title, w - 2 * PAD, x + PAD, y + PAD, Theme.TEXT);
+			int lineY = y + PAD + 14;
+			for (net.minecraft.util.FormattedCharSequence line : lines) {
+				Draw.text(g, line, x + PAD, lineY, Theme.MUTED);
+				lineY += 10;
+			}
+			int by = y + height() - PAD - 16;
+			int confirmX = x + w - PAD - BUTTON_W;
+			int cancelX = confirmX - 6 - BUTTON_W;
+			boolean overCancel = over(mouseX, mouseY, cancelX, by);
+			boolean overConfirm = over(mouseX, mouseY, confirmX, by);
+			Draw.bordered(g, cancelX, by, BUTTON_W, 16, 4, overCancel ? Theme.CARD_HOVER : Theme.CARD, Theme.BORDER);
+			Draw.centered(g, "Cancel", cancelX + BUTTON_W / 2, by + 4, Theme.TEXT);
+			Draw.roundRect(g, confirmX, by, BUTTON_W, 16, 4, overConfirm ? Theme.ACCENT_HOVER : Theme.ACCENT);
+			Draw.centered(g, action, confirmX + BUTTON_W / 2, by + 4, Theme.ON_ACCENT);
+		}
+
+		@Override
+		public boolean click(double mouseX, double mouseY) {
+			int by = y + height() - PAD - 16;
+			int confirmX = x + w - PAD - BUTTON_W;
+			if (over(mouseX, mouseY, confirmX, by)) {
+				ModLibrary.apply(ask);
+				confirming = null;
+				screen.refresh();
+				return true;
+			}
+			if (over(mouseX, mouseY, confirmX - 6 - BUTTON_W, by)) {
+				confirming = null;
+				return true;
+			}
+			return false;
+		}
+	}
+
+	private static Tooltip tip(String text) {
+		return Tooltip.create(Draw.styled(text));
+	}
+
 	private void drawInstalled(GuiGraphicsExtractor g, int left, int top) {
+		if (confirming != null && !screen.popoverOpen()) {
+			confirming = null; // closed by a click outside, Esc or scrolling
+		}
 		if (downloadsY >= 0) {
 			sectionLabel(g, "Downloads", left, top + downloadsY);
 			int y = top + downloadsY + 12;
@@ -698,35 +1067,88 @@ public class ModsPage extends Page {
 				y += JOB_ROW;
 			}
 		}
-		if (bannerY >= 0) {
-			restartBanner(g, left, top + bannerY);
+
+		if (pendingY >= 0) {
+			int y = top + pendingY;
+			Draw.panel(g, left, y, width, PENDING_H, 6, Theme.withAlpha(Theme.ACCENT, 0.12f));
+			int buttons = (Draw.width("Close game") + 16) + (ModLibrary.changeCount() > 0 || ModSets.staged()
+					|| allMods.stream().anyMatch(e -> e.state() == ModStates.State.REMOVING) ? Draw.width("Undo") + 16 + 6 : 0);
+			int textW = width - 2 * PAD - buttons - 8;
+			Draw.textFit(g, pendingTitle(pendingCount), textW, left + PAD, y + 7, Theme.TEXT);
+			Draw.textFit(g, "When you close the game", textW, left + PAD, y + 18, Theme.MUTED);
 		}
 
-		int y = top + installedY;
-		sectionLabel(g, "Installed with JavaHost", left, y);
-		card(g, left, y + 10, width, Math.max(1, installed.size()) * INSTALLED_ROW + 4);
-		y += 12;
-		if (installed.isEmpty()) {
-			Draw.textFit(g, "Mods you install from Discover show up here.", width - 20, left + 10, y + 7, Theme.FAINT);
+		// The count (and the search beside it).
+		int headerTextY = top + headerY + (headerSearch ? (TextField.HEIGHT - 8) / 2 : 0);
+		long off = allMods.stream().filter(e -> !e.inMods()).count();
+		String count = !ModLibrary.ready() ? "Reading your mods..." : allMods.isEmpty() ? "" : Draw.count(allMods.size(), "mod") + (off > 0 ? " · " + off + " off" : "");
+		int countW = headerSearch ? width - Math.min(150, width / 2) - 8 : width;
+		Draw.textFit(g, count, countW, left, headerTextY, Theme.MUTED);
+
+		if (readOnlyY >= 0) {
+			Icons.LOCK.draw(g, left, top + readOnlyY - 1, Theme.MUTED);
+			wrap(g, readOnlyText, left + 14, top + readOnlyY, width - 14, Theme.MUTED);
 		}
-		for (BoostMods.Installed mod : installed) {
-			boolean leaving = removing.contains(mod.jarName());
-			Icons.PACKAGE.draw(g, left + 10, y + 5, Theme.MUTED);
-			String badge = leaving ? "Removed on restart" : mod.active() ? "Active" : "Restart needed";
-			int bw = Draw.width(badge) + 10;
-			int buttonW = leaving ? 52 : 28;
-			Draw.textFit(g, mod.name(), width - 40 - bw - buttonW, left + 28, y + 7, leaving ? Theme.MUTED : Theme.TEXT);
-			int bx = left + width - bw - 4 - buttonW;
-			int tint = leaving ? Theme.FAINT : mod.active() ? Theme.ACCENT : Theme.WARNING;
-			Draw.roundRect(g, bx, y + 4, bw, 12, 6, Theme.withAlpha(tint, 0.18f));
-			Draw.text(g, badge, bx + 5, y + 6, tint);
-			y += INSTALLED_ROW;
+
+		int screenH = minecraft.getWindow().getGuiScaledHeight();
+		if (emptyListY >= 0) {
+			int y = top + emptyListY;
+			card(g, left, y, width, 44);
+			String title = !ModLibrary.ready() ? "Reading your mods..." : allMods.isEmpty() ? "No mods yet" : "No mods match \"" + mineApplied.strip() + "\"";
+			String hint = !ModLibrary.ready() ? "" : allMods.isEmpty() ? "Find some in Discover" : "Try another word";
+			centredFit(g, title, left, y + (hint.isEmpty() ? 18 : 12), Theme.MUTED);
+			if (!hint.isEmpty()) {
+				centredFit(g, hint, left, y + 24, Theme.FAINT);
+			}
+		} else {
+			int y = top + listY;
+			int h = shownMods.size() * MOD_ROW;
+			// Only the part of the card that's on screen (a long list is mostly off it).
+			int visibleTop = Math.max(y, -MOD_ROW);
+			int visibleBottom = Math.min(y + h, screenH + MOD_ROW);
+			if (visibleBottom > visibleTop) {
+				card(g, left, y, width, h);
+			}
+			long now = System.currentTimeMillis();
+			for (int i = 0; i < shownMods.size(); i++) {
+				int rowY = y + i * MOD_ROW;
+				if (rowY > screenH || rowY + MOD_ROW < 0) {
+					continue; // off screen: nothing to draw
+				}
+				if (i > 0) {
+					g.fill(left + 8, rowY, left + width - 8, rowY + 1, Theme.withAlpha(Theme.BORDER, 0.6f));
+				}
+				drawModRow(g, shownMods.get(i), left, rowY, now);
+			}
 		}
 		drawMine(g, left, top);
 	}
 
+	private void drawModRow(GuiGraphicsExtractor g, ModStates.Entry entry, int left, int y, long now) {
+		int controls = entry.state() == ModStates.State.REMOVING ? KEEP_W : SWITCH_W + 6 + MORE_W;
+		int textW = width - 2 * PAD - controls - 8;
+		boolean shownOn = entry.wantedOn() && entry.state() != ModStates.State.REMOVING;
+		Draw.textFit(g, entry.name(), textW, left + PAD, y + 5, shownOn ? Theme.TEXT : Theme.MUTED);
+		String caption = caption(entry);
+		int color = captionColor(entry);
+		if (entry.file().equals(refusedFile) && now - refusedAt < REFUSED_SHOWN) {
+			caption = refusedReason;
+			color = Theme.WARNING;
+		}
+		Draw.textFit(g, caption, textW, left + PAD, y + 15, color);
+	}
+
+	private void centredFit(GuiGraphicsExtractor g, String text, int left, int y, int color) {
+		String shown = Draw.fit(text, width - 2 * PAD);
+		Draw.text(g, shown, left + (width - Draw.width(shown)) / 2, y, color);
+	}
+
 	private void buildMine() {
 		saved = ModSets.saved().stream().limit(MAX_SAVED).toList();
+		// Performance mods have their own page (under More): a quiet link on the "In use" line.
+		add(new FlatButton(96, 14, Component.literal("Performance"), FlatButton.Style.GHOST, Icons.BOLT,
+				b -> screen.switchTo(com.javahost.client.gui.JavaHostScreen.Tab.PERFORMANCE)), width - 96, mineY - 4)
+				.setTooltip(tip("Mods and settings for a higher frame rate"));
 		boolean active = ModSets.activeLabel() != null;
 		if (ModSets.staged()) {
 			add(new FlatButton(70, 16, Component.literal("Cancel"), FlatButton.Style.SECONDARY, null, b -> {

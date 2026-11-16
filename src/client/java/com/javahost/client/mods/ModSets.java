@@ -306,10 +306,13 @@ public final class ModSets {
 		return ModSetsState.active().getProperty("set");
 	}
 
-	/** Called as the game closes: starts the helper that switches mods once the game has exited. */
-	public static void launchIfStaged() {
+	/**
+	 * Called as the game closes: hands the staged switch to the after-exit helper ({@link AfterExitHelper}). Returns
+	 * the plan it should run (with this game's process id in it), or null when no switch is staged.
+	 */
+	static Path takeStaged() {
 		if (!staged()) {
-			return;
+			return null;
 		}
 		try {
 			Properties plan = read(planFile());
@@ -318,21 +321,20 @@ public final class ModSets {
 			write(running, plan);
 			Files.delete(planFile());
 			changed();
-			// Run from a copy of JavaHost, so an update swapping our jar at the same time can't pull it away.
-			List<Path> classpath = new ArrayList<>(FabricLoader.getInstance().getModContainer(JavaHost.MOD_ID).orElseThrow().getOrigin().getPaths());
-			if (classpath.size() == 1 && classpath.getFirst().toString().endsWith(".jar")) {
-				Path helper = dir().resolve("helper.jar");
-				Files.copy(classpath.getFirst(), helper, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-				classpath = List.of(helper);
-			}
-			String javaCommand = ProcessHandle.current().info().command().orElse("java");
-			new ProcessBuilder(javaCommand, "-cp", String.join(java.io.File.pathSeparator, classpath.stream().map(Path::toString).toList()),
-					"com.javahost.util.ModSwap", running.toString())
-					.redirectErrorStream(true).redirectOutput(dir().resolve("swap.log").toFile()).start();
+			lastTakenLabel = plan.getProperty("label", "");
 			JavaHost.LOGGER.info("[Mods] switching mods as the game closes: {}", plan.getProperty("label"));
+			return running;
 		} catch (IOException | RuntimeException e) {
 			JavaHost.LOGGER.warn("[Mods] couldn't start the mod switch", e);
+			return null;
 		}
+	}
+
+	private static volatile String lastTakenLabel = "";
+
+	/** What the switch handed to the helper is to ("AlexPlays's world"). */
+	static String lastTakenLabel() {
+		return lastTakenLabel;
 	}
 
 	/** Called at startup: says how the last switch went. */

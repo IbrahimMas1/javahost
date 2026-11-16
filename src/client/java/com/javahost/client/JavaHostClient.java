@@ -85,6 +85,7 @@ public class JavaHostClient implements ClientModInitializer {
 		net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register((handler, minecraft) -> hostVersion = null);
 		PackReceiver.register();
 		com.javahost.client.mods.ModSets.register();
+		com.javahost.client.mods.ModLibrary.init(); // which jars are in mods/ as the game starts
 
 		ClientTickEvents.END_CLIENT_TICK.register(minecraft -> {
 			VoiceClient.setPushToTalkHeld(PUSH_TO_TALK.isDown());
@@ -139,8 +140,7 @@ public class JavaHostClient implements ClientModInitializer {
 			com.javahost.client.friends.FriendLog.flushNow();
 			com.javahost.client.discover.PublicHosting.shutdown();
 			com.javahost.client.update.Updater.launchSwapIfStaged();
-			com.javahost.client.mods.ModSets.launchIfStaged();
-			com.javahost.client.mods.Removals.launchIfAny();
+			com.javahost.client.mods.AfterExitHelper.launch(); // removals, then a mod set switch or the on/off changes
 			Presence.goOffline();
 			E4mcCompat.shutdownForExit();
 		});
@@ -149,6 +149,7 @@ public class JavaHostClient implements ClientModInitializer {
 			// The relay list and the mod scan aren't fetched here any more: each starts in the background the first
 			// time something needs it (hosting, a join, a direct link, the Mods tab).
 			com.javahost.client.mods.ModSets.reportLastResult();
+			com.javahost.client.mods.ModLibrary.reportLastResult();
 			// Our game vouches for worlds we host (guests check this before trusting the world is ours).
 			com.javahost.HostState.setProver(new com.javahost.HostState.Prover() {
 				@Override

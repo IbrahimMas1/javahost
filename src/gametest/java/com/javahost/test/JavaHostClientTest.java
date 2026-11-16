@@ -45,6 +45,16 @@ public class JavaHostClientTest implements FabricClientGameTest {
 	@Override
 	public void runTest(ClientGameTestContext context) {
 		String role = System.getProperty("javahost.testRole");
+		// scripts/mods-toggle-test.sh: two starts of one game whose folder is kept between runs (the modded test's
+		// guest; runClientGameTest clears its folder each time).
+		if ("toggle1".equals(System.getenv("JAVAHOST_TEST_ONLY"))) {
+			ModsToggleTest.firstRun(context);
+			return;
+		}
+		if ("toggle2".equals(System.getenv("JAVAHOST_TEST_ONLY"))) {
+			ModsToggleTest.secondRun(context);
+			return;
+		}
 		if ("host".equals(role)) {
 			MultiplayerTest.host(context);
 			return;
@@ -81,6 +91,11 @@ public class JavaHostClientTest implements FabricClientGameTest {
 
 		if ("skins".equals(System.getenv("JAVAHOST_TEST_ONLY"))) {
 			SkinsTest.run(context, true); // just the skin changer, while working on it
+			return;
+		}
+		String only = System.getenv("JAVAHOST_TEST_ONLY");
+		if ("mods".equals(only)) {
+			ModsToggleTest.run(context, true); // just My mods, while working on it
 			return;
 		}
 		if ("hub".equals(System.getenv("JAVAHOST_TEST_ONLY"))) {
@@ -367,6 +382,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		SkinsTest.run(context, true);
 		hostFromTitle(context);
 		worldPageNoWorld(context);
+		ModsToggleTest.run(context, true);
 	}
 
 	// ================================================================ 2.0: World options (server side)
@@ -1691,7 +1707,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.setScreen(() -> null);
 	}
 
-	private static void size(ClientGameTestContext context, int w, int h, int scale) {
+	static void size(ClientGameTestContext context, int w, int h, int scale) {
 		context.getInput().resizeWindow(w, h);
 		context.runOnClient(mc -> {
 			mc.options.guiScale().set(scale);
@@ -1700,7 +1716,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 	}
 
 	/** Toasts on screen or queued whose token is {@code token} (JavaHost toasts: the key; a player's: "id|title"). */
-	private static int toastCount(ClientGameTestContext context, String token) {
+	static int toastCount(ClientGameTestContext context, String token) {
 		return context.computeOnClient(mc -> {
 			try {
 				java.lang.reflect.Field visible = mc.gui.toastManager().getClass().getDeclaredField("visibleToasts");
@@ -1728,7 +1744,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		});
 	}
 
-	private static boolean bellHas(ClientGameTestContext context, String nameStart) {
+	static boolean bellHas(ClientGameTestContext context, String nameStart) {
 		return context.computeOnClient(mc -> com.javahost.client.friends.Notifications.items().stream()
 				.anyMatch(n -> n.name() != null && n.name().startsWith(nameStart)));
 	}
@@ -1907,7 +1923,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		}
 	}
 
-	private static boolean widgetsFit(ClientGameTestContext context) {
+	static boolean widgetsFit(ClientGameTestContext context) {
 		return context.computeOnClient(mc -> mc.gui.screen().children().stream()
 				.filter(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w && w.visible)
 				.map(c -> (net.minecraft.client.gui.components.AbstractWidget) c)
@@ -1920,7 +1936,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 				&& w.getMessage().getString().equals(label)));
 	}
 
-	private static boolean hasButton(ClientGameTestContext context, String label) {
+	static boolean hasButton(ClientGameTestContext context, String label) {
 		return context.computeOnClient(mc -> mc.gui.screen().children().stream().anyMatch(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w
 				&& w.visible && w.getMessage().getString().equals(label)));
 	}
@@ -2012,13 +2028,20 @@ public class JavaHostClientTest implements FabricClientGameTest {
 				context.takeScreenshot("review-" + s[0] + "-s" + s[2] + "-mods-installed");
 			}
 
-			// Removing one: it's marked to go when the game closes, and Keep takes that back.
+			// Removing one (from its row's menu in My mods): it's marked to go when the game closes, and Keep takes that back.
 			size(context, 1710, 1070, 4);
+			context.runOnClient(mc -> com.javahost.client.mods.ModLibrary.refreshNow());
+			String downloaded = context.computeOnClient(mc -> com.javahost.client.mods.ModLibrary.entries().stream()
+					.filter(e -> e.installedByJavaHost() && e.inMods()).map(com.javahost.util.ModStates.Entry::name).findFirst().orElse(null));
+			check(downloaded != null && context.computeOnClient(mc -> com.javahost.client.mods.ModLibrary.entries().stream()
+					.anyMatch(e -> e.name().equals(downloaded) && e.state() == com.javahost.util.ModStates.State.NEW)),
+					"a mod downloaded this session shows in My mods as new: " + downloaded);
 			context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
-			context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40,
-					mc.getWindow().getGuiScaledHeight() / 2.0, 0, -6));
-			context.waitTicks(12);
-			clickMenu(context, "Remove");
+			context.waitTicks(8);
+			clickMenu(context, "More for " + downloaded);
+			context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).clickPopover(30, 3 + 9)); // Remove, the first item
+			context.runOnClient(mc -> com.javahost.client.mods.ModLibrary.refreshNow());
+			context.waitTicks(8);
 			check(!com.javahost.client.mods.Removals.pendingJars().isEmpty() && hasButton(context, "Keep"), "Remove marks a mod to go when the game closes");
 			context.takeScreenshot("review-1710-s4-mods-removing");
 			clickMenu(context, "Keep");
@@ -2773,7 +2796,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 	}
 
 	/** Clicks a visible button in the current screen with the real mouse (one on the page before a sidebar entry of the same name). */
-	private static void clickMenu(ClientGameTestContext context, String label) {
+	static void clickMenu(ClientGameTestContext context, String label) {
 		clickWidget(context, label, false);
 	}
 
@@ -2953,6 +2976,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		modsScreens(context);
 		storeAndDownloads(context);
 		bigModSetStaysFast(context);
+		ModsToggleTest.run(context, false);
 		context.runOnClient(mc -> {
 			try {
 				java.lang.reflect.Field dataField = com.javahost.client.friends.Friends.class.getDeclaredField("data");
