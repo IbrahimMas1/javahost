@@ -77,7 +77,7 @@ public class JavaHostClient implements ClientModInitializer {
 					Minecraft minecraft = Minecraft.getInstance();
 					if (minecraft.getSingleplayerServer() == null && com.javahost.util.Versions.compare(hello.version(), JavaHost.VERSION) != 0) {
 						boolean hostOlder = com.javahost.util.Versions.compare(hello.version(), JavaHost.VERSION) < 0;
-						Toasts.notify("Host runs JavaHost " + hello.version(), hostOlder
+						Toasts.quiet("Host runs JavaHost " + hello.version(), hostOlder
 								? "You have " + JavaHost.VERSION + ". Some newer features won't work until they update."
 								: "You have " + JavaHost.VERSION + ". Run the latest installer to update.");
 					}
@@ -146,9 +146,9 @@ public class JavaHostClient implements ClientModInitializer {
 		});
 		ClientLifecycleEvents.CLIENT_STARTED.register(minecraft -> {
 			Popups.startFriends();
-			com.javahost.client.host.Relays.refresh(); // know the relays before the first join needs one
+			// The relay list and the mod scan aren't fetched here any more: each starts in the background the first
+			// time something needs it (hosting, a join, a direct link, the Mods tab).
 			com.javahost.client.mods.ModSets.reportLastResult();
-			com.javahost.mods.ModCheck.warmUp(); // the mod list, ready for hosting and for the Mods tab
 			// Our game vouches for worlds we host (guests check this before trusting the world is ours).
 			com.javahost.HostState.setProver(new com.javahost.HostState.Prover() {
 				@Override
@@ -174,7 +174,7 @@ public class JavaHostClient implements ClientModInitializer {
 			if (HostController.isHosting() && !com.javahost.compat.Compat.isOwner(server, handler.player)) {
 				UUID id = handler.player.getUUID();
 				String name = com.javahost.compat.Compat.name(handler.player);
-				Toasts.player(id, name + " joined your world", "Say hi!");
+				Toasts.quiet(id, name + " joined your world", "Say hi!"); // the chat already says so
 				com.javahost.client.host.WorldBackups.onFriendJoined(server);
 			}
 		});
@@ -188,9 +188,6 @@ public class JavaHostClient implements ClientModInitializer {
 	}
 
 	private static void addMenuButtons() {
-		// Full text for anything cut short with "…", after resting the mouse on it for a second.
-		ScreenEvents.AFTER_INIT.register((minecraft, screen, width, height) ->
-				ScreenEvents.beforeExtract(screen).register((s, g, mouseX, mouseY, delta) -> Draw.showTruncatedTooltip(g, mouseX, mouseY)));
 		ScreenEvents.AFTER_INIT.register((minecraft, screen, width, height) -> {
 			if (screen instanceof TitleScreen || (screen instanceof PauseScreen pause && pause.showsPauseMenu())) {
 				if (screen instanceof TitleScreen) {
@@ -202,7 +199,16 @@ public class JavaHostClient implements ClientModInitializer {
 				Screens.getWidgets(screen).add(new FlatButton(width - 88, 4, 84, 20, Component.literal("Friends"),
 						FlatButton.Style.PRIMARY, Icons.USERS, b -> minecraft.gui.setScreen(new JavaHostScreen(screen, JavaHostScreen.Tab.FRIENDS))));
 			}
+			// Full text for anything cut short with "…", after resting the mouse on it for a second: only on JavaHost's
+			// own screens and the ones it adds to (registered last, so the widgets above count), not every vanilla screen.
+			if (ours(screen) || Screens.getWidgets(screen).stream().anyMatch(JavaHostClient::ours)) {
+				ScreenEvents.beforeExtract(screen).register((s, g, mouseX, mouseY, delta) -> Draw.showTruncatedTooltip(g, mouseX, mouseY));
+			}
 		});
+	}
+
+	private static boolean ours(Object thing) {
+		return thing.getClass().getName().startsWith("com.javahost.");
 	}
 
 	/**
@@ -238,11 +244,15 @@ public class JavaHostClient implements ClientModInitializer {
 
 	// ---------------------------------------------------------------- HUD
 
+	/** Voice status pills (Muted, Talking, Party voice) drawn in the last frame (for tests). */
+	public static volatile int hudStatusPills;
+
 	private static void drawHud(GuiGraphicsExtractor g) {
 		Minecraft minecraft = Minecraft.getInstance();
 		if (com.javahost.client.compat.ClientCompat.hudHidden()) {
 			return;
 		}
+		int pills = 0;
 		Config config = Config.get();
 		boolean right = "TOP_RIGHT".equals(config.hudCorner);
 		int y = 4;
@@ -251,18 +261,32 @@ public class JavaHostClient implements ClientModInitializer {
 			y = fpsCounter(g, right, y, minecraft);
 		}
 
-		if (VoiceClient.isAvailable() && config.voiceEnabled && config.showVoiceOverlay) {
+		if (VoiceClient.isAvailable() && config.voiceEnabled) {
+			// The always-on status pills only with "Voice status on screen"; holding push-to-talk still shows its answer.
+			boolean status = config.showVoiceStatus;
+			boolean holding = config.pushToTalk && PUSH_TO_TALK.isDown();
 			if (config.muted) {
-				y = pill(g, right, y, Icons.MIC_OFF, null, "Muted", Theme.DANGER);
+				if (status || holding) {
+					y = pill(g, right, y, Icons.MIC_OFF, null, "Muted", Theme.DANGER);
+					pills++;
+				}
 			} else if (VoiceClient.isTransmitting()) {
-				y = pill(g, right, y, Icons.MIC, null, VoiceClient.partyMode() ? "Talking to party" : "Talking", Theme.ACCENT);
-			} else if (VoiceClient.partyMode()) {
+				if (status || holding) {
+					y = pill(g, right, y, Icons.MIC, null, VoiceClient.partyMode() ? "Talking to party" : "Talking", Theme.ACCENT);
+					pills++;
+				}
+			} else if (status && VoiceClient.partyMode()) {
 				y = pill(g, right, y, Icons.USERS, null, "Party voice", Theme.INFO);
+				pills++;
 			}
-			for (Map.Entry<UUID, String> speaker : VoiceClient.talking().entrySet()) {
-				y = pill(g, right, y, null, speaker.getKey(), speaker.getValue(), Theme.ACCENT);
+			if (config.showVoiceOverlay) {
+				for (Map.Entry<UUID, String> speaker : VoiceClient.talking().entrySet()) {
+					y = pill(g, right, y, null, speaker.getKey(), speaker.getValue(), Theme.ACCENT);
+				}
 			}
 		}
+
+		hudStatusPills = pills;
 
 		// Centre bars sit below the corner pills when the screen is too narrow for both side by side.
 		int top = y > 4 && g.guiWidth() < 600 ? y + 2 : 4;

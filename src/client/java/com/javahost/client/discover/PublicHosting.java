@@ -131,7 +131,7 @@ public final class PublicHosting {
 		}
 		if (!HostController.isHosting()) {
 			close("the world closed");
-			Toasts.notify("Your world isn't public any more", "It closed when you left it. Open it again from the Host tab.");
+			Toasts.quiet("Your world isn't public any more", "It closed when you left it. Open it again from the Host tab.");
 			return;
 		}
 		if (busy) {

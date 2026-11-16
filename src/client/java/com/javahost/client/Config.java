@@ -59,6 +59,10 @@ public final class Config {
 
 	// HUD
 	public boolean showVoiceOverlay = true;
+	/** Routine notices (backups, updates, packs, a friend joined) go under the bell instead of popping up in the corner. */
+	public boolean quiet = true;
+	/** The always-on voice pills (Muted, Party voice) in a corner; pressing the voice keys still answers briefly. */
+	public boolean showVoiceStatus = false;
 	/** "TOP_LEFT" or "TOP_RIGHT". */
 	public String hudCorner = "TOP_LEFT";
 	public boolean muted = false;

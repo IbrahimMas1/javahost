@@ -58,12 +58,26 @@ public final class RulesClient {
 		if (before == null || after == null || before.equals(after)) {
 			return;
 		}
-		com.javahost.client.Toasts.show("voice-mode", "party".equals(after) ? "Party voice for everyone" : "Nearby voice for everyone",
-				"party".equals(after) ? "Everyone in this world hears everyone, wherever they are." : "Only players close by hear each other.");
+		String title = "party".equals(after) ? "Party voice for everyone" : "Nearby voice for everyone";
+		String text = "party".equals(after) ? "Everyone in this world hears everyone, wherever they are." : "Only players close by hear each other.";
+		// A toast when this player asked for it (pressed the key), or when everyone can now hear them from anywhere;
+		// someone else narrowing it back to nearby is routine and waits under the bell.
+		boolean ownChange = System.currentTimeMillis() - voiceRequestedAt < 10_000;
+		if (ownChange || "party".equals(after)) {
+			com.javahost.client.Toasts.show("voice-mode", title, text);
+		} else {
+			com.javahost.client.Toasts.quiet("voice-mode", title, text);
+		}
 	}
+
+	/** When this player last asked to change the world's voice rule (so the answer is a toast, not a quiet notice). */
+	private static long voiceRequestedAt;
 
 	public static void request(String rule, String value) {
 		if (ClientPlayNetworking.canSend(RulesChange.TYPE)) {
+			if ("VOICE".equals(rule)) {
+				voiceRequestedAt = System.currentTimeMillis();
+			}
 			ClientPlayNetworking.send(new RulesChange(rule, value));
 		}
 	}

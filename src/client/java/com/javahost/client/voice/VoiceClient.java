@@ -42,6 +42,11 @@ import net.minecraft.client.player.AbstractClientPlayer;
  * while push-to-talk is held or the player is speaking. A speaker thread decodes everyone else's
  * frames through a small jitter buffer and mixes them into stereo, with volume falling off over
  * distance and each voice panned toward where that player stands.
+ *
+ * <p>The microphone and speaker are only opened while someone else is in the world (or the Voice tab's level meter
+ * is showing): alone in singleplayer nothing is recorded and the OS shows no "microphone in use" light. The mic
+ * opens as soon as another player appears in the player list (not on the first key press, so first words aren't
+ * lost) and closes again after being alone for {@link #ALONE_CLOSE_MS}.
  */
 public final class VoiceClient {
 	public static final int SAMPLE_RATE = 48000;
@@ -86,6 +91,19 @@ public final class VoiceClient {
 	private static final Map<UUID, java.util.concurrent.atomic.AtomicInteger> AUDIBLE_FRAMES = new ConcurrentHashMap<>();
 	private static final Map<UUID, Speaker> SPEAKERS = new ConcurrentHashMap<>();
 	private static boolean started;
+	/** How long the mic stays open after the last other player left (a quick rejoin doesn't reopen the device). */
+	private static final long ALONE_CLOSE_MS = 5_000;
+	/** Someone else is in the world (or left less than {@link #ALONE_CLOSE_MS} ago): voice devices may be open. */
+	private static volatile boolean company;
+	private static long aloneSince;
+	/** The capture device is open right now (for tests and the debug report). */
+	private static volatile boolean capturing;
+	/** Tests: pretend this many other players are in the world (-1: count the real ones). */
+	private static volatile int testOthers = -1;
+	/** Who was heard in the last quarter second, worked out once a tick (the HUD and name tags ask every frame). */
+	private static volatile Map<UUID, String> talkingNow = Map.of();
+	/** As {@link #talkingNow}, without players this player has muted (for name tags and the Voice tab). */
+	private static volatile java.util.Set<UUID> talkingIds = java.util.Set.of();
 
 	private VoiceClient() {
 	}
@@ -154,36 +172,29 @@ public final class VoiceClient {
 		return micProblem;
 	}
 
-	/** Players heard in the last quarter second, with their names. */
+	/** Players heard in the last quarter second, with their names (read-only; updated once a tick). */
 	public static Map<UUID, String> talking() {
-		Listener current = listener;
-		Map<UUID, String> talking = new java.util.LinkedHashMap<>();
-		if (current == null) {
-			return talking;
-		}
-		long now = System.currentTimeMillis();
-		SPEAKERS.forEach((id, speaker) -> {
-			if (now - speaker.lastHeard < 250) {
-				talking.put(id, current.names().getOrDefault(id, "Someone"));
-			}
-		});
-		return talking;
+		return talkingNow;
 	}
 
 	/** Names of players heard in the last quarter second. */
 	public static List<String> talkingNames() {
-		Listener current = listener;
-		List<String> names = new ArrayList<>();
-		if (current == null) {
-			return names;
-		}
-		long now = System.currentTimeMillis();
-		SPEAKERS.forEach((id, speaker) -> {
-			if (now - speaker.lastHeard < 250) {
-				names.add(current.names().getOrDefault(id, "Someone"));
-			}
-		});
-		return names;
+		return new ArrayList<>(talkingNow.values());
+	}
+
+	/** The microphone is open (recording) right now. */
+	public static boolean capturing() {
+		return capturing;
+	}
+
+	/** Voice wants the microphone open: someone else is here (or the level meter is showing) and voice is on. */
+	public static boolean micWanted() {
+		return ((listener != null && company) || testingMic) && Config.get().voiceEnabled;
+	}
+
+	/** Tests: pretend {@code others} other players are in the world, or -1 to count the real ones again. */
+	public static void setTestOthers(int others) {
+		testOthers = others;
 	}
 
 	public static void setPushToTalkHeld(boolean held) {
@@ -216,11 +227,9 @@ public final class VoiceClient {
 		return nearby;
 	}
 
-	/** Whether this player was heard in the last quarter second (for the nametag speaker icon). */
+	/** Whether this player was heard in the last quarter second (for the nametag speaker icon; asked every frame). */
 	public static boolean isTalking(UUID player) {
-		Speaker speaker = SPEAKERS.get(player);
-		return speaker != null && System.currentTimeMillis() - speaker.lastHeard < 250
-				&& !Config.get().mutedPlayers.contains(player.toString());
+		return talkingIds.contains(player);
 	}
 
 	/** Number of audible voice frames decoded from this player since joining. */
@@ -254,20 +263,75 @@ public final class VoiceClient {
 	private static void tick(Minecraft minecraft) {
 		if (minecraft.level == null || minecraft.player == null || !serverHasVoice) {
 			listener = null;
+			company = false;
+			aloneSince = 0;
+			if (!talkingNow.isEmpty()) {
+				talkingNow = Map.of();
+				talkingIds = java.util.Set.of();
+			}
 			return;
 		}
 		ensureThreadsStarted();
+		long now = System.currentTimeMillis();
+		if (othersHere(minecraft)) {
+			company = true;
+			aloneSince = 0;
+		} else if (company) {
+			if (aloneSince == 0) {
+				aloneSince = now;
+			} else if (now - aloneSince > ALONE_CLOSE_MS) {
+				company = false;
+			}
+		}
 		Map<UUID, Position> players = new HashMap<>();
 		Map<UUID, String> names = new HashMap<>();
-		for (AbstractClientPlayer player : minecraft.level.players()) {
-			players.put(player.getUUID(), new Position(player.getX(), player.getEyeY(), player.getZ()));
-			names.put(player.getUUID(), com.javahost.compat.Compat.name(player));
+		if (company || !SPEAKERS.isEmpty()) {
+			for (AbstractClientPlayer player : minecraft.level.players()) {
+				players.put(player.getUUID(), new Position(player.getX(), player.getEyeY(), player.getZ()));
+				names.put(player.getUUID(), com.javahost.compat.Compat.name(player));
+			}
 		}
 		listener = new Listener(minecraft.player.getX(), minecraft.player.getEyeY(), minecraft.player.getZ(),
 				minecraft.player.getYRot(), players, names);
 
-		long now = System.currentTimeMillis();
 		SPEAKERS.values().removeIf(speaker -> now - speaker.lastHeard > 30_000);
+		updateTalking(names, now);
+	}
+
+	/** Anyone besides us in this world or server (the player list covers other dimensions and far-away players too). */
+	private static boolean othersHere(Minecraft minecraft) {
+		int fake = testOthers;
+		if (fake >= 0) {
+			return fake > 0;
+		}
+		var connection = minecraft.getConnection();
+		if (connection != null && connection.getOnlinePlayers().size() > 1) {
+			return true;
+		}
+		return minecraft.level.players().size() > 1;
+	}
+
+	private static void updateTalking(Map<UUID, String> names, long now) {
+		if (SPEAKERS.isEmpty()) {
+			if (!talkingNow.isEmpty()) {
+				talkingNow = Map.of();
+				talkingIds = java.util.Set.of();
+			}
+			return;
+		}
+		Map<UUID, String> talking = new java.util.LinkedHashMap<>();
+		java.util.Set<UUID> ids = new java.util.HashSet<>();
+		java.util.Set<String> muted = Config.get().mutedPlayers;
+		SPEAKERS.forEach((id, speaker) -> {
+			if (now - speaker.lastHeard < 250) {
+				talking.put(id, names.getOrDefault(id, "Someone"));
+				if (!muted.contains(id.toString())) {
+					ids.add(id);
+				}
+			}
+		});
+		talkingNow = java.util.Collections.unmodifiableMap(talking);
+		talkingIds = ids;
 	}
 
 	private static void receive(UUID from, byte[] opus, boolean party) {
@@ -305,7 +369,7 @@ public final class VoiceClient {
 	// ---------------------------------------------------------------- microphone thread
 
 	private static boolean shouldRecord() {
-		return (listener != null || testingMic) && Config.get().voiceEnabled && !testTone;
+		return micWanted() && !testTone;
 	}
 
 	private static void microphoneLoop() {
@@ -337,6 +401,7 @@ public final class VoiceClient {
 					if (line != null) {
 						line.close();
 						line = null;
+						capturing = false;
 					}
 					Thread.sleep(20);
 					for (int i = 0; i < FRAME_SAMPLES; i++) {
@@ -354,6 +419,7 @@ public final class VoiceClient {
 					if (line != null) {
 						line.close();
 						line = null;
+						capturing = false;
 					}
 					transmitting = false;
 					micLevelDb = -100;
@@ -366,6 +432,7 @@ public final class VoiceClient {
 					line = openMicrophone(config.microphone);
 					openedDevice = config.microphone;
 					line.start();
+					capturing = true;
 					micProblem = null;
 					silentFrames = 0;
 				}
@@ -381,6 +448,7 @@ public final class VoiceClient {
 				if (read < raw.length) {
 					line.close();
 					line = null;
+					capturing = false;
 					micProblem = "The microphone stopped. Reconnecting...";
 					Thread.sleep(500);
 					continue;
@@ -433,6 +501,7 @@ public final class VoiceClient {
 					line.close();
 					line = null;
 				}
+				capturing = false;
 				sleepQuietly(2000);
 			} catch (Exception e) {
 				// Usually a disconnect racing with a send; try again shortly.
@@ -472,7 +541,8 @@ public final class VoiceClient {
 		while (true) {
 			try {
 				Listener here = listener;
-				if (here == null) {
+				// Alone (and nobody's voice still arriving): no output line either, so the sound device isn't held open.
+				if (here == null || (!company && SPEAKERS.isEmpty())) {
 					if (line != null) {
 						line.drain();
 						line.close();

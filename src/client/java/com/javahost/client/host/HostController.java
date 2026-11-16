@@ -76,6 +76,8 @@ public final class HostController {
 		}
 		hosting = true;
 		port = config.port;
+		com.javahost.mods.ModScanner.manifest(); // the mod list friends will be checked against (background; usually done already)
+		Relays.refresh(); // the relay list, for direct links (background)
 		Connectivity.start(port, relayNow);
 		DirectLink.hostStart(port);
 		preparePacks(server, config);

@@ -38,6 +38,8 @@ public final class Relays {
 	private static volatile List<Relay> relays = List.of();
 	private static volatile long loadedAt;
 	private static volatile boolean loading;
+	/** Completes once the list has been read the first time (found or not). */
+	private static final java.util.concurrent.CompletableFuture<Void> FIRST_LOAD = new java.util.concurrent.CompletableFuture<>();
 
 	private Relays() {
 	}
@@ -60,6 +62,16 @@ public final class Relays {
 			}
 		}
 		return "relay";
+	}
+
+	/**
+	 * The relays, once the list has been read (it's read the first time something needs it rather than at startup):
+	 * waits at most {@code maxMs}, then goes on with whatever is known. Never completes on the game thread's time.
+	 */
+	public static java.util.concurrent.CompletableFuture<List<InetSocketAddress>> whenLoaded(long maxMs) {
+		refresh();
+		return FIRST_LOAD.copy().completeOnTimeout(null, maxMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+				.thenApplyAsync(ignored -> addresses(), IoExecutor.NET);
 	}
 
 	/** Forgets the list and reads it again now. */
@@ -106,6 +118,7 @@ public final class Relays {
 				JavaHost.LOGGER.info("[Relays] {} known", found.size());
 			} finally {
 				loading = false;
+				FIRST_LOAD.complete(null);
 			}
 		});
 	}

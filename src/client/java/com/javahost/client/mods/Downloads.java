@@ -168,9 +168,9 @@ public final class Downloads {
 			job.status(job.kind == Kind.PACK ? "Ready: use it from Mods, Installed" : "Restart Minecraft to use it");
 			finish(job, Stage.DONE);
 			if (job.kind == Kind.PACK) {
-				Toasts.notify(job.title + " is ready", "Use it from Mods, Installed.");
+				Toasts.quiet(job.title + " is ready", "Use it from Mods, Installed.");
 			} else {
-				Toasts.notify(job.title + " is ready", "Restart Minecraft to use it.",
+				Toasts.quiet(job.title + " is ready", "Restart Minecraft to use it.",
 						new Notifications.Action("Close game", () -> Minecraft.getInstance().stop()));
 			}
 		} else {

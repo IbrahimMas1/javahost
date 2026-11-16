@@ -51,6 +51,7 @@ public final class Presence {
 	private static final long HEARTBEAT_MS = 30 * 60 * 1000L;
 	private static final long STALE_MS = 40 * 60 * 1000L;
 	private static final long MIN_GAP_MS = 20_000L;
+	private static int stateTicks;
 
 	private static final Map<UUID, Status> LATEST = new HashMap<>();
 	/** The JavaHost version each friend last reported (kept even when they go offline). */
@@ -159,6 +160,10 @@ public final class Presence {
 		}
 		if (lastPublishTime != 0 && System.currentTimeMillis() - lastPublishTime <= MIN_GAP_MS) {
 			return; // nothing can go out yet, so don't even work out the state
+		}
+		// Working out the state builds a small JSON document: once a second is plenty (a change goes out a moment later).
+		if (lastPublishTime != 0 && ++stateTicks % 20 != 0) {
+			return;
 		}
 		JsonObject now = currentState(minecraft);
 		String key = now.toString();
@@ -293,7 +298,7 @@ public final class Presence {
 			boolean startedHosting = status.hosting() && (previous == null || !previous.hosting());
 			if (fresh && startedHosting) {
 				Notifications.add(Notifications.Kind.HOSTING, from, friend.get().name(),
-						friend.get().name() + " is hosting " + status.world(), status);
+						friend.get().name() + " is hosting " + status.world(), status, !Config.get().quiet); // routine: no chime when quiet
 			}
 			Friends.changed();
 		} catch (Exception e) {

@@ -45,6 +45,45 @@ public final class Toasts {
 				com.javahost.client.friends.Notifications.Kind.INFO, null, title, message, action));
 	}
 
+	/**
+	 * A routine notice (a backup made, packs in use, an update out, a friend joined): with "Quiet notifications" on
+	 * (the default) it waits under the bell, with its unread badge but no toast or chime; with it off it's
+	 * {@link #notify(String, String)}. Toasts are kept for what the player just did, what a person wants from them,
+	 * and what's broken.
+	 */
+	public static void quiet(String title, String message) {
+		quiet(title, message, (com.javahost.client.friends.Notifications.Action) null);
+	}
+
+	/** As {@link #quiet(String, String)}, with a button on the notice in the notification center. */
+	public static void quiet(String title, String message, com.javahost.client.friends.Notifications.Action action) {
+		if (!Config.get().quiet) {
+			notify(title, message, action);
+			return;
+		}
+		Minecraft.getInstance().execute(() -> com.javahost.client.friends.Notifications.add(
+				com.javahost.client.friends.Notifications.Kind.INFO, null, title, message, action, false));
+	}
+
+	/** As {@link #quiet(String, String)} for a keyed toast ({@link #show(String, String, String)} when quiet is off). */
+	public static void quiet(String key, String title, String message) {
+		if (!Config.get().quiet) {
+			show(key, title, message);
+			return;
+		}
+		quiet(title, message, (com.javahost.client.friends.Notifications.Action) null);
+	}
+
+	/** As {@link #quiet(String, String)} for a notice about a player (with quiet off, a toast with their face). */
+	public static void quiet(UUID player, String title, String message) {
+		if (!Config.get().quiet) {
+			player(player, title, message);
+			return;
+		}
+		Minecraft.getInstance().execute(() -> com.javahost.client.friends.Notifications.add(
+				com.javahost.client.friends.Notifications.Kind.INFO, player, title, message, null, false));
+	}
+
 	/** A toast with a player's face, e.g. "Alex joined your world". */
 	public static void player(UUID player, String title, String message) {
 		add(player + "|" + title, title, message, player);

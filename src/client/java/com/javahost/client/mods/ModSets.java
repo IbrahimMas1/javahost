@@ -344,9 +344,9 @@ public final class ModSets {
 			Properties result = read(resultFile());
 			boolean ok = Boolean.parseBoolean(result.getProperty("ok"));
 			if (ok && "restore".equals(result.getProperty("kind"))) {
-				Toasts.notify("Back to your own mods", "Everything is just as you had it.");
+				Toasts.quiet("Back to your own mods", "Everything is just as you had it.");
 			} else if (ok) {
-				Toasts.notify("Mods ready: " + result.getProperty("label"), "Your own mods are kept safe. Go back any time from the Mods tab.");
+				Toasts.quiet("Mods ready: " + result.getProperty("label"), "Your own mods are kept safe. Go back any time from the Mods tab.");
 			} else {
 				Toasts.notify("Couldn't switch mods", result.getProperty("reason") + " Nothing was changed.");
 			}
@@ -470,8 +470,12 @@ public final class ModSets {
 		}
 	}
 
-	/** This game's mods, for the Mods tab (worked out in the background). */
+	/** This game's mods, for the Mods tab (worked out in the background, starting the first time it's asked for). */
 	public static ModManifest mine() {
-		return ModScanner.ready();
+		ModManifest ready = ModScanner.ready();
+		if (ready == null) {
+			ModScanner.manifest(); // starts the scan if nothing has yet (cheap once it's running)
+		}
+		return ready;
 	}
 }

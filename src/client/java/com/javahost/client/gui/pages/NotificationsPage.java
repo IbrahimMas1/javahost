@@ -278,7 +278,7 @@ public class NotificationsPage extends Page {
 			if (i > 0) {
 				g.fill(left + 8, y - 1, left + width - 8, y, Theme.withAlpha(Theme.BORDER, 0.6f));
 			}
-			if (item.kind() == Kind.INFO) {
+			if (item.kind() == Kind.INFO && item.player() == null) {
 				Icons.logo(g, left + 9, y + (h - 18) / 2, 18);
 			} else {
 				Faces.draw(g, item.player(), left + 8, y + (h - 18) / 2, 18);

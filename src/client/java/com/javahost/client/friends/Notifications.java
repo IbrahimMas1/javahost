@@ -11,7 +11,7 @@ import net.minecraft.sounds.SoundEvents;
 
 /** The notification center: recent invites, requests, messages and screenshots, so a missed popup is never lost. */
 public final class Notifications {
-	/** INFO: JavaHost itself (backups, updates, installs); {@code name} is the title and {@code player} is null. */
+	/** INFO: JavaHost itself (backups, updates, installs); {@code name} is the title; {@code player} is who it's about, or null. */
 	public enum Kind { INVITE, REQUEST, ACCEPTED, MESSAGE, SCREENSHOT, HOSTING, INFO }
 
 	/** {@code payload} is the thing to act on: an Invite, a Request, a screenshot path, or null. */
@@ -30,6 +30,11 @@ public final class Notifications {
 	}
 
 	public static void add(Kind kind, UUID player, String name, String text, Object payload) {
+		add(kind, player, name, text, payload, true);
+	}
+
+	/** As above; {@code chime} false files it silently (a quiet notice: no sound, just the unread badge). */
+	public static void add(Kind kind, UUID player, String name, String text, Object payload, boolean chime) {
 		// Keep only the newest invite per friend, and drop duplicates of the same message.
 		ITEMS.removeIf(item -> item.kind() == kind && java.util.Objects.equals(item.player(), player) && (kind == Kind.INVITE || kind == Kind.HOSTING
 				|| kind == Kind.REQUEST || item.text().equals(text)));
@@ -38,7 +43,9 @@ public final class Notifications {
 			ITEMS.removeLast();
 		}
 		unread++;
-		chime(kind);
+		if (chime) {
+			chime(kind);
+		}
 	}
 
 	/** Counts something that lives elsewhere in the center (like a world offer) as unread, with its chime. */

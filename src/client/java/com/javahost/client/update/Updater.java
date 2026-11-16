@@ -378,9 +378,9 @@ public final class Updater {
 			Properties r = new Properties();
 			r.load(in);
 			if (Boolean.parseBoolean(r.getProperty("ok")) && "rollback".equals(r.getProperty("kind"))) {
-				Toasts.notify("Back on JavaHost " + JavaHost.VERSION, "The previous version is restored.");
+				Toasts.quiet("Back on JavaHost " + JavaHost.VERSION, "The previous version is restored.");
 			} else if (Boolean.parseBoolean(r.getProperty("ok"))) {
-				Toasts.notify("Updated to JavaHost " + r.getProperty("version"), "You're on the latest version. Have fun!");
+				Toasts.quiet("Updated to JavaHost " + r.getProperty("version"), "You're on the latest version. Have fun!");
 			} else {
 				Toasts.notify("Update didn't finish", "Still on " + JavaHost.VERSION + ". " + r.getProperty("reason")
 						+ " JavaHost will offer it again.");

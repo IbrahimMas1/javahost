@@ -263,6 +263,7 @@ public final class InviteFlow {
 	}
 
 	private static void startJoin(UUID host, String name, String signKey, List<String> order) {
+		com.javahost.client.host.Relays.refresh(); // in case the route list reaches a direct link (background, first join only)
 		joinQueue = order;
 		joinIndex = -1;
 		joiningHost = name;

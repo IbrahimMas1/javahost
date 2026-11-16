@@ -179,7 +179,10 @@ public final class DirectLink {
 		RANDOM.nextBytes(token);
 		CompletableFuture<Answer> answer = new CompletableFuture<>();
 		WAITING.put(session, new Waiting(host.id(), answer));
-		return tunnel.findPublicAddress().thenCompose(address -> tunnel.pingRelays(Relays.addresses())).thenCompose(relayTimes -> {
+		// The relay list is read alongside the address lookup (it's no longer fetched at startup); a slow list doesn't hold
+		// the join up for more than a couple of seconds.
+		CompletableFuture<List<InetSocketAddress>> relayList = Relays.whenLoaded(2500);
+		return tunnel.findPublicAddress().thenCompose(address -> relayList).thenCompose(tunnel::pingRelays).thenCompose(relayTimes -> {
 			JsonObject body = new JsonObject();
 			body.addProperty("session", session);
 			body.addProperty("token", Base64.getEncoder().encodeToString(token));

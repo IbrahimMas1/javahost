@@ -20,9 +20,9 @@ import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 
 /**
- * Turns friend events into toasts, notification-center entries and popups. Invites pop up right away (they're
- * time-sensitive); friend requests wait until a menu is open rather than interrupting play. Nothing is lost if a
- * popup is dismissed: it stays in the notification center.
+ * Turns friend events into toasts, notification-center entries and popups. Nothing opens in the middle of play: an
+ * invite is a toast ("Press J to answer") and pops up the next time a menu is open (pause, JavaHost, title screen),
+ * like friend requests and world offers. Nothing is lost if a popup is dismissed: it stays in the notification center.
  */
 public final class Popups {
 	private static final Deque<Invite> INVITES = new ArrayDeque<>();
@@ -55,7 +55,11 @@ public final class Popups {
 				INVITES.add(invite);
 				Notifications.add(Notifications.Kind.INVITE, invite.from(), invite.name(),
 						invite.name() + " invited you to " + invite.world(), invite);
-				Toasts.player(invite.from(), invite.name() + " invited you!", "Join their world: " + invite.world());
+				Minecraft minecraft = Minecraft.getInstance();
+				boolean playing = minecraft.level != null && minecraft.gui.screen() == null;
+				Toasts.player(invite.from(), invite.name() + " invited you", playing
+						? "Press " + com.javahost.client.JavaHostClient.OPEN_MENU.getTranslatedKeyMessage().getString() + " to answer"
+						: "Join their world: " + invite.world());
 			}
 			case Event.RequestReceived(Request request) -> {
 				REQUESTS.removeIf(old -> old.id().equals(request.id()));
@@ -90,9 +94,9 @@ public final class Popups {
 		return text.length() <= max ? text : text.substring(0, max - 1).trim() + "…";
 	}
 
-	/** Screens a popup may cover. */
-	private static boolean calm(Screen screen, boolean allowInGame) {
-		return (screen == null && allowInGame) || screen instanceof TitleScreen || screen instanceof JoinMultiplayerScreen
+	/** Screens a popup may cover (never the game itself). */
+	private static boolean calm(Screen screen) {
+		return screen instanceof TitleScreen || screen instanceof JoinMultiplayerScreen
 				|| screen instanceof PauseScreen || screen instanceof JavaHostScreen;
 	}
 
@@ -103,8 +107,8 @@ public final class Popups {
 		while (!INVITES.isEmpty() && INVITES.peek().expired()) {
 			INVITES.poll();
 		}
-		// Invites are time-sensitive: show them while playing too.
-		if (!INVITES.isEmpty() && calm(screen, inWorld)) {
+		// Invites wait for a menu too (the toast says how to open one): nothing takes over the screen mid-play.
+		if (!INVITES.isEmpty() && calm(screen)) {
 			Invite invite = INVITES.poll();
 			minecraft.gui.setScreen(new FriendPopup(screen, invite.from(), invite.name() + " invited you to play",
 					"Join their world \"" + invite.world() + "\" now?" + (inWorld ? " You'll leave this world first." : ""),
@@ -117,7 +121,7 @@ public final class Popups {
 		while (!REQUESTS.isEmpty() && Friends.incoming().stream().noneMatch(r -> r.id().equals(REQUESTS.peek().id()))) {
 			REQUESTS.poll(); // already answered from the Friends tab
 		}
-		if (!REQUESTS.isEmpty() && calm(screen, false)) {
+		if (!REQUESTS.isEmpty() && calm(screen)) {
 			Request request = REQUESTS.poll();
 			boolean warn = request.note() != null && !request.note().isEmpty();
 			minecraft.gui.setScreen(new FriendPopup(screen, request.id(), request.name() + " wants to be friends",
@@ -129,7 +133,7 @@ public final class Popups {
 
 		// World offers also wait for a menu; "Not now" leaves them in the notification center.
 		WORLD_OFFERS.removeIf(offer -> offer.stage() != WorldShare.Stage.OFFERED);
-		if (!WORLD_OFFERS.isEmpty() && calm(screen, false)) {
+		if (!WORLD_OFFERS.isEmpty() && calm(screen)) {
 			WorldShare.Transfer offer = WORLD_OFFERS.poll();
 			minecraft.gui.setScreen(new FriendPopup(screen, offer.peer, "World from " + offer.peerName,
 					"\"" + shorten(offer.world(), 28) + "\" · " + WorldShare.megabytes(offer.size()) + ". Accept to add it to your Singleplayer worlds.",

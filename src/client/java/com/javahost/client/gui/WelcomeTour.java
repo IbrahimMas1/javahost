@@ -17,7 +17,7 @@ import net.minecraft.network.chat.Component;
  * A short first-time guide over the JavaHost menu: each step opens a tab, highlights it in the sidebar, and explains
  * it in a card with Next / Skip. Shown once (Settings has "Welcome tour" to see it again).
  */
-final class WelcomeTour {
+public final class WelcomeTour {
 	private record Step(Tab tab, String title, String body) {
 	}
 
@@ -40,7 +40,18 @@ final class WelcomeTour {
 				new Step(Tab.FRIENDS, "Add your friends", "Type a friend's Minecraft name to add them. Once they accept, invite them or join their world in one click."),
 				new Step(Tab.HOST, "Host your world", "Open one of your worlds, then press Start hosting. Friends get in through the best connection automatically."),
 				new Step(Tab.VOICE, "Talk while you play", "Hold " + talk + " to talk to players near you. Hosts press " + party + " to let everyone in the world hear each other."),
-				new Step(Tab.HOME, "Open JavaHost any time", "Press " + menu + " in game, or use the buttons down the right of the title screen and pause menu."));
+				new Step(Tab.HOME, "Open JavaHost any time", "Press " + menu + " in game, or " + whereToClick() + "."));
+	}
+
+	/** Where JavaHost's buttons are on Minecraft's own screens, as the player has them set up in Settings. */
+	public static String whereToClick() {
+		Config config = Config.get();
+		boolean rail = !"OFF".equals(config.titleScreen);
+		if (rail) {
+			return "use the buttons down the right of the title screen" + (config.pauseDock ? " and pause menu" : "");
+		}
+		return "use the JavaHost button in the top-left corner of the title screen"
+				+ (config.pauseDock ? ", or the buttons down the right of the pause menu" : "");
 	}
 
 	Tab tab() {

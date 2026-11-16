@@ -1,5 +1,6 @@
 package com.javahost.client.gui.ui;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -18,6 +19,8 @@ public class ToggleSwitch extends AbstractButton {
 	private float hover;
 	/** Just the switch: the row around it draws its own text. */
 	private boolean bare;
+	/** The hint wraps onto a second line instead of being cut (the row is taller when it needs to be). */
+	private boolean wrapHint;
 
 	public ToggleSwitch(int width, Component label, String hint, boolean value, Consumer<Boolean> onChange) {
 		super(0, 0, width, hint == null ? 16 : 24, label);
@@ -30,6 +33,15 @@ public class ToggleSwitch extends AbstractButton {
 	/** Draws only the switch (at the right end); the label stays its name for narration and tests. */
 	public ToggleSwitch bare() {
 		bare = true;
+		return this;
+	}
+
+	/** Lets a long hint use two lines; call before the row is placed (its height changes). */
+	public ToggleSwitch wrapHint() {
+		wrapHint = true;
+		if (hint != null && Draw.split(hint, getWidth() - 30).size() > 1) {
+			setHeight(34);
+		}
 		return this;
 	}
 
@@ -71,8 +83,18 @@ public class ToggleSwitch extends AbstractButton {
 		if (!bare) {
 			int labelColor = active ? Theme.mix(Theme.TEXT, 0xFFFFFFFF, hover) : Theme.FAINT;
 			Draw.textFit(g, getMessage().getString(), w - switchW - 8, x, y + 4, labelColor);
-			if (hint != null) {
-				Draw.textFit(g, hint, w - switchW - 8, x, y + 15, active ? Theme.MUTED : Theme.FAINT);
+			int hintColor = active ? Theme.MUTED : Theme.FAINT;
+			if (hint != null && wrapHint && getHeight() > 24) {
+				java.util.List<net.minecraft.util.FormattedCharSequence> lines = Draw.split(hint, w - switchW - 8);
+				Draw.text(g, lines.get(0), x, y + 15, hintColor);
+				if (lines.size() > 2) {
+					Draw.truncated(g, x, y + 14, w - switchW - 8, 20, hint);
+					lines = List.of(lines.get(0), net.minecraft.util.FormattedCharSequence.composite(lines.get(1),
+							Component.literal("...").getVisualOrderText()));
+				}
+				Draw.text(g, lines.get(1), x, y + 25, hintColor);
+			} else if (hint != null) {
+				Draw.textFit(g, hint, w - switchW - 8, x, y + 15, hintColor);
 			}
 		}
 

@@ -364,6 +364,6 @@ public final class PackReceiver {
 	}
 
 	private static void toast(String title) {
-		com.javahost.client.Toasts.show("Host's packs", title);
+		com.javahost.client.Toasts.quiet("Host's packs", "Host's packs", title);
 	}
 }

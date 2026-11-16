@@ -493,7 +493,7 @@ public final class WorldShare {
 		if (answer == ANSWER_SAVED && transfer.stage == Stage.FINISHING) {
 			transfer.stage = Stage.DONE;
 			cleanUp(transfer, false);
-			Toasts.notify(transfer.peerName + " has your world", "\"" + transfer.world + "\" arrived safely.");
+			Toasts.quiet(transfer.peerName + " has your world", "\"" + transfer.world + "\" arrived safely.");
 		} else if (transfer.stage != Stage.WAITING) {
 			return;
 		} else if (answer == ANSWER_YES) {
@@ -567,7 +567,7 @@ public final class WorldShare {
 			cleanUp(transfer, false);
 			send(transfer, Payloads.SHARE_ANSWER, 0, new byte[] { ANSWER_SAVED });
 			JavaHost.LOGGER.info("[Share] received {} from {} into {}", transfer.world, transfer.peerName, target.getFileName());
-			Toasts.notify("World received from " + transfer.peerName,
+			Toasts.quiet("World received from " + transfer.peerName,
 					"\"" + target.getFileName() + "\" is in your Singleplayer worlds. You play as yourself there.");
 		}));
 	}
@@ -695,6 +695,9 @@ public final class WorldShare {
 		int step = (int) (transfer.progress() * 4);
 		if (step != transfer.toastStep && step < 4) {
 			transfer.toastStep = step;
+			if (com.javahost.client.Config.get().quiet) {
+				return; // progress is on the transfers card under the bell; no toast every quarter
+			}
 			Toasts.show("world-share-" + transfer.id, transfer.headline(), transfer.status());
 		}
 	}

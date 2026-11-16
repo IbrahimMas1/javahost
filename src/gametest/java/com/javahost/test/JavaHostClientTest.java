@@ -347,6 +347,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			rulesPart(context);
 			hubWithFriends(context);
 			shellInWorld(context);
+			quietWhilePlaying(context);
 			reviewAtScale(context, 4, 1710, 1070);
 			if (System.getenv("JAVAHOST_TEST_FPS") != null) {
 				frameRates(context);
@@ -636,7 +637,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == Tab.PERFORMANCE, "Mods links to Performance");
 			com.javahost.client.gui.pages.ModsPage.showMine(false);
 			context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
-			context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -6));
+			context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -12)); // down to the Voice row, under While playing
 			context.waitTicks(10);
 			context.takeScreenshot("shell-1710-s4-settings-scrolled");
 			clickMenu(context, "Voice settings");
@@ -644,7 +645,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
 			context.waitTicks(6);
 			context.takeScreenshot("shell-1710-s4-settings");
-			check(hasButton(context, "Buttons on the pause menu"), "Settings has the pause menu switch");
+			check(hasWidget(context, "Buttons on the pause menu"), "Settings has the pause menu switch (under While playing)");
 
 			// Turned off: nothing on the pause menu.
 			config.pauseDock = false;
@@ -766,6 +767,14 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			steps.put("PublicHosting", com.javahost.client.discover.PublicHosting::tick);
 			steps.put("ModSets", () -> com.javahost.client.mods.ModSets.tick(mc));
 			steps.put("PendingJoin", () -> com.javahost.client.mods.PendingJoin.tick(mc));
+			java.util.UUID self = mc.player.getUUID();
+			// What the HUD and every name tag ask each frame (per player).
+			steps.put("VoiceHud", () -> {
+				com.javahost.client.voice.VoiceClient.talking();
+				for (int i = 0; i < 4; i++) {
+					com.javahost.client.voice.VoiceClient.isTalking(self);
+				}
+			});
 			long total = 0;
 			StringBuilder detail = new StringBuilder();
 			for (var step : steps.entrySet()) {
@@ -1690,11 +1699,225 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		});
 	}
 
+	/** Toasts on screen or queued whose token is {@code token} (JavaHost toasts: the key; a player's: "id|title"). */
+	private static int toastCount(ClientGameTestContext context, String token) {
+		return context.computeOnClient(mc -> {
+			try {
+				java.lang.reflect.Field visible = mc.gui.toastManager().getClass().getDeclaredField("visibleToasts");
+				visible.setAccessible(true);
+				java.lang.reflect.Field queued = mc.gui.toastManager().getClass().getDeclaredField("queued");
+				queued.setAccessible(true);
+				int count = 0;
+				for (Object instance : (java.util.Collection<?>) visible.get(mc.gui.toastManager())) {
+					java.lang.reflect.Method getToast = instance.getClass().getDeclaredMethod("getToast");
+					getToast.setAccessible(true);
+					Object toast = getToast.invoke(instance);
+					if (token.equals(((net.minecraft.client.gui.components.toasts.Toast) toast).getToken())) {
+						count++;
+					}
+				}
+				for (Object toast : (java.util.Collection<?>) queued.get(mc.gui.toastManager())) {
+					if (token.equals(((net.minecraft.client.gui.components.toasts.Toast) toast).getToken())) {
+						count++;
+					}
+				}
+				return count;
+			} catch (ReflectiveOperationException e) {
+				throw new AssertionError(e);
+			}
+		});
+	}
+
+	private static boolean bellHas(ClientGameTestContext context, String nameStart) {
+		return context.computeOnClient(mc -> com.javahost.client.friends.Notifications.items().stream()
+				.anyMatch(n -> n.name() != null && n.name().startsWith(nameStart)));
+	}
+
+	/**
+	 * 2.0: JavaHost stays out of the way while you play. Routine notices wait under the bell (a toast again with Quiet
+	 * notifications off); an invite is a toast and pops up at the next menu, never over the game; an update found in a
+	 * world opens no screen (it's asked on the title screen); the voice pills are hidden by default; the microphone stays
+	 * closed while alone and opens when someone else is in the world. Also the Settings "While playing" group.
+	 */
+	private static void quietWhilePlaying(ClientGameTestContext context) {
+		Config config = Config.get();
+		boolean quiet = config.quiet;
+		boolean status = config.showVoiceStatus;
+		boolean voice = config.voiceEnabled;
+		boolean muted = config.muted;
+		boolean fps = config.fpsOverlay;
+		String titleMode = config.titleScreen;
+		boolean pauseDock = config.pauseDock;
+		int previous = context.computeOnClient(mc -> mc.options.guiScale().get());
+		try {
+			Config fresh = new Config();
+			check(fresh.quiet && !fresh.showVoiceStatus, "Quiet notifications are on and the voice pills off by default");
+			config.fpsOverlay = false;
+			context.runOnClient(mc -> com.javahost.client.friends.Notifications.clear());
+			context.setScreen(() -> null);
+
+			// A routine notice: under the bell, no toast, no chime. With quiet off it's a toast as before.
+			config.quiet = true;
+			context.runOnClient(mc -> com.javahost.client.Toasts.quiet("World backed up", "Restore it any time from the Host tab."));
+			context.waitTicks(4);
+			check(toastCount(context, "World backed up") == 0 && bellHas(context, "World backed up")
+					&& context.computeOnClient(mc -> com.javahost.client.friends.Notifications.unread()) > 0,
+					"a routine notice (a backup) shows no toast and waits under the bell, unread");
+			config.quiet = false;
+			context.runOnClient(mc -> com.javahost.client.Toasts.quiet("Mods ready: Cozy Pack", "Your own mods are kept safe."));
+			context.waitTicks(4);
+			check(toastCount(context, "Mods ready: Cozy Pack") == 1, "with Quiet notifications off, a routine notice is a toast again");
+			config.quiet = true;
+			context.runOnClient(mc -> {
+				com.javahost.client.Toasts.quiet(java.util.UUID.nameUUIDFromBytes("Steve123".getBytes()), "Steve123 joined your world", "Say hi!");
+				com.javahost.client.Toasts.quiet("Now using the host's packs", "Faithful 32x and Complementary Reimagined.");
+			});
+
+			// An invite while playing: a toast and the bell, no screen; the pop-up waits for the pause menu.
+			java.util.UUID alex = java.util.UUID.nameUUIDFromBytes("AlexPlays".getBytes());
+			context.runOnClient(mc -> {
+				try {
+					var onEvent = com.javahost.client.Popups.class.getDeclaredMethod("onEvent", com.javahost.client.friends.Friends.Event.class);
+					onEvent.setAccessible(true);
+					onEvent.invoke(null, new com.javahost.client.friends.Friends.Event.InviteReceived(new com.javahost.client.friends.Friends.Invite(alex,
+							"AlexPlays", "Cherry Valley", List.of(), "", System.currentTimeMillis() + 600_000,
+							com.javahost.client.compat.ClientCompat.minecraftVersion())));
+				} catch (ReflectiveOperationException e) {
+					throw new AssertionError(e);
+				}
+			});
+			context.waitTicks(10);
+			check(context.computeOnClient(mc -> mc.gui.screen() == null), "an invite while playing opens no screen");
+			check(toastCount(context, alex + "|AlexPlays invited you") == 1, "an invite while playing is a toast (\"Press J to answer\")");
+			check(context.computeOnClient(mc -> com.javahost.client.friends.Notifications.items().stream()
+					.anyMatch(n -> n.kind() == com.javahost.client.friends.Notifications.Kind.INVITE && alex.equals(n.player()))), "the invite is under the bell");
+			context.setScreen(() -> new net.minecraft.client.gui.screens.PauseScreen(true));
+			context.waitFor(mc -> mc.gui.screen() instanceof com.javahost.client.gui.FriendPopup, 100);
+			check(true, "the invite pops up once the pause menu is open");
+			context.setScreen(() -> null);
+
+			// An update found while playing: no screen in the world, not even on the pause menu; asked on the title screen.
+			try {
+				com.sun.net.httpserver.HttpServer server = fakeRelease("9.9.14", com.javahost.JavaHost.PROTOCOL, false);
+				try {
+					java.util.concurrent.CompletableFuture<Void> found = new java.util.concurrent.CompletableFuture<>();
+					context.runOnClient(mc -> com.javahost.client.update.UpdateChecker.checkNow(() -> found.complete(null)));
+					context.waitFor(mc -> found.isDone(), 400);
+					context.waitTicks(10);
+					check(context.computeOnClient(mc -> mc.gui.screen() == null), "an update found in a world opens no screen");
+					context.setScreen(() -> new net.minecraft.client.gui.screens.PauseScreen(true));
+					context.waitTicks(10);
+					check(context.computeOnClient(mc -> mc.gui.screen() instanceof net.minecraft.client.gui.screens.PauseScreen),
+							"nor over the pause menu");
+					check(bellHas(context, "JavaHost 9.9.14 is out"), "the update waits under the bell instead");
+					context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+					context.waitFor(mc -> mc.gui.screen() instanceof com.javahost.client.update.UpdateScreen, 100);
+					check(true, "the update is still asked about on the title screen");
+					clickMenu(context, "Not now");
+					clickMenu(context, "Keep " + com.javahost.JavaHost.VERSION);
+				} finally {
+					server.stop(0);
+					System.clearProperty("javahost.updateUrl");
+					System.clearProperty("javahost.updateKey");
+				}
+			} catch (Exception e) {
+				throw new AssertionError(e);
+			}
+			context.setScreen(() -> null);
+
+			// Voice: available in this world, but alone the microphone stays shut.
+			check(context.computeOnClient(mc -> com.javahost.client.voice.VoiceClient.isAvailable()), "voice chat is on in this world");
+			config.voiceEnabled = true;
+			config.muted = true;
+			context.waitTicks(40);
+			check(!context.computeOnClient(mc -> com.javahost.client.voice.VoiceClient.capturing())
+					&& !context.computeOnClient(mc -> com.javahost.client.voice.VoiceClient.micWanted()), "alone in a world, the microphone stays closed");
+			// Someone else in the world (pretended: one game can't have a second player): the mic is wanted at once,
+			// and let go a few seconds after they leave. A test tone stands in for the real device.
+			context.runOnClient(mc -> {
+				com.javahost.client.voice.VoiceClient.setTestTone(true);
+				com.javahost.client.voice.VoiceClient.setTestOthers(1);
+			});
+			context.waitTicks(3);
+			check(context.computeOnClient(mc -> com.javahost.client.voice.VoiceClient.micWanted()), "with another player in the world, voice opens the microphone");
+			context.runOnClient(mc -> com.javahost.client.voice.VoiceClient.setTestOthers(0));
+			context.waitTicks(20);
+			check(context.computeOnClient(mc -> com.javahost.client.voice.VoiceClient.micWanted()), "a moment alone keeps it open (a quick rejoin doesn't reopen it)");
+			context.waitTicks(120);
+			check(!context.computeOnClient(mc -> com.javahost.client.voice.VoiceClient.micWanted()), "a few seconds alone closes it again");
+			context.runOnClient(mc -> {
+				com.javahost.client.voice.VoiceClient.setTestOthers(-1);
+				com.javahost.client.voice.VoiceClient.setTestTone(false);
+			});
+
+			// The tour's last step matches the title screen setting.
+			config.titleScreen = "OFF";
+			check(com.javahost.client.gui.WelcomeTour.whereToClick().contains("top-left"), "the tour points at the corner button when the title screen rail is off");
+			config.titleScreen = "DOCK";
+			check(com.javahost.client.gui.WelcomeTour.whereToClick().contains("down the right of the title screen"), "the tour points at the rail when it's on");
+			config.titleScreen = titleMode;
+
+			for (int[] size : SHELL_SIZES) {
+				size(context, size[0], size[1], size[2]);
+				String at = size[0] + "x" + size[1] + " scale " + size[2];
+				String name = "quiet-" + size[0];
+				config.showVoiceStatus = false;
+				context.setScreen(() -> null);
+				context.waitTicks(8);
+				check(context.computeOnClient(mc -> com.javahost.client.JavaHostClient.hudStatusPills) == 0, "muted, the voice pill stays hidden by default at " + at);
+				context.takeScreenshot(name + "-world-hud");
+				config.showVoiceStatus = true;
+				context.waitTicks(4);
+				check(context.computeOnClient(mc -> com.javahost.client.JavaHostClient.hudStatusPills) == 1, "with Voice status on screen, Muted shows at " + at);
+				context.takeScreenshot(name + "-world-hud-status");
+				config.showVoiceStatus = false;
+
+				context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
+				context.waitTicks(8);
+				check(widgetsFit(context), "Settings fits at " + at);
+				context.takeScreenshot(name + "-settings");
+				context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -4));
+				context.waitTicks(10);
+				for (String label : List.of("Quiet notifications", "Notification sounds", "Voice status on screen", "Show who's talking", "FPS overlay",
+						"Buttons on the pause menu")) {
+					check(hasWidget(context, label), "Settings → While playing has \"" + label + "\" at " + at);
+				}
+				check(widgetsFit(context), "Settings (scrolled) fits at " + at);
+				context.takeScreenshot(name + "-settings-scrolled");
+				context.setScreen(() -> new JavaHostScreen(null, Tab.NOTIFICATIONS));
+				context.waitTicks(8);
+				context.takeScreenshot(name + "-bell");
+			}
+		} finally {
+			config.quiet = quiet;
+			config.showVoiceStatus = status;
+			config.voiceEnabled = voice;
+			config.muted = muted;
+			config.fpsOverlay = fps;
+			config.titleScreen = titleMode;
+			config.pauseDock = pauseDock;
+			context.runOnClient(mc -> com.javahost.client.friends.Notifications.clear());
+			context.setScreen(() -> null);
+			context.getInput().resizeWindow(854, 480);
+			context.runOnClient(mc -> {
+				mc.options.guiScale().set(previous);
+				TestCompat.resizeGui(mc);
+			});
+			context.waitTicks(4);
+		}
+	}
+
 	private static boolean widgetsFit(ClientGameTestContext context) {
 		return context.computeOnClient(mc -> mc.gui.screen().children().stream()
 				.filter(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w && w.visible)
 				.map(c -> (net.minecraft.client.gui.components.AbstractWidget) c)
 				.allMatch(w -> w.getRight() <= mc.getWindow().getGuiScaledWidth() - 8));
+	}
+
+	/** A widget with this label is on the screen (scrolled into view or not). */
+	private static boolean hasWidget(ClientGameTestContext context, String label) {
+		return context.computeOnClient(mc -> mc.gui.screen().children().stream().anyMatch(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w
+				&& w.getMessage().getString().equals(label)));
 	}
 
 	private static boolean hasButton(ClientGameTestContext context, String label) {
@@ -2677,6 +2900,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		worldOptions(context);
 		worldPage(context);
 		rulesPart(context);
+		quietWhilePlaying(context);
 		// Sample notifications: a long JavaHost notice (wraps in full) and a friend's message.
 		context.runOnClient(mc -> {
 			com.javahost.client.Toasts.notify("Installed 4 mods", "Restart Minecraft to turn them on. Sodium, Lithium, FerriteCore and ImmediatelyFast are ready and will load next time.");
@@ -2750,31 +2974,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			}
 		});
 		context.waitTicks(4);
-		int toastCount = context.computeOnClient(mc -> {
-			try {
-				java.lang.reflect.Field visible = mc.gui.toastManager().getClass().getDeclaredField("visibleToasts");
-				visible.setAccessible(true);
-				java.lang.reflect.Field queued = mc.gui.toastManager().getClass().getDeclaredField("queued");
-				queued.setAccessible(true);
-				int count = 0;
-				for (Object instance : (java.util.Collection<?>) visible.get(mc.gui.toastManager())) {
-					java.lang.reflect.Method getToast = instance.getClass().getDeclaredMethod("getToast");
-					getToast.setAccessible(true);
-					Object toast = getToast.invoke(instance);
-					if ("voice-mode".equals(((net.minecraft.client.gui.components.toasts.Toast) toast).getToken())) {
-						count++;
-					}
-				}
-				for (Object toast : (java.util.Collection<?>) queued.get(mc.gui.toastManager())) {
-					if ("voice-mode".equals(((net.minecraft.client.gui.components.toasts.Toast) toast).getToken())) {
-						count++;
-					}
-				}
-				return count;
-			} catch (ReflectiveOperationException e) {
-				throw new AssertionError(e);
-			}
-		});
+		int toastCount = toastCount(context, "voice-mode");
 		check(toastCount == 1, "pressing B 12 times leaves one voice toast, not a queue (" + toastCount + ")");
 		context.takeScreenshot("toast-after-spam");
 		context.runOnClient(mc -> {

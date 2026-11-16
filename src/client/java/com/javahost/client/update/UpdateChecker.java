@@ -1,17 +1,16 @@
 package com.javahost.client.update;
 
 import com.javahost.client.Toasts;
-import com.javahost.client.friends.Notifications;
 import com.javahost.util.UpdateManifest;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 
 /**
  * When to check for updates and when to ask: a few seconds after the game starts, then every 6 hours. The question
- * only ever appears on the title screen or pause menu, never in the middle of play; if the player says "not now",
- * it waits until the next launch. Copies from CurseForge and Modrinth never check: the site and launcher update them.
+ * only ever appears on the title screen, never in a world (there it's a quiet notice under the bell, and Settings
+ * has the Update button); if the player says "not now", it waits until the next launch. Important updates are asked
+ * again a few minutes later, at the title screen. Copies from CurseForge and Modrinth never check: the site and launcher update them.
  */
 public final class UpdateChecker {
 	private static final long FIRST_CHECK_MS = 5_000;
@@ -85,7 +84,7 @@ public final class UpdateChecker {
 				String blocked = Updater.rollBackBlockedReason(manifest);
 				if (blocked != null && "rollback".equals(Updater.stagedKind())) {
 					Updater.cancelStaged();
-					Toasts.notify("Going back was cancelled", blocked);
+					Toasts.quiet("Going back was cancelled", blocked);
 				}
 			}
 			boolean newer = manifest != null && com.javahost.util.Versions.compare(manifest.version(), com.javahost.JavaHost.VERSION) > 0;
@@ -109,26 +108,31 @@ public final class UpdateChecker {
 			check(null);
 		}
 		UpdateManifest update = available;
-		if (update == null || Updater.staged()) {
-			return;
-		}
-		// Ordinary updates are asked about once per launch; important ones again a little later if put off.
-		boolean due = important() ? now >= remindAt : !asked;
-		if (!due) {
+		if (update == null) {
 			return;
 		}
 		Screen screen = minecraft.gui.screen();
-		if (screen instanceof TitleScreen || (screen instanceof PauseScreen pause && pause.showsPauseMenu())) {
+		boolean title = screen instanceof TitleScreen;
+		if (!title && (notified || minecraft.level == null)) {
+			return; // playing, and already told: nothing to do (and no version maths every tick)
+		}
+		// Ordinary updates are asked about once per launch; important ones again a little later if put off.
+		boolean due = important() ? now >= remindAt : !asked;
+		boolean ask = due && title;
+		boolean tell = due && !ask && minecraft.level != null && !notified;
+		// Only then look at the disk for an update already waiting (not every tick of play).
+		if ((!ask && !tell) || Updater.staged()) {
+			return;
+		}
+		if (ask) {
 			asked = true;
 			remindAt = now + IMPORTANT_REMIND_MS;
 			minecraft.gui.setScreen(new UpdateScreen(screen, update));
-		} else if (screen == null && minecraft.level != null && !notified) {
-			// Mid-game: just a heads-up; we ask properly at the next menu.
+		} else if (minecraft.level != null && !notified) {
+			// In a world: never a screen of its own, just a notice under the bell; we ask at the title screen.
 			notified = true;
-			Toasts.show("update", (important() ? "Important update: JavaHost " : "JavaHost ") + update.version() + " is ready",
-					"You'll be asked next time you open the menu (Esc).");
-			Notifications.add(Notifications.Kind.INFO, null, "JavaHost " + update.version() + " is out",
-					"Open the pause menu or Settings to update. " + update.notes(), null);
+			Toasts.quiet((important() ? "Important update: JavaHost " : "JavaHost ") + update.version() + " is out",
+					"Update from Settings, or you'll be asked on the title screen. " + update.notes());
 		}
 	}
 
