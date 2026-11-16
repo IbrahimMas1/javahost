@@ -33,7 +33,13 @@ public final class Faces {
 	private Faces() {
 	}
 
+	/** A player's skin; for you, the one you put on in the Skins page this session, if you did. */
 	public static PlayerSkin skinOf(UUID id) {
+		PlayerSkin skin = gameSkinOf(id);
+		return id.equals(com.javahost.client.friends.Identity.id()) ? com.javahost.client.skins.SkinService.ownSkin(skin) : skin;
+	}
+
+	private static PlayerSkin gameSkinOf(UUID id) {
 		Minecraft minecraft = Minecraft.getInstance();
 		if (minecraft.player != null && minecraft.player.getUUID().equals(id)) {
 			return minecraft.player.getSkin();

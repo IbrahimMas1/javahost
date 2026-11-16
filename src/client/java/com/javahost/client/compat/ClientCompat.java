@@ -73,6 +73,37 @@ public final class ClientCompat {
 		*///?}
 	}
 
+	/**
+	 * A skin drawn from a texture JavaHost registered itself (one from the player's skin collection), with
+	 * {@code base}'s cape and elytra. The skin record changed shape in 1.21.9 (textures became client assets).
+	 */
+	public static net.minecraft.world.entity.player.PlayerSkin localSkin(net.minecraft.resources.Identifier texture, boolean slim,
+			net.minecraft.world.entity.player.PlayerSkin base) {
+		//? if >=1.21.9 {
+		return new net.minecraft.world.entity.player.PlayerSkin(new net.minecraft.core.ClientAsset.ResourceTexture(texture, texture), base.cape(), base.elytra(),
+				slim ? net.minecraft.world.entity.player.PlayerModelType.SLIM : net.minecraft.world.entity.player.PlayerModelType.WIDE, false);
+		//?} else {
+		/*return new net.minecraft.world.entity.player.PlayerSkin(texture, null, base.capeTexture(), base.elytraTexture(),
+				slim ? net.minecraft.world.entity.player.PlayerSkin.Model.SLIM : net.minecraft.world.entity.player.PlayerSkin.Model.WIDE, false);
+		*///?}
+	}
+
+	/** The texture a skin is drawn with. */
+	public static net.minecraft.resources.Identifier skinTexture(net.minecraft.world.entity.player.PlayerSkin skin) {
+		//? if >=1.21.9 {
+		return skin.body().texturePath();
+		//?} else
+		/*return skin.texture();*/
+	}
+
+	/** Whether a skin has the slim (Alex) arms. */
+	public static boolean slim(net.minecraft.world.entity.player.PlayerSkin skin) {
+		//? if >=1.21.9 {
+		return skin.model() == net.minecraft.world.entity.player.PlayerModelType.SLIM;
+		//?} else
+		/*return skin.model() == net.minecraft.world.entity.player.PlayerSkin.Model.SLIM;*/
+	}
+
 	/** Whether the player hid the HUD (F1). */
 	public static boolean hudHidden() {
 		//? if >=26.2 {

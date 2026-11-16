@@ -214,7 +214,9 @@ public final class MenuDock {
 				Draw.text(g, extra, px + 17 + nameW + 8, plateY + 4, Theme.ACCENT);
 			}
 		}));
-		PlayerSkinWidget skin = com.javahost.client.gui.ui.IdleSkin.create(skinW, skinH, Identity.id(), true);
+		// A click (not a drag, which turns it) opens the Skins page.
+		PlayerSkinWidget skin = com.javahost.client.gui.ui.IdleSkin.clickable(skinW, skinH, Identity.id(), true, "Change skin",
+				() -> minecraft.gui.setScreen(new JavaHostScreen(screen, Tab.SKINS)));
 		skin.setPosition(x, y);
 		widgets.add(skin);
 	}

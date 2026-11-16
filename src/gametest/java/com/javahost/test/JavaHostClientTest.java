@@ -79,6 +79,10 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		config.voiceEnabled = false;
 		config.autoAcceptHostPacks = true;
 
+		if ("skins".equals(System.getenv("JAVAHOST_TEST_ONLY"))) {
+			SkinsTest.run(context, true); // just the skin changer, while working on it
+			return;
+		}
 		if ("hub".equals(System.getenv("JAVAHOST_TEST_ONLY"))) {
 			quickHub(context); // a one-minute look at the menu while working on it
 			return;
@@ -86,6 +90,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		guestReceivesHostPacks(context);
 		hostingASingleplayerWorld(context);
 		titleScreenModes(context);
+		SkinsTest.run(context, false);
 		hostFromTitle(context);
 		JavaHost.LOGGER.info("[JavaHost test] ALL CHECKS PASSED");
 	}
@@ -357,6 +362,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.waitTicks(30);
 		context.takeScreenshot("quick-title");
 		titleScreenModes(context);
+		SkinsTest.run(context, true);
 		hostFromTitle(context);
 		worldPageNoWorld(context);
 	}
@@ -566,8 +572,8 @@ public class JavaHostClientTest implements FabricClientGameTest {
 				context.getInput().setCursorPos(0, 0);
 				context.waitTicks(4);
 				context.takeScreenshot(name + "-more");
-				List<Tab> more = List.of(Tab.SCREENSHOTS, Tab.VOICE, Tab.PERFORMANCE);
-				check(JavaHostScreen.MORE.equals(more), "More lists Screenshots, Voice and Performance");
+				List<Tab> more = List.of(Tab.SKINS, Tab.SCREENSHOTS, Tab.VOICE, Tab.PERFORMANCE);
+				check(JavaHostScreen.MORE.equals(more), "More lists Skins, Screenshots, Voice and Performance");
 				for (int i = 0; i < more.size(); i++) {
 					Tab expected = more.get(i);
 					int row = i;
@@ -610,7 +616,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.getInput().setCursorPos(0, 0);
 			context.waitTicks(4);
 			context.takeScreenshot("shell-1020-s3-compact-more");
-			context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).clickPopover(30, 3 + 9));
+			context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).clickPopover(30, 3 + 18 + 9));
 			context.waitTicks(4);
 			check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == Tab.SCREENSHOTS, "More → Screenshots in the icon-only sidebar");
 

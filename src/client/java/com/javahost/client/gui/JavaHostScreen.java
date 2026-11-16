@@ -52,6 +52,7 @@ public class JavaHostScreen extends BaseScreen {
 		MODS("Mods", Icons.PACKAGE, com.javahost.client.gui.pages.ModsPage::new, null),
 		SETTINGS("Settings", Icons.GEAR, SettingsPage::new, null),
 		ACCOUNT("Account", Icons.USER, AccountPage::new, null),
+		SKINS("Skins", Icons.SHIRT, com.javahost.client.gui.pages.SkinsPage::new, null),
 		// Sub-pages, reached from other pages (they highlight their parent in the sidebar).
 		JOIN("Join", Icons.JOIN, JoinPage::new, FRIENDS),
 		RULES("World rules", Icons.SHIELD, com.javahost.client.gui.pages.WorldRulesPage::new, HOST),
@@ -81,7 +82,7 @@ public class JavaHostScreen extends BaseScreen {
 	/** The sidebar's places; More, Settings and the account sit at the bottom. */
 	private static final List<Tab> PLACES = List.of(Tab.HOME, Tab.FRIENDS, Tab.HOST, Tab.DISCOVER, Tab.MODS);
 	/** The pages behind the sidebar's More (also linked from related pages); More is highlighted while one is open. */
-	public static final List<Tab> MORE = List.of(Tab.SCREENSHOTS, Tab.VOICE, Tab.PERFORMANCE);
+	public static final List<Tab> MORE = List.of(Tab.SKINS, Tab.SCREENSHOTS, Tab.VOICE, Tab.PERFORMANCE);
 	/** Pages never get wider than this: on big screens they sit centred beside the sidebar. */
 	private static final int MAX_CONTENT = 440;
 
@@ -458,13 +459,21 @@ public class JavaHostScreen extends BaseScreen {
 	private int[] popoverAnchor;
 	/** The popover hangs beside the sidebar (the More menu) rather than under its anchor. */
 	private boolean popoverBeside;
+	/** The popover's left edge lines up with its anchor's (it opens to the right) instead of its right edge. */
+	private boolean popoverFromLeft;
 	private FlatButton downloadsButton;
 	private boolean hadDownloads;
 
 	/** Opens a popover under {@code anchor} (replacing any open one). */
 	public void openPopover(Popover next, AbstractWidget anchor) {
+		openPopover(next, anchor, false);
+	}
+
+	/** As {@link #openPopover(Popover, AbstractWidget)}; with {@code fromLeft} it opens rightwards from the anchor's left edge. */
+	public void openPopover(Popover next, AbstractWidget anchor, boolean fromLeft) {
 		popover = next;
 		popoverBeside = false;
+		popoverFromLeft = fromLeft;
 		popoverAnchor = new int[] {anchor.getX(), anchor.getY(), anchor.getWidth(), anchor.getHeight()};
 		placePopover();
 	}
@@ -483,6 +492,7 @@ public class JavaHostScreen extends BaseScreen {
 				}
 				popover = Popover.menu(items);
 				popoverBeside = true;
+				popoverFromLeft = false;
 				// Flush with the sidebar's edge, its bottom level with the More row.
 				popoverAnchor = new int[] {t.getX(), t.getY(), t.getWidth(), t.getHeight()};
 				placePopover();
@@ -511,6 +521,11 @@ public class JavaHostScreen extends BaseScreen {
 		popover = null;
 	}
 
+	/** For tests: where the open popover is (x, y, w, h), or null. */
+	public int[] popoverBounds() {
+		return popover == null ? null : new int[] {popover.x(), popover.y(), popover.width(), popover.height()};
+	}
+
 	/** For tests: whether a popover is open. */
 	public boolean popoverOpen() {
 		return popover != null;
@@ -530,7 +545,7 @@ public class JavaHostScreen extends BaseScreen {
 			popover.place(sideW + 4, Math.max(winY + 4, Math.min(popoverAnchor[1] + popoverAnchor[3] - h, winY + winH - 4 - h)));
 			return;
 		}
-		int x = Math.max(winX + 4, Math.min(popoverAnchor[0] + popoverAnchor[2] - w, winX + winW - 4 - w));
+		int x = Math.max(winX + 4, Math.min(popoverFromLeft ? popoverAnchor[0] : popoverAnchor[0] + popoverAnchor[2] - w, winX + winW - 4 - w));
 		int y = popoverAnchor[1] + popoverAnchor[3] + 2;
 		if (y + h > winY + winH - 4 && popoverAnchor[1] - h - 2 >= winY + 4) {
 			y = popoverAnchor[1] - h - 2;
@@ -572,6 +587,19 @@ public class JavaHostScreen extends BaseScreen {
 		return super.keyPressed(key, scancode, modifiers);
 	}
 	*///?}
+
+	/** Files dropped onto the game window: the Skins page takes PNGs as new skins. */
+	@Override
+	public void onFilesDrop(List<Path> files) {
+		if (page instanceof com.javahost.client.gui.pages.SkinsPage skins) {
+			skins.filesDropped(files);
+		}
+	}
+
+	/** For tests: the page shown now. */
+	public Page page() {
+		return page;
+	}
 
 	@Override
 	public boolean isPauseScreen() {

@@ -1,7 +1,5 @@
 package com.javahost.client.gui.pages;
 
-import java.net.URI;
-
 import com.javahost.client.Config;
 import com.javahost.client.friends.Friends;
 import com.javahost.client.friends.Identity;
@@ -19,12 +17,10 @@ import com.javahost.client.host.HostController;
 import com.javahost.util.Mailbox;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.PlayerSkinWidget;
-import net.minecraft.client.gui.screens.ConfirmLinkScreen;
 import net.minecraft.network.chat.Component;
 
 /** You: your skin, how friends see you, today's friend-message usage, and what's kept private. */
 public class AccountPage extends Page {
-	private static final URI CHANGE_SKIN = URI.create("https://www.minecraft.net/msaprofile/mygames/editskin");
 	private static final String[] PRIVACY = {
 			"Invites, chat and screenshots: encrypted",
 			"Requests signed by your Microsoft account",
@@ -51,8 +47,8 @@ public class AccountPage extends Page {
 		int right = 108;
 		int rightW = width - right;
 		int buttonW = (rightW - 6) / 2;
-		add(new FlatButton(buttonW, 20, Component.literal("Skin"), FlatButton.Style.SECONDARY, Icons.SHIRT,
-				b -> ConfirmLinkScreen.confirmLinkNow(screen, CHANGE_SKIN)), right, 52);
+		add(new FlatButton(buttonW, 20, Component.literal("Change skin"), FlatButton.Style.SECONDARY, Icons.SHIRT,
+				b -> screen.switchTo(JavaHostScreen.Tab.SKINS)), right, 52);
 		add(new FlatButton(buttonW, 20, Component.literal("Friends"), FlatButton.Style.SECONDARY, Icons.USERS,
 				b -> screen.switchTo(JavaHostScreen.Tab.FRIENDS)), right + buttonW + 6, 52);
 		add(new ToggleSwitch(rightW, Component.literal("Appear offline"), "Hidden from friends",

@@ -5,11 +5,13 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import com.javahost.JavaHost;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.PlayerSkinWidget;
 import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.world.entity.player.PlayerSkin;
 
 /**
  * The 3D player model, alive: it breathes, shifts its weight, sways a little, follows the mouse with its head and
@@ -28,6 +30,9 @@ public final class IdleSkin {
 	private final long born = System.nanoTime();
 	private PlayerSkinWidget widget;
 	private Field rotationY;
+	private Field rotationX;
+	/** Each model's animation, so a page can carry the drag angle over to a rebuilt model. */
+	private static final java.util.Map<PlayerSkinWidget, IdleSkin> ATTACHED = new java.util.WeakHashMap<>();
 	private float swayApplied;
 	private float headYaw;
 	private float headPitch;
@@ -39,18 +44,139 @@ public final class IdleSkin {
 
 	/** The skin widget for {@code player}, animated. {@code waves}: lift an arm and wave every so often. */
 	public static PlayerSkinWidget create(int width, int height, UUID player, boolean waves) {
+		return create(width, height, () -> Faces.skinOf(player), waves);
+	}
+
+	/** An animated model wearing whatever {@code skin} gives each frame (e.g. the skin picked in the Skins page). */
+	public static PlayerSkinWidget create(int width, int height, Supplier<PlayerSkin> skin, boolean waves) {
 		IdleSkin idle = new IdleSkin(waves);
 		PlayerSkinWidget widget = new PlayerSkinWidget(width, height, Minecraft.getInstance().getEntityModels(), () -> {
 			idle.pose();
-			return Faces.skinOf(player);
+			return skin.get();
 		});
 		idle.attach(widget);
 		return widget;
 	}
 
+	/**
+	 * Your model, which also opens something when clicked (not dragged: dragging still turns it). Hovering it shows a
+	 * quiet {@code hint} under its feet, so the click can be found.
+	 */
+	public static PlayerSkinWidget clickable(int width, int height, UUID player, boolean waves, String hint, Runnable onClick) {
+		IdleSkin idle = new IdleSkin(waves);
+		Clickable widget = new Clickable(width, height, () -> {
+			idle.pose();
+			return Faces.skinOf(player);
+		}, hint, onClick);
+		idle.attach(widget);
+		return widget;
+	}
+
+	/** A model that tells a click from a drag: pressed and let go within a few pixels and under half a second. */
+	public static final class Clickable extends PlayerSkinWidget {
+		private static final double SLOP = 3;
+		private static final long CLICK_MS = 450;
+		private final String hint;
+		private final Runnable onClick;
+		private double pressX = Double.NaN;
+		private double pressY;
+		private double moved;
+		private long pressedAt;
+		private float shown;
+		private long hoverSince;
+
+		Clickable(int width, int height, Supplier<PlayerSkin> skin, String hint, Runnable onClick) {
+			super(width, height, Minecraft.getInstance().getEntityModels(), skin);
+			this.hint = hint;
+			this.onClick = onClick;
+			setMessage(net.minecraft.network.chat.Component.literal(hint));
+		}
+
+		//? if >=1.21.9 {
+		@Override
+		public void onClick(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+			pressed(event.x(), event.y());
+		}
+
+		@Override
+		protected void onDrag(net.minecraft.client.input.MouseButtonEvent event, double dx, double dy) {
+			moved += Math.abs(dx) + Math.abs(dy);
+			super.onDrag(event, dx, dy);
+		}
+
+		@Override
+		public void onRelease(net.minecraft.client.input.MouseButtonEvent event) {
+			released(event.x(), event.y());
+		}
+		//?} else {
+		/*@Override
+		public void onClick(double x, double y) {
+			pressed(x, y);
+		}
+
+		@Override
+		protected void onDrag(double x, double y, double dx, double dy) {
+			moved += Math.abs(dx) + Math.abs(dy);
+			super.onDrag(x, y, dx, dy);
+		}
+
+		@Override
+		public void onRelease(double x, double y) {
+			released(x, y);
+		}
+		*///?}
+
+		private void pressed(double x, double y) {
+			pressX = x;
+			pressY = y;
+			moved = 0;
+			pressedAt = System.currentTimeMillis();
+		}
+
+		private void released(double x, double y) {
+			boolean click = !Double.isNaN(pressX) && Math.abs(x - pressX) + Math.abs(y - pressY) <= SLOP && moved <= SLOP
+					&& System.currentTimeMillis() - pressedAt <= CLICK_MS;
+			pressX = Double.NaN;
+			if (click) {
+				onClick.run();
+			}
+		}
+
+		/** For tests: what a click does. */
+		public void click() {
+			onClick.run();
+		}
+
+		@Override
+		protected void extractWidgetRenderState(net.minecraft.client.gui.GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+			super.extractWidgetRenderState(g, mouseX, mouseY, a);
+			boolean over = isHovered() && Double.isNaN(pressX);
+			long now = System.currentTimeMillis();
+			if (!over) {
+				hoverSince = 0;
+			} else if (hoverSince == 0) {
+				hoverSince = now;
+			}
+			// The hint fades in once the mouse has rested on the model for a moment.
+			shown = Draw.approach(shown, over && now - hoverSince > 250 ? 1 : 0, 0.25f);
+			if (shown < 0.02f) {
+				return;
+			}
+			g.nextStratum();
+			int w = Draw.width(hint) + Icons.SIZE + 16;
+			int x = getX() + (getWidth() - w) / 2;
+			int y = getY() + Math.round(getHeight() * 0.74f) + Math.round((1 - shown) * 3); // over the legs, clear of anything below
+			Draw.roundRect(g, x - 1, y - 1, w + 2, 16, 7, Theme.withAlpha(0x40FFFFFF, shown));
+			Draw.roundRect(g, x, y, w, 14, 6, Theme.withAlpha(0xFF0E1217, 0.94f * shown));
+			Icons.SHIRT.draw(g, x + 6, y + 2, Theme.withAlpha(Theme.ACCENT, shown));
+			Draw.text(g, hint, x + 10 + Icons.SIZE, y + 3, Theme.withAlpha(Theme.TEXT, shown));
+		}
+	}
+
 	/** Finds the widget's models and its turn angle (private in the game's class, so by type rather than by name). */
 	private void attach(PlayerSkinWidget target) {
 		widget = target;
+		ATTACHED.put(target, this);
 		try {
 			for (Field field : PlayerSkinWidget.class.getDeclaredFields()) {
 				if (Modifier.isStatic(field.getModifiers())) {
@@ -60,6 +186,8 @@ public final class IdleSkin {
 				Object value = field.get(target);
 				if (field.getType() == float.class && field.getFloat(target) == 30f) {
 					rotationY = field; // starts at 30 degrees; the tilt (the other float) starts at -5
+				} else if (field.getType() == float.class && field.getFloat(target) == -5f) {
+					rotationX = field;
 				} else if (value != null && value.getClass().isRecord()) {
 					// Older versions keep both models in a small record.
 					for (var component : value.getClass().getRecordComponents()) {
@@ -93,6 +221,33 @@ public final class IdleSkin {
 					m.rightPants, m.leftPants));
 		}
 		*///?}
+	}
+
+	/** How far a model has been turned and tilted by dragging (null if unknown), for {@link #restoreAngles}. */
+	public static float[] angles(PlayerSkinWidget widget) {
+		IdleSkin idle = widget == null ? null : ATTACHED.get(widget);
+		if (idle == null || idle.rotationY == null || idle.rotationX == null) {
+			return null;
+		}
+		try {
+			return new float[] {idle.rotationX.getFloat(widget), idle.rotationY.getFloat(widget) - idle.swayApplied};
+		} catch (IllegalAccessException e) {
+			return null;
+		}
+	}
+
+	/** Turns a new model to where an old one was ({@link #angles}). */
+	public static void restoreAngles(PlayerSkinWidget widget, float[] angles) {
+		IdleSkin idle = ATTACHED.get(widget);
+		if (angles == null || idle == null || idle.rotationY == null || idle.rotationX == null) {
+			return;
+		}
+		try {
+			idle.rotationX.setFloat(widget, angles[0]);
+			idle.rotationY.setFloat(widget, angles[1] + idle.swayApplied);
+		} catch (IllegalAccessException e) {
+			// stays at the default angle
+		}
 	}
 
 	private static int posedFrames;

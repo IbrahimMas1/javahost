@@ -162,6 +162,18 @@ public final class Draw {
 		*///?}
 	}
 
+	/** A whole texture ({@code texW} x {@code texH} pixels) drawn into {@code w} x {@code h}, pixels kept sharp. */
+	public static void image(GuiGraphicsExtractor g, net.minecraft.resources.Identifier texture, int x, int y, int w, int h, int texW, int texH) {
+		//? if >=1.21.6 {
+		g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, texture, x, y, 0, 0, w, h, texW, texH, texW, texH, 0xFFFFFFFF);
+		//?} else if >=1.21.2 {
+		/*g.blit(net.minecraft.client.renderer.RenderType::guiTextured, texture, x, y, 0, 0, w, h, texW, texH, texW, texH, 0xFFFFFFFF);
+		*///?} else {
+		/*com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+		g.blit(texture, x, y, w, h, 0, 0, texW, texH, texW, texH);
+		*///?}
+	}
+
 	/**
 	 * Stage lighting for a 3D model {@code height} tall standing in a box that starts at {@code top}: a glow of the
 	 * accent colour behind it (reaching {@code spread} to each side), a lit floor, and its shadow on it.

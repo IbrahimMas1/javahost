@@ -104,7 +104,8 @@ public class HomePage extends Page {
 		// You, alive, on a lit stage (see draw); the world you're in is written underneath.
 		skinH = heroH - PLATE_H - 6;
 		int skinW = Math.min(heroW - 8, Math.round(skinH * 0.62f));
-		add(IdleSkin.create(skinW, skinH, Identity.id(), true), (heroW - skinW) / 2, 2);
+		// Click yourself to change your skin (dragging still turns the model).
+		add(IdleSkin.clickable(skinW, skinH, Identity.id(), true, "Change skin", () -> screen.switchTo(JavaHostScreen.Tab.SKINS)), (heroW - skinW) / 2, 2);
 
 		// The one thing to do next, then a quieter second choice.
 		boolean hosting = HostController.isHosting();
