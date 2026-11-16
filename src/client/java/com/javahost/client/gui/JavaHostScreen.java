@@ -44,8 +44,8 @@ public class JavaHostScreen extends BaseScreen {
 	public enum Tab {
 		HOME("Home", Icons.HOME, HomePage::new, null),
 		FRIENDS("Friends", Icons.USERS, FriendsPage::new, null),
-		HOST("Host", Icons.HOST, HostPage::new, null),
-		DISCOVER("Discover", Icons.GLOBE, com.javahost.client.gui.pages.DiscoverPage::new, null),
+		HOST("World", Icons.HOST, HostPage::new, null),
+		DISCOVER("Public worlds", Icons.GLOBE, com.javahost.client.gui.pages.DiscoverPage::new, null),
 		VOICE("Voice", Icons.MIC, VoicePage::new, null),
 		SCREENSHOTS("Screenshots", Icons.CAMERA, ScreenshotsPage::new, null),
 		PERFORMANCE("Performance", Icons.BOLT, PerformancePage::new, null),
@@ -78,9 +78,10 @@ public class JavaHostScreen extends BaseScreen {
 
 	private static Tab lastTab = Tab.HOME;
 	private static final int HEADER = 36;
-	/** The sidebar's two groups; Settings and the account sit at the bottom. */
-	private static final List<Tab> PLAY = List.of(Tab.HOME, Tab.FRIENDS, Tab.HOST, Tab.DISCOVER);
-	private static final List<Tab> TOOLS = List.of(Tab.VOICE, Tab.SCREENSHOTS, Tab.PERFORMANCE, Tab.MODS);
+	/** The sidebar's places; More, Settings and the account sit at the bottom. */
+	private static final List<Tab> PLACES = List.of(Tab.HOME, Tab.FRIENDS, Tab.HOST, Tab.MODS);
+	/** The pages behind the sidebar's More (also linked from related pages); More is highlighted while one is open. */
+	public static final List<Tab> MORE = List.of(Tab.DISCOVER, Tab.SCREENSHOTS, Tab.VOICE, Tab.PERFORMANCE);
 	/** Pages never get wider than this: on big screens they sit centred beside the sidebar. */
 	private static final int MAX_CONTENT = 440;
 
@@ -113,8 +114,6 @@ public class JavaHostScreen extends BaseScreen {
 	private int contentW;
 	private int contentH;
 	private boolean compact;
-	/** Where the sidebar's group names (or, with icons only, divider lines) go: label, y. */
-	private final List<Object[]> groupLabels = new ArrayList<>();
 
 	public JavaHostScreen(Screen parent) {
 		this(parent, lastTab.inSidebar() ? lastTab : Tab.HOME);
@@ -234,26 +233,18 @@ public class JavaHostScreen extends BaseScreen {
 		contentY = HEADER + 12; // a little air between the header line and the first section
 		contentH = height - 8 - contentY;
 
-		// Sidebar: two groups share the height between the logo and the two rows pinned to the bottom.
-		groupLabels.clear();
+		// Sidebar: the four places under the logo; More, Settings and you pinned to the bottom.
 		int accountH = compact ? 22 : 26;
 		int accountY = height - accountH - 6;
-		int tabTop = 34;
-		int tabsBottom = accountY - 5;
-		int rows = PLAY.size() + TOOLS.size() + 1;
-		boolean labels = (tabsBottom - tabTop - 2 * 13 - 6) / rows >= 16;
-		int headH = labels ? 13 : 5;
-		int step = Math.max(13, Math.min(22, (tabsBottom - tabTop - 2 * headH - 6) / rows));
+		int tabTop = 40;
+		int rows = PLACES.size() + 2;
+		int step = Math.max(13, Math.min(22, (accountY - 5 - tabTop - 8) / rows));
 		int tabY = tabTop;
-		for (List<Tab> group : List.of(PLAY, TOOLS)) {
-			groupLabels.add(new Object[] {labels && !compact ? (group == PLAY ? "Play" : "Tools") : null, tabY + (labels ? 2 : 2)});
-			tabY += headH;
-			for (Tab t : group) {
-				sidebarWidgets.add(addWidget(new SidebarTab(6, tabY, sideW - 12, step - 2, t, compact)));
-				tabY += step;
-			}
+		for (Tab t : PLACES) {
+			sidebarWidgets.add(addWidget(new SidebarTab(6, tabY, sideW - 12, step - 2, t, compact)));
+			tabY += step;
 		}
-		// Settings and you, pinned to the bottom of the sidebar.
+		sidebarWidgets.add(addWidget(new SidebarTab(6, accountY - 2 * step - 1, sideW - 12, step - 2, null, compact)));
 		sidebarWidgets.add(addWidget(new SidebarTab(6, accountY - step - 1, sideW - 12, step - 2, Tab.SETTINGS, compact)));
 		sidebarWidgets.add(addWidget(new SidebarTab(6, accountY, sideW - 12, accountH, Tab.ACCOUNT, compact)));
 
@@ -375,14 +366,6 @@ public class JavaHostScreen extends BaseScreen {
 		if (!compact) {
 			Draw.text(g, "JavaHost", 32, 13, Theme.TEXT);
 		}
-		for (Object[] label : groupLabels) {
-			int y = (int) label[1];
-			if (label[0] != null) {
-				Draw.caps(g, (String) label[0], 14, y + 1, Theme.FAINT);
-			} else if (y > 40) {
-				g.fill(10, y, sideW - 10, y + 1, Theme.withAlpha(Theme.BORDER, 0.8f)); // a line between the groups
-			}
-		}
 
 		// Page header (shifted right when there's a back button).
 		int titleX = canGoBack() ? contentX + 18 : contentX;
@@ -451,7 +434,7 @@ public class JavaHostScreen extends BaseScreen {
 			if (highlight != null) {
 				// Redraw the highlighted tab on top of the dimming.
 				for (AbstractWidget widget : sidebarWidgets) {
-					if (widget instanceof SidebarTab t && t.target == tour.tab()) {
+					if (widget instanceof SidebarTab t && (t.target == tour.tab() || (t.target == null && MORE.contains(tour.tab())))) {
 						t.extractRenderState(g, -1, -1, a);
 					}
 				}
@@ -473,14 +456,55 @@ public class JavaHostScreen extends BaseScreen {
 	private Popover popover;
 	/** What the popover hangs from (x, y, w, h): it opens below, right-aligned, or above when there's no room. */
 	private int[] popoverAnchor;
+	/** The popover hangs beside the sidebar (the More menu) rather than under its anchor. */
+	private boolean popoverBeside;
 	private FlatButton downloadsButton;
 	private boolean hadDownloads;
 
 	/** Opens a popover under {@code anchor} (replacing any open one). */
 	public void openPopover(Popover next, AbstractWidget anchor) {
 		popover = next;
+		popoverBeside = false;
 		popoverAnchor = new int[] {anchor.getX(), anchor.getY(), anchor.getWidth(), anchor.getHeight()};
 		placePopover();
+	}
+
+	/** Opens the More menu beside its sidebar entry (or closes it when it's already open). */
+	public void toggleMore() {
+		if (popover != null && popoverBeside) {
+			popover = null;
+			return;
+		}
+		for (AbstractWidget widget : sidebarWidgets) {
+			if (widget instanceof SidebarTab t && t.target == null) {
+				List<Popover.Item> items = new ArrayList<>();
+				for (Tab t2 : MORE) {
+					items.add(Popover.Item.of(t2.label, t2.icon, () -> switchTo(t2)).selected(tab == t2 || tab.parent == t2));
+				}
+				popover = Popover.menu(items);
+				popoverBeside = true;
+				// Flush with the sidebar's edge, its bottom level with the More row.
+				popoverAnchor = new int[] {t.getX(), t.getY(), t.getWidth(), t.getHeight()};
+				placePopover();
+				return;
+			}
+		}
+	}
+
+	/** For tests: whether the open popover is the sidebar's More menu. */
+	public boolean moreOpen() {
+		return popover != null && popoverBeside;
+	}
+
+	/** For tests: the sidebar's entries, top to bottom (the account card last). */
+	public List<String> sidebarLabels() {
+		return sidebarWidgets.stream().filter(w -> w instanceof SidebarTab).map(w -> w.getMessage().getString()).toList();
+	}
+
+	/** For tests: the sidebar entry that's highlighted now. */
+	public String highlightedSidebarEntry() {
+		return sidebarWidgets.stream().filter(w -> w instanceof SidebarTab t && t.selected()).map(w -> w.getMessage().getString())
+				.findFirst().orElse(null);
 	}
 
 	public void closePopover() {
@@ -502,6 +526,10 @@ public class JavaHostScreen extends BaseScreen {
 	private void placePopover() {
 		int w = popover.width();
 		int h = popover.height();
+		if (popoverBeside) {
+			popover.place(sideW + 4, Math.max(winY + 4, Math.min(popoverAnchor[1] + popoverAnchor[3] - h, winY + winH - 4 - h)));
+			return;
+		}
 		int x = Math.max(winX + 4, Math.min(popoverAnchor[0] + popoverAnchor[2] - w, winX + winW - 4 - w));
 		int y = popoverAnchor[1] + popoverAnchor[3] + 2;
 		if (y + h > winY + winH - 4 && popoverAnchor[1] - h - 2 >= winY + 4) {
@@ -617,7 +645,7 @@ public class JavaHostScreen extends BaseScreen {
 	/** The sidebar row for a tab (x, y, w, h), to highlight it during the tour. */
 	private int[] sidebarBounds(Tab target) {
 		for (AbstractWidget widget : sidebarWidgets) {
-			if (widget instanceof SidebarTab t && t.target == target) {
+			if (widget instanceof SidebarTab t && (t.target == target || (t.target == null && MORE.contains(target)))) {
 				return new int[] {t.getX(), t.getY(), t.getWidth(), t.getHeight()};
 			}
 		}
@@ -714,7 +742,7 @@ public class JavaHostScreen extends BaseScreen {
 	private void drawTabIndicator(GuiGraphicsExtractor g) {
 		SidebarTab selected = null;
 		for (AbstractWidget widget : sidebarWidgets) {
-			if (widget instanceof SidebarTab t && (t.target == tab || t.target == tab.parent)) {
+			if (widget instanceof SidebarTab t && t.selected()) {
 				selected = t;
 			}
 		}
@@ -733,20 +761,29 @@ public class JavaHostScreen extends BaseScreen {
 		Draw.roundRect(g, selected.getX(), y + 4, 2, h - 8, 1, Theme.ACCENT);
 	}
 
-	/** One entry in the sidebar. */
+	/** One entry in the sidebar; a null target is More, which opens a menu of the other pages. */
 	private final class SidebarTab extends AbstractButton {
 		private final Tab target;
 		private final boolean compact;
 		private float hover;
 
 		SidebarTab(int x, int y, int w, int h, Tab target, boolean compact) {
-			super(x, y, w, h, Component.literal(target.label));
+			super(x, y, w, h, Component.literal(target == null ? "More" : target.label));
 			this.target = target;
 			this.compact = compact;
 			if (compact) {
 				// Only icons fit: the name shows on hover.
-				setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled(target == Tab.ACCOUNT ? "Your account" : target.label)));
+				setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.javahost.client.gui.ui.Draw.styled(
+						target == Tab.ACCOUNT ? "Your account" : target == null ? "More" : target.label)));
 			}
+		}
+
+		/** Whether this entry is the highlighted one: its page (or a sub-page) is open; for More, one of its pages. */
+		boolean selected() {
+			if (target == null) {
+				return MORE.contains(tab) || (tab.parent != null && MORE.contains(tab.parent));
+			}
+			return tab == target || tab.parent == target;
 		}
 
 		@Override
@@ -754,7 +791,9 @@ public class JavaHostScreen extends BaseScreen {
 		public void onPress(InputWithModifiers input) {
 		//?} else
 		/*public void onPress() {*/
-			if (tab != target) {
+			if (target == null) {
+				toggleMore();
+			} else if (tab != target) {
 				switchTo(target);
 			}
 		}
@@ -767,8 +806,9 @@ public class JavaHostScreen extends BaseScreen {
 		*///?} else {
 		/*protected void renderWidget(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
 		*///?}
-			boolean selected = tab == target || tab.parent == target;
-			hover = Draw.approach(hover, isHoveredOrFocused() ? 1 : 0, 0.35f);
+			boolean selected = selected();
+			// More stays lit while its menu is open.
+			hover = Draw.approach(hover, (target == null ? isHovered() || moreOpen() : isHoveredOrFocused()) ? 1 : 0, 0.35f);
 			// The selected highlight is drawn by the screen (it slides between tabs); here just the hover.
 			if (!selected && hover > 0.01f) {
 				Draw.roundRect(g, getX(), getY(), getWidth(), getHeight(), 5, Theme.withAlpha(0x14FFFFFF, hover));
@@ -797,9 +837,10 @@ public class JavaHostScreen extends BaseScreen {
 				return;
 			}
 			float iconCentreX = compact ? getX() + getWidth() / 2f : iconX + Icons.SIZE / 2f;
-			target.icon.drawCentred(g, iconCentreX, getY() + getHeight() / 2f, Icons.SIZE, selected ? Theme.ACCENT : color);
+			Icons icon = target == null ? Icons.MORE : target.icon;
+			icon.drawCentred(g, iconCentreX, getY() + getHeight() / 2f, Icons.SIZE, selected ? Theme.ACCENT : color);
 			if (!compact) {
-				Draw.text(g, target.label, getX() + 23, getY() + (getHeight() - 8) / 2 + 1, color);
+				Draw.text(g, getMessage().getString(), getX() + 23, getY() + (getHeight() - 8) / 2 + 1, color);
 			}
 			if (target == Tab.FRIENDS) {
 				int count = Friends.incoming().size() + Chats.unreadTotal();

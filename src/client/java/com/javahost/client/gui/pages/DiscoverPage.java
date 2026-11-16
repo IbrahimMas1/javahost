@@ -70,7 +70,7 @@ public class DiscoverPage extends Page {
 
 	@Override
 	public String title() {
-		return "Discover";
+		return "Public worlds";
 	}
 
 	@Override

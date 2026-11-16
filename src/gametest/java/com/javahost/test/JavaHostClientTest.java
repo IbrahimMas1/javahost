@@ -85,6 +85,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		}
 		guestReceivesHostPacks(context);
 		hostingASingleplayerWorld(context);
+		titleScreenModes(context);
 		hostFromTitle(context);
 		JavaHost.LOGGER.info("[JavaHost test] ALL CHECKS PASSED");
 	}
@@ -336,6 +337,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.runOnClient(mc -> HostController.start(mc.getSingleplayerServer()));
 			context.waitTicks(20);
 			hubWithFriends(context);
+			shellInWorld(context);
 			reviewAtScale(context, 4, 1710, 1070);
 			if (System.getenv("JAVAHOST_TEST_FPS") != null) {
 				frameRates(context);
@@ -351,7 +353,191 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		});
 		context.waitTicks(30);
 		context.takeScreenshot("quick-title");
+		titleScreenModes(context);
 		hostFromTitle(context);
+	}
+
+	// ================================================================ 2.0: the slimmer shell
+
+	private static final int[][] SHELL_SIZES = {{1710, 1070, 4}, {1280, 800, 3}};
+
+	private static int dockButtons(ClientGameTestContext context) {
+		return context.computeOnClient(mc -> (int) mc.gui.screen().children().stream()
+				.filter(c -> c.getClass().getSimpleName().equals("DockButton")).count());
+	}
+
+	private static String highlighted(ClientGameTestContext context) {
+		return context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).highlightedSidebarEntry());
+	}
+
+	/**
+	 * In a world: the sidebar has four places plus More and Settings; More's menu opens each of its pages (with More
+	 * highlighted); related pages link to them; the pause menu gets three dock buttons, or none when turned off.
+	 */
+	private static void shellInWorld(ClientGameTestContext context) {
+		int previous = context.computeOnClient(mc -> mc.options.guiScale().get());
+		Config config = Config.get();
+		boolean pauseDock = config.pauseDock;
+		try {
+			for (int[] size : SHELL_SIZES) {
+				size(context, size[0], size[1], size[2]);
+				String at = size[0] + "x" + size[1] + " scale " + size[2];
+				String name = "shell-" + size[0] + "-s" + size[2];
+				context.setScreen(() -> new JavaHostScreen(null, Tab.HOME));
+				context.waitTicks(8);
+				context.takeScreenshot(name + "-home");
+				List<String> labels = context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).sidebarLabels());
+				check(labels.equals(List.of("Home", "Friends", "World", "Mods", "More", "Settings", "Account")),
+						"the sidebar is Home, Friends, World, Mods, then More, Settings and the account at " + at + " (" + labels + ")");
+				check("Home".equals(highlighted(context)), "Home is highlighted on Home");
+
+				clickSidebar(context, "More");
+				check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).moreOpen()), "More opens its menu at " + at);
+				context.getInput().setCursorPos(0, 0);
+				context.waitTicks(4);
+				context.takeScreenshot(name + "-more");
+				List<Tab> more = List.of(Tab.DISCOVER, Tab.SCREENSHOTS, Tab.VOICE, Tab.PERFORMANCE);
+				check(JavaHostScreen.MORE.equals(more), "More lists Public worlds, Screenshots, Voice and Performance");
+				for (int i = 0; i < more.size(); i++) {
+					Tab expected = more.get(i);
+					int row = i;
+					context.runOnClient(mc -> {
+						JavaHostScreen screen = (JavaHostScreen) mc.gui.screen();
+						if (!screen.moreOpen()) {
+							screen.toggleMore();
+						}
+						screen.clickPopover(30, 3 + row * 18 + 9);
+					});
+					context.waitTicks(4);
+					check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == expected
+							&& !context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).popoverOpen()),
+							"More → " + expected.name().toLowerCase() + " opens that page and closes the menu at " + at);
+					check("More".equals(highlighted(context)), "More is highlighted on " + expected.name().toLowerCase() + " at " + at);
+				}
+				context.takeScreenshot(name + "-more-highlighted");
+
+				context.setScreen(() -> new JavaHostScreen(null, Tab.FRIENDS));
+				context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -30));
+				context.waitTicks(10);
+				check(widgetsFit(context), "Friends (with its Public worlds link) fits at " + at);
+				context.takeScreenshot(name + "-friends-bottom");
+
+				// The pause menu: Home, Friends, World.
+				context.setScreen(() -> new net.minecraft.client.gui.screens.PauseScreen(true));
+				context.waitTicks(6);
+				check(dockButtons(context) == 3, "the pause menu's dock has 3 buttons at " + at);
+				context.takeScreenshot(name + "-pause");
+			}
+
+			// A narrow window: the sidebar is icons only, and More still works.
+			size(context, 1020, 780, 3); // 340 GUI pixels wide: under 350, so icons only
+			context.setScreen(() -> new JavaHostScreen(null, Tab.VOICE));
+			context.waitTicks(6);
+			check(context.computeOnClient(mc -> mc.getWindow().getGuiScaledWidth() < 350), "the window is narrow enough for the icon-only sidebar");
+			check("More".equals(highlighted(context)), "More is highlighted in the icon-only sidebar");
+			clickSidebar(context, "More");
+			check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).moreOpen()), "More opens its menu in the icon-only sidebar");
+			context.getInput().setCursorPos(0, 0);
+			context.waitTicks(4);
+			context.takeScreenshot("shell-1020-s3-compact-more");
+			context.runOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).clickPopover(30, 3 + 9));
+			context.waitTicks(4);
+			check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == Tab.DISCOVER, "More → Public worlds in the icon-only sidebar");
+
+			// Shortcuts from related pages.
+			size(context, 1710, 1070, 4);
+			context.setScreen(() -> new JavaHostScreen(null, Tab.FRIENDS));
+			context.waitTicks(6);
+			clickMenu(context, "Public worlds");
+			check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == Tab.DISCOVER, "Friends links to Public worlds");
+			com.javahost.client.gui.pages.ModsPage.showMine(true);
+			context.setScreen(() -> new JavaHostScreen(null, Tab.MODS));
+			context.waitTicks(6);
+			context.takeScreenshot("shell-1710-s4-mods-installed");
+			clickMenu(context, "Performance");
+			check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == Tab.PERFORMANCE, "Mods links to Performance");
+			com.javahost.client.gui.pages.ModsPage.showMine(false);
+			context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
+			context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -6));
+			context.waitTicks(10);
+			context.takeScreenshot("shell-1710-s4-settings-scrolled");
+			clickMenu(context, "Voice settings");
+			check(context.computeOnClient(mc -> ((JavaHostScreen) mc.gui.screen()).tab()) == Tab.VOICE, "Settings links to Voice");
+			context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
+			context.waitTicks(6);
+			context.takeScreenshot("shell-1710-s4-settings");
+			check(hasButton(context, "Buttons on the pause menu"), "Settings has the pause menu switch");
+
+			// Turned off: nothing on the pause menu.
+			config.pauseDock = false;
+			context.setScreen(() -> new net.minecraft.client.gui.screens.PauseScreen(true));
+			context.waitTicks(4);
+			check(dockButtons(context) == 0, "with the pause menu buttons off, the pause menu has no dock");
+			context.takeScreenshot("shell-1710-s4-pause-off");
+		} finally {
+			config.pauseDock = pauseDock;
+			context.setScreen(() -> null);
+			context.getInput().resizeWindow(854, 480);
+			context.runOnClient(mc -> {
+				mc.options.guiScale().set(previous);
+				TestCompat.resizeGui(mc);
+			});
+			context.waitTicks(4);
+		}
+	}
+
+	/** Out of a world: the title screen in each of its three modes. */
+	private static void titleScreenModes(ClientGameTestContext context) {
+		int previous = context.computeOnClient(mc -> mc.options.guiScale().get());
+		Config config = Config.get();
+		String mode = config.titleScreen;
+		try {
+			for (int[] size : SHELL_SIZES) {
+				size(context, size[0], size[1], size[2]);
+				String at = size[0] + "x" + size[1] + " scale " + size[2];
+				String name = "shell-" + size[0] + "-s" + size[2] + "-title-";
+				for (String m : List.of("FULL", "DOCK", "OFF")) {
+					config.titleScreen = m;
+					context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+					context.waitTicks(10);
+					context.takeScreenshot(name + m.toLowerCase());
+					int dock = dockButtons(context);
+					boolean skin = context.computeOnClient(mc -> mc.gui.screen().children().stream()
+							.anyMatch(c -> c instanceof net.minecraft.client.gui.components.PlayerSkinWidget));
+					switch (m) {
+						case "FULL" -> check(dock == 5 && skin, "the title screen (full) has 5 dock buttons and the 3D model at " + at + " (" + dock + ")");
+						case "DOCK" -> check(dock == 5 && !skin, "the title screen (dock) has the 5 buttons and no model at " + at);
+						default -> {
+							check(dock == 0 && !skin, "the title screen (off) has no dock and no model at " + at);
+							boolean clear = context.computeOnClient(mc -> {
+								var widgets = mc.gui.screen().children().stream()
+										.filter(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w && w.visible)
+										.map(c -> (net.minecraft.client.gui.components.AbstractWidget) c).toList();
+								var button = widgets.stream().filter(w -> w.getMessage().getString().equals("JavaHost")).toList();
+								if (button.size() != 1) {
+									return false;
+								}
+								var b = button.getFirst();
+								return widgets.stream().filter(w -> w != b).noneMatch(w -> w.getX() < b.getRight() && b.getX() < w.getRight()
+										&& w.getY() < b.getBottom() && b.getY() < w.getBottom());
+							});
+							check(clear, "the title screen (off) has one JavaHost button that overlaps nothing at " + at);
+						}
+					}
+				}
+			}
+			clickMenu(context, "JavaHost");
+			check(context.computeOnClient(mc -> mc.gui.screen() instanceof JavaHostScreen), "the title screen's JavaHost button opens the menu");
+		} finally {
+			config.titleScreen = mode;
+			context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+			context.getInput().resizeWindow(854, 480);
+			context.runOnClient(mc -> {
+				mc.options.guiScale().set(previous);
+				TestCompat.resizeGui(mc);
+			});
+			context.waitTicks(4);
+		}
 	}
 
 	/** 2.0: on the title screen, Home offers to host your last world and the Host tab lists your worlds; Host opens one and starts hosting. */
@@ -1662,16 +1848,37 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.setScreen(() -> null);
 	}
 
+	/** Clicks a visible button in the current screen with the real mouse (one on the page before a sidebar entry of the same name). */
 	private static void clickMenu(ClientGameTestContext context, String label) {
+		clickWidget(context, label, false);
+	}
+
+	/** Clicks an entry in the menu's sidebar with the real mouse. */
+	private static void clickSidebar(ClientGameTestContext context, String label) {
+		clickWidget(context, label, true);
+	}
+
+	private static void clickWidget(ClientGameTestContext context, String label, boolean sidebar) {
 		double[] at = context.computeOnClient(mc -> {
+			net.minecraft.client.gui.components.AbstractWidget found = null;
 			for (var child : mc.gui.screen().children()) {
 				if (child instanceof net.minecraft.client.gui.components.AbstractWidget w && w.visible && w.active
 						&& w.getMessage().getString().equals(label)) {
-					double scale = mc.getWindow().getGuiScale();
-					return new double[] {(w.getX() + w.getWidth() / 2.0) * scale, (w.getY() + w.getHeight() / 2.0) * scale};
+					boolean inSidebar = w.getClass().getSimpleName().equals("SidebarTab");
+					if (inSidebar == sidebar) {
+						found = w;
+						break;
+					}
+					if (found == null && !sidebar) {
+						found = w;
+					}
 				}
 			}
-			throw new AssertionError("no button \"" + label + "\" on " + mc.gui.screen());
+			if (found == null) {
+				throw new AssertionError("no button \"" + label + "\" on " + mc.gui.screen());
+			}
+			double scale = mc.getWindow().getGuiScale();
+			return new double[] {(found.getX() + found.getWidth() / 2.0) * scale, (found.getY() + found.getHeight() / 2.0) * scale};
 		});
 		context.getInput().setCursorPos(at[0], at[1]);
 		context.waitTicks(2);
@@ -1722,6 +1929,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 
 	/** 1.1: FPS overlay, benchmark, screenshots page, notification center and accent themes. */
 	private static void newFeatures(ClientGameTestContext context) {
+		shellInWorld(context);
 		enterSubmits(context);
 		context.setScreen(() -> new JavaHostScreen(null, Tab.ACCOUNT));
 		context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40,
@@ -1730,7 +1938,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		context.takeScreenshot("ui-account-scrolled");
 		context.setScreen(() -> new net.minecraft.client.gui.screens.PauseScreen(true));
 		context.waitTicks(6);
-		hoverDock(context, "Host");
+		hoverDock(context, "World");
 		context.waitTicks(8);
 		context.takeScreenshot("ui-pause-dock");
 		context.getInput().setCursorPos(0, 0);

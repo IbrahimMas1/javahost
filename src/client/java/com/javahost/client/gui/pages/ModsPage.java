@@ -625,8 +625,11 @@ public class ModsPage extends Page {
 			y += BANNER;
 		}
 
-		// Mods JavaHost installed, each with Remove (or Keep, once it's marked to go).
+		// Mods JavaHost installed, each with Remove (or Keep, once it's marked to go). Performance mods have their own page.
 		installedY = y;
+		add(new FlatButton(96, 14, Component.literal("Performance"), FlatButton.Style.GHOST, Icons.BOLT,
+				b -> screen.switchTo(com.javahost.client.gui.JavaHostScreen.Tab.PERFORMANCE)), width - 96, y - 5)
+				.setTooltip(Tooltip.create(com.javahost.client.gui.ui.Draw.styled("Mods and settings for a higher frame rate")));
 		removing = com.javahost.client.mods.Removals.pendingJars();
 		int rowY = y + 12;
 		for (BoostMods.Installed mod : installed) {

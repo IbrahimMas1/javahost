@@ -9,7 +9,6 @@ import com.javahost.client.friends.InviteFlow;
 import com.javahost.client.friends.Presence;
 import com.javahost.client.friends.Screenshots;
 import com.javahost.client.gui.MenuDock;
-import com.javahost.client.gui.TitleFriendsPanel;
 import com.javahost.client.gui.JavaHostScreen;
 import com.javahost.client.gui.ui.Draw;
 import com.javahost.client.gui.ui.Faces;
@@ -192,9 +191,10 @@ public class JavaHostClient implements ClientModInitializer {
 				ScreenEvents.beforeExtract(screen).register((s, g, mouseX, mouseY, delta) -> Draw.showTruncatedTooltip(g, mouseX, mouseY)));
 		ScreenEvents.AFTER_INIT.register((minecraft, screen, width, height) -> {
 			if (screen instanceof TitleScreen || (screen instanceof PauseScreen pause && pause.showsPauseMenu())) {
-				MenuDock.attach(minecraft, screen, width, height, screen instanceof TitleScreen);
 				if (screen instanceof TitleScreen) {
-					TitleFriendsPanel.attach(minecraft, screen, width, height);
+					MenuDock.attachTitle(minecraft, screen, width, height);
+				} else {
+					MenuDock.attachPause(minecraft, screen, width, height);
 				}
 			} else if (screen instanceof JoinMultiplayerScreen) {
 				Screens.getWidgets(screen).add(new FlatButton(width - 88, 4, 84, 20, Component.literal("Friends"),

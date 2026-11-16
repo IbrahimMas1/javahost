@@ -21,7 +21,11 @@ public class SettingsPage extends Page {
 	private static final List<KeyMapping> KEYS = List.of(JavaHostClient.OPEN_MENU, JavaHostClient.PUSH_TO_TALK,
 			JavaHostClient.TOGGLE_MUTE, JavaHostClient.PARTY_VOICE, JavaHostClient.SCREENSHOT_SHARE, JavaHostClient.TOGGLE_OVERLAY);
 
-	private static final int KEYS_TOP = 302;
+	/** How much taller the Look card is for the title screen and pause menu rows; everything under it moves down. */
+	private static final int LOOK_EXTRA = 54;
+	/** The Voice row under the Friends & sound toggles. */
+	private static final int VOICE_ROW = 28;
+	private static final int KEYS_TOP = 302 + LOOK_EXTRA + VOICE_ROW;
 
 	@Override
 	public String title() {
@@ -60,33 +64,48 @@ public class SettingsPage extends Page {
 					config.hudCorner = corner;
 					config.save();
 				}), width - 150, 72);
+		// What JavaHost adds to Minecraft's own screens (used the next time they open).
+		add(new Segmented<>(140, List.of("FULL", "DOCK", "OFF"), config.titleScreen,
+				mode -> mode.equals("FULL") ? "Full" : mode.equals("DOCK") ? "Dock" : "Off", mode -> {
+					config.titleScreen = mode;
+					config.save();
+				}), width - 150, 98);
 		add(new ToggleSwitch(inner, Component.literal("FPS overlay"), "A small frame-rate counter in a corner",
 				config.fpsOverlay, v -> {
 					config.fpsOverlay = v;
 					config.save();
-				}), 10, 98);
+				}), 10, 152);
+		add(new ToggleSwitch(inner, Component.literal("Buttons on the pause menu"), "Home, Friends and World beside it",
+				config.pauseDock, v -> {
+					config.pauseDock = v;
+					config.save();
+				}), 10, 124);
+		int d = LOOK_EXTRA;
 
 		// Friends & sound
 		add(new ToggleSwitch(inner, Component.literal("Always use the host's packs"), "Don't ask when a host shares packs",
 				config.autoAcceptHostPacks, v -> {
 					config.autoAcceptHostPacks = v;
 					config.save();
-				}), 10, 158);
+				}), 10, 158 + d);
 		add(new ToggleSwitch(inner, Component.literal("Show who's talking"), "Faces of speaking players on screen",
 				config.showVoiceOverlay, v -> {
 					config.showVoiceOverlay = v;
 					config.save();
-				}), 10, 186);
+				}), 10, 186 + d);
 		add(new ToggleSwitch(inner, Component.literal("Notification sounds"), "A soft chime for invites, requests and messages",
 				config.notificationSounds, v -> {
 					config.notificationSounds = v;
 					config.save();
-				}), 10, 214);
+				}), 10, 214 + d);
+		add(new FlatButton(VOICE_BUTTON, 18, Component.literal("Voice settings"), FlatButton.Style.SECONDARY, Icons.MIC,
+				b -> screen.switchTo(com.javahost.client.gui.JavaHostScreen.Tab.VOICE)), width - 10 - VOICE_BUTTON, 245 + d);
+		d += VOICE_ROW;
 		if (com.javahost.client.perf.VideoMenu.sodiumInstalled()) {
 			add(new Segmented<>(150, List.of("SIMPLE", "SODIUM"), config.videoMenu, m -> m.equals("SIMPLE") ? "Simple" : "Sodium", m -> {
 				config.videoMenu = m;
 				config.save();
-			}), width - 160, 266);
+			}), width - 160, 266 + d);
 		}
 		// Updates and help, under the keys.
 		updatesY = KEYS_TOP + 12 + KEYS.size() * 20 + 46;
@@ -165,6 +184,8 @@ public class SettingsPage extends Page {
 		reserve(blockedY + 14 + Math.max(1, blocked.size()) * 22 + 10);
 	}
 
+	private static final int VOICE_BUTTON = 104;
+
 	private int blockedY;
 	private List<Map.Entry<String, String>> blocked = List.of();
 
@@ -191,18 +212,25 @@ public class SettingsPage extends Page {
 	@Override
 	protected void draw(GuiGraphicsExtractor g, int left, int top, int mouseX, int mouseY) {
 		sectionLabel(g, "Look", left, top);
-		card(g, left, top + 12, width, 116);
+		card(g, left, top + 12, width, 116 + LOOK_EXTRA);
 		Draw.text(g, "Accent colour", left + 10, top + 24, Theme.TEXT);
 		Draw.text(g, "Text and icons", left + 10, top + 51, Theme.TEXT);
 		Draw.text(g, "Overlay position", left + 10, top + 77, Theme.TEXT);
+		Draw.textFit(g, "Title screen", width - 170, left + 10, top + 103, Theme.TEXT);
 
-		sectionLabel(g, "Friends & sound", left, top + 140);
-		card(g, left, top + 152, width, 90);
+		int d = LOOK_EXTRA;
+		sectionLabel(g, "Friends & sound", left, top + 140 + d);
+		card(g, left, top + 152 + d, width, 90 + VOICE_ROW);
+		// Voice has its own page; a way there from here.
+		int voiceY = top + 242 + d;
+		Draw.textFit(g, "Voice chat", width - VOICE_BUTTON - 28, left + 10, voiceY + 4, Theme.TEXT);
+		Draw.textFit(g, "Microphone, push to talk, volume", width - VOICE_BUTTON - 28, left + 10, voiceY + 15, Theme.MUTED);
+		d += VOICE_ROW;
 
 		if (com.javahost.client.perf.VideoMenu.sodiumInstalled()) {
-			sectionLabel(g, "Video", left, top + 248);
-			card(g, left, top + 260, width, 30);
-			Draw.textFit(g, "Video settings menu", width - 180, left + 10, top + 271, Theme.TEXT);
+			sectionLabel(g, "Video", left, top + 248 + d);
+			card(g, left, top + 260 + d, width, 30);
+			Draw.textFit(g, "Video settings menu", width - 180, left + 10, top + 271 + d, Theme.TEXT);
 		}
 		int keysTop = top + KEYS_TOP;
 		sectionLabel(g, "Keys", left, keysTop);

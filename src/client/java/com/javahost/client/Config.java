@@ -72,6 +72,13 @@ public final class Config {
 	public java.util.List<String> relays = new java.util.ArrayList<>();
 	/** The menu's text and icons: "PIXEL" (the game's font, pixel icons) or "SMOOTH" (Inter, smooth icons); see Fonts. */
 	public String menuFont = "PIXEL";
+	/**
+	 * What JavaHost adds to the title screen: "FULL" (the button rail, your 3D skin on its stage, friends online),
+	 * "DOCK" (just the rail) or "OFF" (one small "JavaHost" button in a corner).
+	 */
+	public String titleScreen = "FULL";
+	/** Show the button rail on the pause menu (the menu key still opens JavaHost when it's off). */
+	public boolean pauseDock = true;
 	/** The first-time welcome tour has been shown (or skipped). */
 	public boolean tourDone = false;
 	/** Starred screenshots, as paths inside the game folder. */
@@ -164,6 +171,9 @@ public final class Config {
 					}
 					if (config.usageDay == null) {
 						config.usageDay = "";
+					}
+					if (!java.util.List.of("FULL", "DOCK", "OFF").contains(config.titleScreen)) {
+						config.titleScreen = "FULL";
 					}
 					if (config.maxPlayers < 2) {
 						config.maxPlayers = 8;

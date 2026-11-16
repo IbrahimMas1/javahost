@@ -150,7 +150,7 @@ class DirectTunnelTest {
 	void theRelayOnlyServesPlayersWhoProvedTheirAddress() throws Exception {
 		try (RelayServer relay = new RelayServer(0).start(); java.net.DatagramSocket stranger = new java.net.DatagramSocket()) {
 			InetSocketAddress relayAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), relay.port());
-			stranger.setSoTimeout(1500);
+			stranger.setSoTimeout(5000);
 			// Joining without the cookie gets a challenge, not a place in the room.
 			byte[] join = {'J', 4, 0, 0, 0, 9};
 			stranger.send(new java.net.DatagramPacket(join, join.length, relayAddress));

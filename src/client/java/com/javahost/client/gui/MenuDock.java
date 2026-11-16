@@ -52,18 +52,42 @@ public final class MenuDock {
 	private MenuDock() {
 	}
 
-	private static List<Item> items() {
-		return List.of(
+	/** Title screen: the four places and Settings. Pause screen: just Home, Friends and World. */
+	private static List<Item> items(boolean titleScreen) {
+		List<Item> items = new ArrayList<>(List.of(
 				new Item("Home", () -> Icons.HOME, () -> Tab.HOME, () -> 0, () -> false, false),
-				new Item("Host", () -> Icons.HOST, () -> Tab.HOST, () -> 0, HostController::isHosting, false),
-				new Item("Discover", () -> Icons.GLOBE, () -> Tab.DISCOVER, () -> 0, () -> false, false),
 				// Notifications live under Friends: the badge counts them, and a click opens them while any are unread.
 				new Item("Friends", () -> Icons.USERS, () -> Notifications.unread() > 0 ? Tab.NOTIFICATIONS : Tab.FRIENDS,
 						() -> Notifications.unread() + Friends.incoming().size() + Chats.unreadTotal(), MenuDock::joinable, false),
-				new Item("Screenshots", () -> Icons.CAMERA, () -> Tab.SCREENSHOTS, () -> 0, () -> false, false),
-				new Item("Performance", () -> Icons.BOLT, () -> Tab.PERFORMANCE, () -> 0, () -> false, false),
-				new Item("Settings", () -> Icons.GEAR, () -> Tab.SETTINGS, () -> 0, () -> false, false),
-				new Item("Account", () -> null, () -> Tab.ACCOUNT, () -> 0, () -> false, true));
+				new Item("World", () -> Icons.HOST, () -> Tab.HOST, () -> 0, HostController::isHosting, false)));
+		if (titleScreen) {
+			items.add(new Item("Mods", () -> Icons.PACKAGE, () -> Tab.MODS, () -> 0, () -> false, false));
+			items.add(new Item("Settings", () -> Icons.GEAR, () -> Tab.SETTINGS, () -> 0, () -> false, true));
+		}
+		return items;
+	}
+
+	/**
+	 * Adds JavaHost to the title screen as the player chose in Settings: the rail with the 3D skin and friends panel
+	 * (full), just the rail, or (off) one small button in the top-left corner so the menu is always reachable.
+	 */
+	public static void attachTitle(Minecraft minecraft, Screen screen, int width, int height) {
+		switch (com.javahost.client.Config.get().titleScreen) {
+			case "OFF" -> Screens.getWidgets(screen).add(Button.builder(Component.literal("JavaHost"),
+					b -> minecraft.gui.setScreen(new JavaHostScreen(screen, Tab.HOME))).bounds(4, 4, 64, 20).build());
+			case "DOCK" -> attach(minecraft, screen, width, height, true, false);
+			default -> {
+				attach(minecraft, screen, width, height, true, true);
+				TitleFriendsPanel.attach(minecraft, screen, width, height);
+			}
+		}
+	}
+
+	/** Adds the rail to the pause menu, unless the player turned it off in Settings. */
+	public static void attachPause(Minecraft minecraft, Screen screen, int width, int height) {
+		if (com.javahost.client.Config.get().pauseDock) {
+			attach(minecraft, screen, width, height, false, false);
+		}
 	}
 
 	/** A friend is hosting (and we're not there yet), or an invite is waiting. */
@@ -77,9 +101,9 @@ public final class MenuDock {
 		return screenWidth - MAX_STEP + 4 - MARGIN - RAIL_PAD;
 	}
 
-	/** Adds the dock to {@code screen}; on the title screen also your skin and the JavaHost version. */
-	public static void attach(Minecraft minecraft, Screen screen, int width, int height, boolean titleScreen) {
-		List<Item> items = items();
+	/** Adds the dock to {@code screen}; with {@code stage} also your skin and the JavaHost version. */
+	private static void attach(Minecraft minecraft, Screen screen, int width, int height, boolean titleScreen, boolean stage) {
+		List<Item> items = items(titleScreen);
 		int top;
 		int step;
 		int separator = SEPARATOR;
@@ -89,7 +113,7 @@ public final class MenuDock {
 			int room = height - 14 - top;
 			step = Math.min(MAX_STEP, (room - separator) / items.size());
 			if (step < 19) {
-				separator = 0; // short window: drop the gap above Account before shrinking the buttons further
+				separator = 0; // short window: drop the gap above Settings before shrinking the buttons further
 				step = Math.max(18, Math.min(MAX_STEP, room / items.size()));
 				// Still too tall: start higher rather than run off the bottom of the window.
 				int needed = step * items.size();
@@ -144,7 +168,7 @@ public final class MenuDock {
 			}
 		});
 
-		if (titleScreen) {
+		if (stage) {
 			addSkin(minecraft, screen, widgets, width, height);
 			String version = FabricLoader.getInstance().getModContainer(JavaHost.MOD_ID)
 					.map(mod -> mod.getMetadata().getVersion().getFriendlyString()).orElse("");
@@ -294,8 +318,7 @@ public final class MenuDock {
 					int online = Presence.onlineFriends().size();
 					yield unread > 0 ? "Friends · " + unread + " new" : online > 0 ? "Friends · " + online + " online" : "Friends";
 				}
-				case "Host" -> HostController.isHosting() ? "Host · open" : "Host";
-				case "Account" -> Identity.name();
+				case "World" -> HostController.isHosting() ? "World · hosting" : "World";
 				default -> item.label();
 			};
 		}
