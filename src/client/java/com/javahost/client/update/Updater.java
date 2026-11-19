@@ -344,7 +344,7 @@ public final class Updater {
 
 	/** Called as the game closes: starts the swap helper, which waits for the game to exit. */
 	public static void launchSwapIfStaged() {
-		if (!staged()) {
+		if (com.javahost.util.Distribution.fromModSite() || !staged()) {
 			return;
 		}
 		try {

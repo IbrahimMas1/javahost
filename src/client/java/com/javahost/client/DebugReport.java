@@ -11,8 +11,6 @@ import com.javahost.client.friends.Friends;
 import com.javahost.client.friends.Identity;
 import com.javahost.client.host.Connectivity;
 import com.javahost.client.host.HostController;
-import com.javahost.client.update.UpdateChecker;
-import com.javahost.client.update.Updater;
 import com.javahost.util.DebugMask;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
@@ -41,8 +39,9 @@ public final class DebugReport {
 		for (Connectivity.Route route : Connectivity.routes()) {
 			r.append("  route ").append(route.name()).append(": ").append(route.state()).append(" - ").append(route.detail()).append('\n');
 		}
-		var update = UpdateChecker.available();
-		r.append("Update: ").append(Updater.staged() ? "installs on close" : update != null ? update.version() + " available" : "none found").append('\n');
+		String update = com.javahost.update.Updates.availableVersion();
+		r.append("Update: ").append(!com.javahost.update.Updates.present() ? "from " + com.javahost.util.Distribution.siteName()
+				: com.javahost.update.Updates.staged() ? "installs on close" : update != null ? update + " available" : "none found").append('\n');
 		r.append("\nRecent JavaHost log lines:\n");
 		for (String line : recentLog(50)) {
 			r.append(line).append('\n');

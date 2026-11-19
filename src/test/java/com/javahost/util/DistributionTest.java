@@ -29,6 +29,6 @@ class DistributionTest {
 	void theGithubBuildHasNoMarker() {
 		// The test classpath has no javahost/distribution.properties, like the jars on GitHub.
 		assertFalse(Distribution.fromModSite());
-		assertEquals(Modrinth.PACK_HOSTS, Modrinth.packHosts());
+		assertEquals(java.util.List.of("cdn.modrinth.com", "github.com", "raw.githubusercontent.com", "gitlab.com"), Modrinth.packHosts());
 	}
 }

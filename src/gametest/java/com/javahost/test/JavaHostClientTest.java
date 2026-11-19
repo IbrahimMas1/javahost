@@ -790,7 +790,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			steps.put("InviteFlow", () -> com.javahost.client.friends.InviteFlow.tick(mc));
 			steps.put("Popups", () -> com.javahost.client.Popups.tick(mc));
 			steps.put("Toasts", () -> com.javahost.client.Toasts.tick(mc));
-			steps.put("UpdateChecker", () -> com.javahost.client.update.UpdateChecker.tick(mc));
+			steps.put("Updates", com.javahost.update.Updates::tick);
 			steps.put("Friends", com.javahost.client.friends.Friends::tick);
 			steps.put("Presence", () -> com.javahost.client.friends.Presence.tick(mc));
 			steps.put("WorldShare", () -> com.javahost.client.share.WorldShare.tick(mc));
@@ -1060,7 +1060,8 @@ public class JavaHostClientTest implements FabricClientGameTest {
 		com.sun.net.httpserver.HttpServer server = fakeRelease(version, protocol, tamper);
 		try {
 			context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
-			context.runOnClient(mc -> com.javahost.client.update.UpdateChecker.checkNow(null));
+			check(context.computeOnClient(mc -> com.javahost.update.Updates.present()), "the GitHub build has the self-updater");
+			context.runOnClient(mc -> com.javahost.update.Updates.checkNow(null));
 			context.waitFor(mc -> mc.gui.screen() instanceof com.javahost.client.update.UpdateScreen, 400);
 			check(true, "update " + version + " offered on the title screen");
 			context.waitTicks(4);
@@ -1072,7 +1073,7 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			context.waitFor(mc -> mc.gui.screen().children().stream().anyMatch(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w
 					&& (w.getMessage().getString().equals("Close Minecraft") || w.getMessage().getString().equals("Try again"))), 400);
 			context.takeScreenshot(shot + "-result");
-			boolean staged = context.computeOnClient(mc -> com.javahost.client.update.Updater.staged());
+			boolean staged = context.computeOnClient(mc -> com.javahost.update.Updates.staged());
 			if (tamper) {
 				check(!staged, "a damaged or tampered download is refused (nothing staged)");
 			} else {
@@ -1191,6 +1192,9 @@ public class JavaHostClientTest implements FabricClientGameTest {
 				var latest = context.computeOnClient(mc -> com.javahost.client.update.UpdateChecker.latest());
 				check(latest == null || !latest.version().equals("9.9.13"), "a CurseForge copy doesn't look for updates itself");
 				check(!context.computeOnClient(mc -> com.javahost.client.update.Updater.selfUpdates()), "a CurseForge copy never replaces itself");
+				check(!context.computeOnClient(mc -> com.javahost.update.Updates.present() || com.javahost.update.Updates.selfUpdates()
+						|| com.javahost.update.Updates.staged() || com.javahost.update.Updates.availableVersion() != null),
+						"with the marker, the updater isn't used at all (as if it weren't in the jar)");
 				check(com.javahost.util.Modrinth.packHosts().equals(java.util.List.of("cdn.modrinth.com")),
 						"a CurseForge copy only downloads modpack files from Modrinth");
 				context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
@@ -1209,6 +1213,25 @@ public class JavaHostClientTest implements FabricClientGameTest {
 			System.clearProperty("javahost.test.platform");
 		}
 		check(com.javahost.util.Modrinth.packHosts().size() > 1, "the GitHub build still accepts every host Modrinth packs use");
+
+		// A copy with the updater taken out (as PublishMod uploads it): Settings and the exit hook don't need it.
+		System.setProperty("javahost.test.noSelfUpdate", "true");
+		try {
+			check(!context.computeOnClient(mc -> com.javahost.update.Updates.present()), "the updater can be missing from the jar");
+			context.runOnClient(mc -> {
+				com.javahost.update.Updates.tick();
+				com.javahost.update.Updates.launchOnExit();
+			});
+			context.setScreen(() -> new JavaHostScreen(null, Tab.SETTINGS));
+			context.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.getWindow().getGuiScaledWidth() / 2.0 + 40, mc.getWindow().getGuiScaledHeight() / 2.0, 0, -40));
+			context.waitTicks(10);
+			check(settingsButton(context, "Check for updates").widget() == null
+					&& context.computeOnClient(mc -> com.javahost.client.gui.pages.SettingsPage.updatesStatus(false)).contains(" · from "),
+					"Settings works without the updater");
+		} finally {
+			System.clearProperty("javahost.test.noSelfUpdate");
+		}
+		check(context.computeOnClient(mc -> com.javahost.update.Updates.present()), "the updater is back once the test stops pretending");
 		context.setScreen(() -> null);
 	}
 

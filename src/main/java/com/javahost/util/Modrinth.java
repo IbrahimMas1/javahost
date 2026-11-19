@@ -130,15 +130,27 @@ public final class Modrinth {
 		download(file, target, List.of("cdn.modrinth.com"));
 	}
 
-	/** The hosts Modrinth allows modpack files to come from. */
-	public static final List<String> PACK_HOSTS = List.of("cdn.modrinth.com", "github.com", "raw.githubusercontent.com", "gitlab.com");
-
 	/**
-	 * Where this copy may download modpack files from: copies from CurseForge or Modrinth may only get files through
-	 * Modrinth itself (both sites' rules), so only its CDN.
+	 * Where this copy may download modpack files from. Copies from CurseForge or Modrinth may only get files through
+	 * Modrinth itself (both sites' rules), so only its CDN; those copies don't even carry the list of other hosts
+	 * ({@link OpenPackHosts}, looked up by name because it isn't in them). GitHub and installer copies also take the
+	 * other hosts Modrinth allows in a modpack.
 	 */
 	public static List<String> packHosts() {
-		return Distribution.fromModSite() ? List.of("cdn.modrinth.com") : PACK_HOSTS;
+		List<String> hosts = new java.util.ArrayList<>(List.of("cdn.modrinth.com"));
+		if (!Distribution.fromModSite()) {
+			try {
+				Object more = Class.forName("com.javahost.util.OpenPackHosts").getField("HOSTS").get(null);
+				if (more instanceof List<?> list) {
+					for (Object host : list) {
+						hosts.add(String.valueOf(host));
+					}
+				}
+			} catch (ReflectiveOperationException | LinkageError e) {
+				// Not in this copy: Modrinth's own CDN only.
+			}
+		}
+		return List.copyOf(hosts);
 	}
 
 	/** As {@link #download(ModFile, Path)}, from any of {@code hosts} (https only). */

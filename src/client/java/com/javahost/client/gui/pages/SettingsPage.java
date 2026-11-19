@@ -146,35 +146,34 @@ public class SettingsPage extends Page {
 		// Updates and help, under the keys.
 		updatesY = keysTop + 12 + KEYS.size() * 20 + 46;
 		int half = (inner - 6) / 2;
-		var update = com.javahost.client.update.UpdateChecker.available();
-		if (com.javahost.client.update.Updater.staged()) {
+		String update = com.javahost.update.Updates.availableVersion();
+		if (com.javahost.update.Updates.staged()) {
 			// Something happens when Minecraft closes: let the player change their mind.
-			boolean rollback = "rollback".equals(com.javahost.client.update.Updater.stagedKind());
+			boolean rollback = "rollback".equals(com.javahost.update.Updates.stagedKind());
 			add(new FlatButton(half, 18, Component.literal(rollback ? "Cancel going back" : "Cancel update"), FlatButton.Style.SECONDARY,
 					Icons.CROSS, b -> {
-						com.javahost.client.update.Updater.cancelStaged();
+						com.javahost.update.Updates.cancelStaged();
 						com.javahost.client.Toasts.show("update", rollback ? "Staying on " + com.javahost.JavaHost.VERSION : "Update cancelled",
 								rollback ? "Nothing changes when Minecraft closes." : "You'll be offered it again next launch.");
 						screen.refresh();
 					}), 10, updatesY + 34);
-		} else {
-			if (com.javahost.util.Distribution.fromModSite()) {
-				// Copies from CurseForge or Modrinth are updated by the site and the launcher: nothing to press here.
-			} else if (update != null) {
-				add(new FlatButton(half, 18, Component.literal("Update to " + update.version()), FlatButton.Style.PRIMARY, Icons.CHECK,
-						b -> minecraft.gui.setScreen(new com.javahost.client.update.UpdateScreen(screen, update))), 10, updatesY + 34);
+		} else if (com.javahost.update.Updates.present()) {
+			// (Copies from CurseForge or Modrinth have no updater: the site and the launcher update them, nothing to press.)
+			if (update != null) {
+				add(new FlatButton(half, 18, Component.literal("Update to " + update), FlatButton.Style.PRIMARY, Icons.CHECK,
+						b -> com.javahost.update.Updates.openUpdateScreen()), 10, updatesY + 34);
 			} else {
-				FlatButton check = add(new FlatButton(half, 18, Component.literal(com.javahost.client.update.UpdateChecker.checking() ? "Checking..." : "Check for updates"),
+				FlatButton check = add(new FlatButton(half, 18, Component.literal(com.javahost.update.Updates.checking() ? "Checking..." : "Check for updates"),
 						FlatButton.Style.SECONDARY, Icons.SPARKLE, b -> {
 							checkedManually = true;
-							com.javahost.client.update.UpdateChecker.checkNow(screen::refresh);
+							com.javahost.update.Updates.checkNow(screen::refresh);
 							screen.refresh();
 						}), 10, updatesY + 34);
-				check.active = !com.javahost.client.update.UpdateChecker.checking();
+				check.active = !com.javahost.update.Updates.checking();
 			}
-			String previous = com.javahost.client.update.Updater.previousVersion();
+			String previous = com.javahost.update.Updates.previousVersion();
 			if (previous != null) {
-				String blocked = com.javahost.client.update.Updater.rollBackBlockedReason(com.javahost.client.update.UpdateChecker.latest());
+				String blocked = com.javahost.update.Updates.rollBackBlockedReason();
 				FlatButton restore = add(new FlatButton(half, 18, Component.literal(confirmRollback ? "Click again to confirm" : "Restore " + previous),
 						confirmRollback ? FlatButton.Style.DANGER : FlatButton.Style.GHOST, blocked != null ? Icons.LOCK : Icons.BACK, b -> {
 							if (!confirmRollback) {
@@ -183,7 +182,7 @@ public class SettingsPage extends Page {
 								return;
 							}
 							try {
-								com.javahost.client.update.Updater.stageRollBack();
+								com.javahost.update.Updates.stageRollBack();
 								com.javahost.client.Toasts.notify("Going back to JavaHost " + previous,
 										"It's restored when Minecraft closes. Changed your mind? Settings → Cancel going back.");
 							} catch (java.io.IOException e) {
@@ -288,11 +287,38 @@ public class SettingsPage extends Page {
 	private boolean confirmRollback;
 	private String lastUpdateState = "";
 
+	/** The Updates card's first line (DevSmoke reads it too, for the CurseForge/Modrinth copy check). */
+	public static String updatesStatus(boolean checkedManually) {
+		String update = com.javahost.update.Updates.availableVersion();
+		if (!com.javahost.update.Updates.present()) {
+			// No updater in this copy (CurseForge, Modrinth): say where it came from.
+			return "JavaHost " + com.javahost.JavaHost.VERSION + " · from " + com.javahost.util.Distribution.siteName();
+		} else if (com.javahost.update.Updates.staged()) {
+			return "rollback".equals(com.javahost.update.Updates.stagedKind())
+					? "Going back to " + com.javahost.update.Updates.stagedVersion() + " when Minecraft closes"
+					: "JavaHost " + com.javahost.update.Updates.stagedVersion() + " installs when Minecraft closes";
+		} else if (com.javahost.update.Updates.checking()) {
+			return "Checking for updates...";
+		} else if (update != null) {
+			return (com.javahost.update.Updates.important() ? "Important update: JavaHost " : "JavaHost ") + update
+					+ " is available (you have " + com.javahost.JavaHost.VERSION + ")";
+		}
+		return "JavaHost " + com.javahost.JavaHost.VERSION + (checkedManually ? " · you're up to date" : " · checks automatically");
+	}
+
+	private static int updatesColor() {
+		if (!com.javahost.update.Updates.present()) {
+			return Theme.MUTED;
+		} else if (com.javahost.update.Updates.staged()) {
+			return "rollback".equals(com.javahost.update.Updates.stagedKind()) ? Theme.WARNING : Theme.ACCENT;
+		}
+		return !com.javahost.update.Updates.checking() && com.javahost.update.Updates.availableVersion() != null ? Theme.ACCENT : Theme.MUTED;
+	}
+
 	private String updateState() {
-		var update = com.javahost.client.update.UpdateChecker.available();
 		return com.javahost.client.mods.VanillaMode.version() + "|" + com.javahost.client.mods.VanillaMode.blockedReason() + "|"
-				+ com.javahost.client.update.UpdateChecker.checking() + "|" + (update == null ? "" : update.version()) + "|"
-				+ com.javahost.client.update.Updater.staged() + "|" + com.javahost.client.update.Updater.stagedKind();
+				+ com.javahost.update.Updates.checking() + "|" + com.javahost.update.Updates.availableVersion() + "|"
+				+ com.javahost.update.Updates.staged() + "|" + com.javahost.update.Updates.stagedKind();
 	}
 
 	@Override
@@ -353,27 +379,10 @@ public class SettingsPage extends Page {
 
 		sectionLabel(g, "Updates", left, top + updatesY);
 		card(g, left, top + updatesY + 12, width, 46);
-		var update = com.javahost.client.update.UpdateChecker.available();
-		String status;
-		int color = Theme.MUTED;
-		if (com.javahost.util.Distribution.fromModSite()) {
-			status = "JavaHost " + com.javahost.JavaHost.VERSION + " · from " + com.javahost.util.Distribution.siteName();
-		} else if (com.javahost.client.update.Updater.staged()) {
-			boolean rollback = "rollback".equals(com.javahost.client.update.Updater.stagedKind());
-			status = rollback ? "Going back to " + com.javahost.client.update.Updater.stagedVersion() + " when Minecraft closes"
-					: "JavaHost " + com.javahost.client.update.Updater.stagedVersion() + " installs when Minecraft closes";
-			color = rollback ? Theme.WARNING : Theme.ACCENT;
-		} else if (com.javahost.client.update.UpdateChecker.checking()) {
-			status = "Checking for updates...";
-		} else if (update != null) {
-			status = (com.javahost.client.update.UpdateChecker.important() ? "Important update: JavaHost " : "JavaHost ") + update.version()
-					+ " is available (you have " + com.javahost.JavaHost.VERSION + ")";
-			color = Theme.ACCENT;
-		} else {
-			status = "JavaHost " + com.javahost.JavaHost.VERSION + (checkedManually ? " · you're up to date" : " · checks automatically");
-		}
+		String status = updatesStatus(checkedManually);
+		int color = updatesColor();
 		Draw.textFit(g, status, width - 20, left + 10, top + updatesY + 22, color);
-		if (com.javahost.util.Distribution.fromModSite()) {
+		if (!com.javahost.update.Updates.present()) {
 			// Where the buttons would be: how this copy gets new versions.
 			Draw.textFit(g, "Updates come through your launcher.", width - 20,
 					left + 10, top + updatesY + 38, Theme.FAINT);

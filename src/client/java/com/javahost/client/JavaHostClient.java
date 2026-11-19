@@ -95,7 +95,7 @@ public class JavaHostClient implements ClientModInitializer {
 			Toasts.tick(minecraft);
 			com.javahost.client.host.QuickHost.tick(minecraft);
 			com.javahost.client.friends.FriendLog.tick();
-			com.javahost.client.update.UpdateChecker.tick(minecraft);
+			com.javahost.update.Updates.tick();
 			Friends.tick();
 			Presence.tick(minecraft);
 			com.javahost.client.share.WorldShare.tick(minecraft);
@@ -139,7 +139,7 @@ public class JavaHostClient implements ClientModInitializer {
 			com.javahost.client.friends.Friends.flushNow();
 			com.javahost.client.friends.FriendLog.flushNow();
 			com.javahost.client.discover.PublicHosting.shutdown();
-			com.javahost.client.update.Updater.launchSwapIfStaged();
+			com.javahost.update.Updates.launchOnExit(); // nothing in CurseForge/Modrinth copies
 			com.javahost.client.mods.AfterExitHelper.launch(); // removals, then a mod set switch or the on/off changes
 			Presence.goOffline();
 			E4mcCompat.shutdownForExit();
@@ -168,7 +168,7 @@ public class JavaHostClient implements ClientModInitializer {
 			HostController.applyHostRules(Config.get()); // join rules apply to every opened world, not only via JavaHost
 			com.javahost.client.share.WorldShare.register();
 			com.javahost.client.host.WorldBackups.trimAll();
-			com.javahost.client.update.UpdateChecker.start();
+			com.javahost.update.Updates.start();
 		});
 
 		// Tell the host when a friend joins their world.

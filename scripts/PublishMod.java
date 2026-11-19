@@ -22,6 +22,8 @@ import java.util.regex.Pattern;
  * release, or by hand for an existing tag (publish.yml).
  *
  * Usage: java scripts/PublishMod.java JAR_DIR VERSION NOTES_FILE stonecutter.properties.toml [--dry-run]
+ *        java scripts/PublishMod.java --mark-only JAR curseforge|modrinth OUT_DIR
+ *   (--mark-only makes just the site copy of one jar, the way a publish does, and checks it; no tokens, no uploads.)
  *
  * Each site is skipped unless its settings are in the environment:
  *   MODRINTH_TOKEN + MODRINTH_PROJECT_ID, CURSEFORGE_TOKEN + CURSEFORGE_PROJECT_ID.
@@ -41,6 +43,20 @@ public class PublishMod {
 	}
 
 	public static void main(String[] a) throws Exception {
+		if (a.length > 0 && a[0].equals("--mark-only")) {
+			if (a.length != 4) {
+				System.err.println("Usage: java scripts/PublishMod.java --mark-only JAR curseforge|modrinth OUT_DIR");
+				System.exit(2);
+			}
+			try {
+				Path copy = marked(Path.of(a[1]), a[2], Files.createDirectories(Path.of(a[3])));
+				System.out.println("Site copy: " + copy);
+			} catch (IllegalStateException e) {
+				System.err.println(e.getMessage());
+				System.exit(1);
+			}
+			return;
+		}
 		Path jarDir = Path.of(a[0]);
 		String version = a[1];
 		String notes = Files.readString(Path.of(a[2])).strip();
@@ -233,20 +249,131 @@ public class PublishMod {
 	// ---------------------------------------------------------------- helpers
 
 	/**
-	 * A copy of {@code jar} (same file name, in a temporary folder) with {@code javahost/distribution.properties} saying
-	 * which site it's for. JavaHost reads it (util/Distribution): copies from CurseForge and Modrinth leave updates to
-	 * the site and only get modpack files from Modrinth, as both sites require. The GitHub jars stay unmarked.
+	 * What's taken out of the copies for CurseForge and Modrinth: JavaHost's self-updater (it checks GitHub, downloads a
+	 * new jar and swaps it in after the game closes). Both sites require updates to come only through them, so their
+	 * copies don't carry that code at all. Nothing else in the jar names these classes (the rest of JavaHost reaches the
+	 * updater only through com.javahost.update.Updates, by class name), which {@link #check} makes sure of.
 	 */
+	static final List<Pattern> SELF_UPDATE = List.of(
+			Pattern.compile("com/javahost/client/update/.*"),
+			Pattern.compile("com/javahost/util/UpdateSwap(\\$.*)?\\.class"),
+			Pattern.compile("com/javahost/util/UpdateManifest(\\$.*)?\\.class"),
+			// The hosts other than Modrinth's CDN that a modpack's files may come from (GitHub copies only).
+			Pattern.compile("com/javahost/util/OpenPackHosts\\.class"));
+	/** How the same code is named from other classes (in their constant pools). */
+	static final List<String> SELF_UPDATE_REFERENCES = List.of("com/javahost/client/update/", "com/javahost/util/UpdateSwap",
+			"com/javahost/util/UpdateManifest", "com/javahost/util/OpenPackHosts");
+	/** Text that must not be in any class of a site copy: the GitHub API and release downloads. */
+	static final List<String> FORBIDDEN_TEXT = List.of("api.github.com", "/releases/", "raw.githubusercontent.com", "gitlab.com");
+	static final String MARKER = "javahost/distribution.properties";
+
 	static Path marked(Path jar, String platform) throws IOException {
-		Path dir = Files.createTempDirectory("javahost-" + platform);
+		return marked(jar, platform, Files.createTempDirectory("javahost-" + platform));
+	}
+
+	/**
+	 * A copy of {@code jar} (same file name, in {@code dir}) for {@code platform}: with
+	 * {@code javahost/distribution.properties} saying which site it's for (JavaHost reads it in util/Distribution: such
+	 * copies leave updates to the site and only get modpack files from Modrinth) and without the self-updater. Throws
+	 * (so nothing is uploaded) if the copy still has any of the updater, GitHub release addresses or no marker. The
+	 * GitHub jars stay as they are.
+	 */
+	static Path marked(Path jar, String platform, Path dir) throws IOException {
+		if (!platform.equals("curseforge") && !platform.equals("modrinth")) {
+			throw new IllegalStateException("Unknown site: " + platform);
+		}
 		Path copy = dir.resolve(jar.getFileName().toString());
-		Files.copy(jar, copy);
+		if (Files.exists(copy) && Files.isSameFile(copy, jar)) {
+			throw new IllegalStateException("The site copy would overwrite " + jar + ": pick another folder");
+		}
+		Files.copy(jar, copy, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+		List<String> removed = new ArrayList<>();
 		try (FileSystem zip = FileSystems.newFileSystem(copy)) {
 			Path entry = zip.getPath("javahost", "distribution.properties");
 			Files.createDirectories(entry.getParent());
 			Files.writeString(entry, "# Downloaded from " + platform + ": updates come from there (see Distribution.java)\nplatform=" + platform + "\n");
+			List<Path> files;
+			try (var walk = Files.walk(zip.getPath("/"))) {
+				files = walk.filter(Files::isRegularFile).toList();
+			}
+			for (Path file : files) {
+				String name = file.toString().substring(1);
+				if (SELF_UPDATE.stream().anyMatch(p -> p.matcher(name).matches())) {
+					Files.delete(file);
+					removed.add(name);
+				}
+			}
+			Path folder = zip.getPath("com", "javahost", "client", "update");
+			if (Files.isDirectory(folder)) {
+				Files.delete(folder);
+			}
 		}
+		System.out.println(platform + ": removed " + removed.size() + " self-update entries from " + copy.getFileName() + ":");
+		removed.stream().sorted().forEach(name -> System.out.println("  - " + name));
+		List<String> problems = check(copy, platform);
+		if (!problems.isEmpty()) {
+			throw new IllegalStateException("Refusing to publish " + copy.getFileName() + " to " + platform + ":\n  " + String.join("\n  ", problems));
+		}
+		System.out.println(platform + ": check passed (no self-update classes, no references to them, no " + FORBIDDEN_TEXT
+				+ " in any class, marker present)");
 		return copy;
+	}
+
+	/** Everything wrong with a site copy, or an empty list. Looks inside jars bundled in the jar too. */
+	static List<String> check(Path jar, String platform) throws IOException {
+		List<String> problems = new ArrayList<>();
+		try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(jar.toFile())) {
+			var marker = zip.getEntry(MARKER);
+			if (marker == null) {
+				problems.add("no " + MARKER);
+			} else {
+				String text = new String(zip.getInputStream(marker).readAllBytes(), StandardCharsets.UTF_8);
+				if (!text.contains("platform=" + platform + "\n")) {
+					problems.add(MARKER + " doesn't say platform=" + platform);
+				}
+			}
+			for (var entries = zip.entries(); entries.hasMoreElements();) {
+				var entry = entries.nextElement();
+				if (entry.isDirectory()) {
+					continue;
+				}
+				byte[] bytes = zip.getInputStream(entry).readAllBytes();
+				scan(entry.getName(), bytes, true, problems);
+			}
+		}
+		return problems;
+	}
+
+	private static void scan(String name, byte[] bytes, boolean ours, List<String> problems) throws IOException {
+		if (name.endsWith(".jar")) {
+			// A library bundled inside (jar-in-jar): its classes count too.
+			try (var in = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(bytes))) {
+				for (var entry = in.getNextEntry(); entry != null; entry = in.getNextEntry()) {
+					if (!entry.isDirectory()) {
+						scan(name + "!/" + entry.getName(), in.readAllBytes(), false, problems);
+					}
+				}
+			}
+			return;
+		}
+		if (!name.endsWith(".class")) {
+			return;
+		}
+		if (ours && SELF_UPDATE.stream().anyMatch(p -> p.matcher(name).matches())) {
+			problems.add("still has " + name);
+		}
+		// Class files keep names and string constants as (modified) UTF-8, so a byte search finds them.
+		String text = new String(bytes, StandardCharsets.ISO_8859_1);
+		for (String forbidden : FORBIDDEN_TEXT) {
+			if (text.contains(forbidden)) {
+				problems.add(name + " contains \"" + forbidden + "\"");
+			}
+		}
+		for (String reference : SELF_UPDATE_REFERENCES) {
+			if (text.contains(reference)) {
+				problems.add(name + " refers to " + reference + "... (it would fail without the updater)");
+			}
+		}
 	}
 
 	/** "26.3", "26.1–26.1.2". */
